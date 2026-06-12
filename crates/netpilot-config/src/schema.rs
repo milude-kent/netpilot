@@ -10,10 +10,15 @@ pub struct RoutePlaneConfig {
     pub protocols: Vec<ProtocolConfig>,
     pub hostname: Option<String>,
     pub defines: Option<Vec<ConstantDef>>,
+    pub cli_sockets: Option<Vec<CliSocketConfig>>,
     pub watchdog_warning_secs: Option<u32>,
     pub watchdog_timeout_secs: Option<u32>,
     pub debug_latency: Option<bool>,
     pub debug_latency_limit_micros: Option<u64>,
+    pub debug_protocols: Option<String>,
+    pub debug_channels: Option<String>,
+    pub debug_tables: Option<String>,
+    pub debug_commands: Option<u8>,
     pub timeformat_route: Option<String>,
     pub timeformat_protocol: Option<String>,
     pub timeformat_base: Option<String>,
@@ -39,10 +44,15 @@ impl Default for RoutePlaneConfig {
             protocols: Vec::new(),
             hostname: None,
             defines: None,
+            cli_sockets: None,
             watchdog_warning_secs: None,
             watchdog_timeout_secs: None,
             debug_latency: None,
             debug_latency_limit_micros: None,
+            debug_protocols: None,
+            debug_channels: None,
+            debug_tables: None,
+            debug_commands: None,
             timeformat_route: None,
             timeformat_protocol: None,
             timeformat_base: None,
@@ -213,6 +223,13 @@ pub enum NettypeDef {
     Mpls,
     Evpn,
     Neighbor,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct CliSocketConfig {
+    pub path: String,
+    pub restrict: Option<bool>,
 }
 
 impl From<NettypeDef> for Nettype {

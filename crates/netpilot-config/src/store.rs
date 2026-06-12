@@ -29,11 +29,20 @@ pub struct Revision {
 }
 
 #[derive(Clone, Debug)]
+pub struct PendingConfirm {
+    pub revision_id: u64,
+    pub previous_revision_id: u64,
+    pub started_at: std::time::Instant,
+    pub timeout_secs: u32,
+}
+
+#[derive(Clone, Debug)]
 pub struct ConfigStore {
     running: RoutePlaneConfig,
     candidate: RoutePlaneConfig,
     revisions: Vec<Revision>,
     next_revision_id: u64,
+    pub pending_timeout: Option<PendingConfirm>,
 }
 
 impl ConfigStore {
@@ -43,6 +52,7 @@ impl ConfigStore {
             candidate: initial,
             revisions: Vec::new(),
             next_revision_id: 1,
+            pending_timeout: None,
         }
     }
 
@@ -95,6 +105,46 @@ impl ConfigStore {
         let revision = self.create_revision(request.author, request.note, target);
         self.revisions.push(revision.clone());
         Ok(revision)
+    }
+
+    pub fn soft_commit(
+        &mut self,
+        request: CommitRequest,
+    ) -> Result<Revision, ValidationError> {
+        // For now, soft commit = regular commit (full reload not yet supported)
+        // In future: compute diff and only reload affected protocols
+        self.commit(request)
+    }
+
+    pub fn commit_with_timeout(
+        &mut self,
+        request: CommitRequest,
+        timeout_secs: u32,
+    ) -> Result<Revision, ValidationError> {
+        let revision = self.commit(request)?;
+        self.pending_timeout = Some(PendingConfirm {
+            revision_id: revision.id,
+            previous_revision_id: revision.id - 1,
+            started_at: std::time::Instant::now(),
+            timeout_secs,
+        });
+        Ok(revision)
+    }
+
+    pub fn confirm(&mut self) -> Result<(), ValidationError> {
+        self.pending_timeout = None;
+        Ok(())
+    }
+
+    pub fn undo(&mut self) -> Result<Revision, ValidationError> {
+        let pending = self.pending_timeout.take().ok_or_else(|| {
+            ValidationError::Message("no pending confirmed commit".into())
+        })?;
+        self.rollback(RollbackRequest {
+            revision_id: pending.previous_revision_id,
+            author: "system".into(),
+            note: "auto-rollback confirmed commit".into(),
+        })
     }
 
     fn create_revision(

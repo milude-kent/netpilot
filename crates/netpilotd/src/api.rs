@@ -18,6 +18,9 @@ pub fn build_router(state: AppState) -> Router {
         )
         .route("/api/config/diff", get(get_config_diff))
         .route("/api/config/commit", post(commit_config))
+        .route("/api/config/commit-confirmed", post(commit_confirmed))
+        .route("/api/config/confirm", post(confirm_config))
+        .route("/api/config/undo", post(undo_config))
         .route("/api/config/rollback", post(rollback_config))
         .with_state(state)
 }
@@ -83,4 +86,48 @@ async fn rollback_config(
 struct ApiCommitRequest {
     author: String,
     note: String,
+}
+
+#[derive(Deserialize)]
+struct ApiConfirmCommitRequest {
+    author: String,
+    note: String,
+    timeout_secs: u32,
+}
+
+async fn commit_confirmed(
+    State(state): State<AppState>,
+    Json(request): Json<ApiConfirmCommitRequest>,
+) -> Result<Json<netpilot_config::Revision>, (StatusCode, String)> {
+    let mut store = state.config_store.write().await;
+    let revision = store
+        .commit_with_timeout(
+            CommitRequest {
+                author: request.author,
+                note: request.note,
+            },
+            request.timeout_secs,
+        )
+        .map_err(|error| (StatusCode::BAD_REQUEST, error.to_string()))?;
+    Ok(Json(revision))
+}
+
+async fn confirm_config(
+    State(state): State<AppState>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let mut store = state.config_store.write().await;
+    store
+        .confirm()
+        .map_err(|error| (StatusCode::BAD_REQUEST, error.to_string()))?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn undo_config(
+    State(state): State<AppState>,
+) -> Result<Json<netpilot_config::Revision>, (StatusCode, String)> {
+    let mut store = state.config_store.write().await;
+    let revision = store
+        .undo()
+        .map_err(|error| (StatusCode::BAD_REQUEST, error.to_string()))?;
+    Ok(Json(revision))
 }
