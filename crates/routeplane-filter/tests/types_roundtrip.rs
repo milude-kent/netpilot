@@ -1,5 +1,6 @@
 use routeplane_filter::types::FilterType;
-use routeplane_filter::value::FilterValue;
+use routeplane_filter::value::{FilterValue, PrefixData, RouteDistinguisher};
+use std::net::{IpAddr, Ipv4Addr};
 use routeplane_filter::Nettype;
 use routeplane_filter::builtins;
 
@@ -485,4 +486,68 @@ fn clist_empty_operations() {
     assert_eq!(clist_max(&clist), None);
     clist_add(&mut clist, (64500, 100));
     assert_eq!(clist.len(), 1);
+}
+
+// --- Bytestring, MAC, and Route-Distinguisher tests (#273, #274, #275) ---
+
+#[test]
+fn bytestring_from_hex_valid() {
+    let bs = routeplane_filter::builtins::from_hex("0102ff").expect("valid hex");
+    assert_eq!(bs, vec![0x01, 0x02, 0xff]);
+}
+
+#[test]
+fn bytestring_from_hex_invalid() {
+    assert!(routeplane_filter::builtins::from_hex("xyz").is_err());
+}
+
+#[test]
+fn bytestring_concat() {
+    let a = vec![0x01, 0x02];
+    let b = vec![0x03, 0x04];
+    let c: Vec<u8> = [a.as_slice(), b.as_slice()].concat();
+    assert_eq!(c, vec![0x01, 0x02, 0x03, 0x04]);
+}
+
+#[test]
+fn mac_value_roundtrip() {
+    let mac: [u8; 6] = [0x62, 0x68, 0x7f, 0xd9, 0xc6, 0xec];
+    let fv = FilterValue::Mac(mac);
+    assert_eq!(fv.type_of(), FilterType::Mac);
+}
+
+#[test]
+fn rd_type0_format() {
+    let rd = RouteDistinguisher::Type0 { admin: 64500, assigned: 100 };
+    let fv = FilterValue::Rd(rd);
+    assert_eq!(fv.type_of(), FilterType::Rd);
+}
+
+#[test]
+fn rd_type1_format() {
+    let rd = RouteDistinguisher::Type1 {
+        ip: Ipv4Addr::new(192, 0, 2, 1), assigned: 100 };
+    assert_eq!(FilterValue::Rd(rd).type_of(),
+        FilterType::Rd);
+}
+
+#[test]
+fn rd_type2_format() {
+    let rd = RouteDistinguisher::Type2 { asn: 64500, assigned: 100 };
+    assert_eq!(FilterValue::Rd(rd).type_of(),
+        FilterType::Rd);
+}
+
+#[test]
+fn prefix_with_rd_field() {
+    let prefix = PrefixData {
+        nettype: Nettype::Vpn4,
+        ip: IpAddr::V4(Ipv4Addr::new(10, 0, 0, 0)),
+        length: 24,
+        rd: Some(RouteDistinguisher::Type2 { asn: 64500, assigned: 100 }),
+        source_ip: None, source_length: None, maxlen: None, asn: None,
+        mac: None, vlan_id: None, evpn_type: None, evpn_tag: None,
+        evpn_esi: None, router_ip: None,
+    };
+    assert!(prefix.rd.is_some());
 }
