@@ -1,4 +1,4 @@
-# RoutePlane Gap Closure — Master Roadmap
+# NetPilot Gap Closure — Master Roadmap
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -27,9 +27,9 @@
 
 ### Overview
 
-This milestone implements the complete BIRD2 filter language type system, control structures, and debugging aids. Without this, RoutePlane cannot claim filter compatibility.
+This milestone implements the complete BIRD2 filter language type system, control structures, and debugging aids. Without this, NetPilot cannot claim filter compatibility.
 
-### Plan reference: `docs/superpowers/plans/YYYY-MM-DD-routeplane-filter-language.md`
+### Plan reference: `docs/superpowers/plans/YYYY-MM-DD-netpilot-filter-language.md`
 
 ### Task Outline
 
@@ -54,9 +54,9 @@ This milestone implements the complete BIRD2 filter language type system, contro
 
 ### Overview
 
-Brings RoutePlane's configuration system and CLI to parity with BIRD2's operational commands and configuration depth.
+Brings NetPilot's configuration system and CLI to parity with BIRD2's operational commands and configuration depth.
 
-### Plan reference: `docs/superpowers/plans/YYYY-MM-DD-routeplane-operational-parity.md`
+### Plan reference: `docs/superpowers/plans/YYYY-MM-DD-netpilot-operational-parity.md`
 
 ### Task Outline
 
@@ -85,7 +85,7 @@ Brings RoutePlane's configuration system and CLI to parity with BIRD2's operatio
 
 ## Milestone 4: Protocol Depth & BGP Advanced Features (P1 — 14 features: #287-#300)
 
-### Plan reference: `docs/superpowers/plans/YYYY-MM-DD-routeplane-protocol-depth.md`
+### Plan reference: `docs/superpowers/plans/YYYY-MM-DD-netpilot-protocol-depth.md`
 
 ### Task Outline
 
@@ -111,7 +111,7 @@ Brings RoutePlane's configuration system and CLI to parity with BIRD2's operatio
 
 ## Milestone 5: MPLS & Segment Routing (P1-P2 — 10 features: #240-#242, #255, #317-#318 + 4 MPLS features)
 
-### Plan reference: `docs/superpowers/plans/YYYY-MM-DD-routeplane-mpls-sr.md`
+### Plan reference: `docs/superpowers/plans/YYYY-MM-DD-netpilot-mpls-sr.md`
 
 ### Task Outline
 
@@ -131,7 +131,7 @@ Brings RoutePlane's configuration system and CLI to parity with BIRD2's operatio
 
 ## Milestone 6: FRR-Unique Protocols (P2 — 20 features: #301-#320)
 
-### Plan reference: `docs/superpowers/plans/YYYY-MM-DD-routeplane-frr-protocols.md`
+### Plan reference: `docs/superpowers/plans/YYYY-MM-DD-netpilot-frr-protocols.md`
 
 ### Task Outline
 
@@ -160,7 +160,7 @@ Brings RoutePlane's configuration system and CLI to parity with BIRD2's operatio
 
 ## Milestone 7: Modern Platform & Ecosystem (P3 — 13 features: #321-#333)
 
-### Plan reference: `docs/superpowers/plans/YYYY-MM-DD-routeplane-modern-platform.md`
+### Plan reference: `docs/superpowers/plans/YYYY-MM-DD-netpilot-modern-platform.md`
 
 ### Task Outline
 

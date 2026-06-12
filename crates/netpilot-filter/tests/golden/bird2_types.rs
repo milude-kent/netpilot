@@ -1,4 +1,4 @@
-use routeplane_filter::{
+use netpilot_filter::{
     builtins::{from_hex, print, printn},
     nettype::Nettype,
     value::{
@@ -87,7 +87,7 @@ fn golden_bgpmask_plus_matches_one_or_more() {
 #[test]
 fn golden_clist_no_duplicates() {
     let mut clist: Vec<(u16, u16)> = vec![(64500, 100)];
-    routeplane_filter::value::clist_add(&mut clist, (64500, 100));
+    netpilot_filter::value::clist_add(&mut clist, (64500, 100));
     assert_eq!(clist.len(), 1);
 }
 

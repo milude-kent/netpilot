@@ -1,4 +1,4 @@
-use routeplane_config::{
+use netpilot_config::{
     AddressFamily, CommitRequest, ConfigStore, ProtocolConfig, RollbackRequest, RoutePlaneConfig,
     RouterIdentity, StaticNexthopType, StaticRoute, TableConfig, diff::ConfigDiff,
     validation::validate_config,

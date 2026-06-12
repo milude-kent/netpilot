@@ -1,4 +1,4 @@
-use routeplane_filter::nettype::Nettype;
+use netpilot_filter::nettype::Nettype;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

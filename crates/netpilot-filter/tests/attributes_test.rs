@@ -1,9 +1,9 @@
-use routeplane_filter::attributes::{
+use netpilot_filter::attributes::{
     AttributeRegistry, CustomIntAttribute, MplsAttributes, RouteAttribute,
 };
-use routeplane_filter::builtins::{defined, unset};
-use routeplane_filter::types::FilterType;
-use routeplane_filter::value::FilterValue;
+use netpilot_filter::builtins::{defined, unset};
+use netpilot_filter::types::FilterType;
+use netpilot_filter::value::FilterValue;
 
 struct TestAttr {
     value: FilterValue,
@@ -130,8 +130,8 @@ fn igp_metric_attribute() {
 
 #[test]
 fn evpn_mac_prefix_operators() {
-    use routeplane_filter::nettype::Nettype;
-    use routeplane_filter::value::PrefixData;
+    use netpilot_filter::nettype::Nettype;
+    use netpilot_filter::value::PrefixData;
     use std::net::{IpAddr, Ipv4Addr};
     let prefix = PrefixData {
         nettype: Nettype::EvpnMac,

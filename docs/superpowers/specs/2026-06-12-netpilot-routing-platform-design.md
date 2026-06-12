@@ -1,10 +1,10 @@
-# RoutePlane BIRD2 Full Replacement Design
+# NetPilot BIRD2 Full Replacement Design
 
 Date: 2026-06-12
 
 ## Goal
 
-Build **RoutePlane**, a Rust-based routing daemon and Web management platform whose long-term target is to be a complete operational replacement for **BIRD 2.x**, using **BIRD 2.19.1** as the first explicit compatibility baseline.
+Build **NetPilot**, a Rust-based routing daemon and Web management platform whose long-term target is to be a complete operational replacement for **BIRD 2.x**, using **BIRD 2.19.1** as the first explicit compatibility baseline.
 
 The selected product scope is option **C: complete replacement**:
 
@@ -13,7 +13,7 @@ The selected product scope is option **C: complete replacement**:
 - A first-class Web UI, REST API, and future controller/agent mode for safer operations.
 - A native structured configuration model that can represent everything accepted from BIRD2 syntax.
 
-RoutePlane should not be a thin wrapper around BIRD. It should be an independent Rust implementation with a BIRD2-compatible front door and a Web/API management plane.
+NetPilot should not be a thin wrapper around BIRD. It should be an independent Rust implementation with a BIRD2-compatible front door and a Web/API management plane.
 
 Official reference baseline:
 
@@ -22,7 +22,7 @@ Official reference baseline:
 
 ## Scope Statement
 
-RoutePlane has two related but separate goals:
+NetPilot has two related but separate goals:
 
 1. **Compatibility goal:** existing BIRD2 users can migrate configurations, route policy, protocol behavior, status inspection, and operational workflows with minimal changes.
 2. **Operations goal:** users can manage the same routing system through Web/API workflows with candidate/running config, diff, commit, confirmed commit, rollback, audit, status dashboards, route search, and policy simulation.
@@ -33,15 +33,15 @@ The compatibility target is broad and must be delivered in phases. The first imp
 
 Milestone 1 already provides:
 
-- `routeplane-config`: structured config schema, validation, diff, candidate/running state, commit, rollback, and revision tracking.
-- `routeplaned`: all-in-one daemon foundation with REST endpoints for health, running config, candidate config, diff, commit, and rollback.
+- `netpilot-config`: structured config schema, validation, diff, candidate/running state, commit, rollback, and revision tracking.
+- `netpilotd`: all-in-one daemon foundation with REST endpoints for health, running config, candidate config, diff, commit, and rollback.
 - Initial structured protocol config for Static and BGP.
 
 This design replaces the earlier "similar to BIRD2" language with "BIRD2 full replacement" and expands the target surface accordingly.
 
 ## Compatibility Definition
 
-RoutePlane compatibility is measured in five levels.
+NetPilot compatibility is measured in five levels.
 
 ### Level 0: Inventory
 
@@ -49,25 +49,25 @@ The feature is listed in the compatibility matrix with a known status, owner cra
 
 ### Level 1: Parse Compatible
 
-RoutePlane can parse the relevant BIRD2 syntax, preserve enough AST information for useful diagnostics, and convert it into a normalized internal model.
+NetPilot can parse the relevant BIRD2 syntax, preserve enough AST information for useful diagnostics, and convert it into a normalized internal model.
 
 ### Level 2: Configure Compatible
 
-RoutePlane can validate and commit the feature through both native structured config and BIRD2-compatible config input.
+NetPilot can validate and commit the feature through both native structured config and BIRD2-compatible config input.
 
 ### Level 3: Runtime Compatible
 
-RoutePlane implements the runtime behavior: protocol state machine, route exchange, attributes, filters, kernel sync, counters, and reload behavior.
+NetPilot implements the runtime behavior: protocol state machine, route exchange, attributes, filters, kernel sync, counters, and reload behavior.
 
 ### Level 4: Operationally Compatible
 
-RoutePlane exposes equivalent or better operational controls through CLI, control socket/API, logs, status, route inspection, graceful restart, troubleshooting data, and Web UI.
+NetPilot exposes equivalent or better operational controls through CLI, control socket/API, logs, status, route inspection, graceful restart, troubleshooting data, and Web UI.
 
 ## BIRD2 Feature Matrix
 
-The BIRD 2.19.1 protocol list is the authoritative initial matrix. RoutePlane must track each item explicitly.
+The BIRD 2.19.1 protocol list is the authoritative initial matrix. NetPilot must track each item explicitly.
 
-| BIRD2 area | RoutePlane target | Notes |
+| BIRD2 area | NetPilot target | Notes |
 | --- | --- | --- |
 | Aggregator | Full protocol support | Aggregate routes from selected sources with policy controls and export behavior. |
 | Babel | Full protocol support | Include IPv4, IPv6, source-specific IPv6 routes where applicable, interface behavior, metrics, and route exchange. |
@@ -78,7 +78,7 @@ The BIRD 2.19.1 protocol list is the authoritative initial matrix. RoutePlane mu
 | Device | Full service support | Interface, address, link-state, MTU, and VRF tracking; no route channels. |
 | Direct | Full protocol support | Directly connected route discovery and import through channels. |
 | EVPN | Full protocol support | EVPN route types, MAC/IP advertisements, IMET, route distinguisher, VNI/MPLS labels, and BGP integration. |
-| Kernel | Full protocol support | Import/export between RoutePlane tables and kernel FIBs through netlink on Linux; later BSD adapters may be added. |
+| Kernel | Full protocol support | Import/export between NetPilot tables and kernel FIBs through netlink on Linux; later BSD adapters may be added. |
 | L3VPN | Full protocol support | VPNv4/VPNv6 route handling with route distinguisher, route targets, MPLS labels, and BGP integration. |
 | MRT | Full dump support | MRT dumps for BGP and RIB troubleshooting and archival. |
 | OSPF | Full protocol support | OSPFv2 and OSPFv3, areas, LSDB, SPF, ECMP, interface options, authentication, graceful handling where applicable. |
@@ -91,7 +91,7 @@ The BIRD 2.19.1 protocol list is the authoritative initial matrix. RoutePlane mu
 
 The matrix also includes non-protocol BIRD2 surfaces:
 
-| BIRD2 surface | RoutePlane target |
+| BIRD2 surface | NetPilot target |
 | --- | --- |
 | Routing tables | Multiple independent tables by nettype, default `master4` and `master6`, explicit additional tables. |
 | Network types | IPv4, IPv6, IPv6 SADR, VPN4, VPN6, ROA4, ROA6, ASPA, Flow4, Flow6, ETH, MPLS, EVPN, Neighbor. |
@@ -132,7 +132,7 @@ Core rules:
 - The kernel adapter applies selected diffs to Linux FIBs through netlink.
 - The config manager owns parse, validate, diff, commit, confirmed commit, rollback, and revision history.
 - Web/API/CLI/control socket never mutate protocol internals directly. They use command APIs exposed by the daemon.
-- Dynamic binary plugin loading is not in the first target. Protocol modules are Rust crates linked into `routeplaned`.
+- Dynamic binary plugin loading is not in the first target. Protocol modules are Rust crates linked into `netpilotd`.
 
 ## Crate Layout
 
@@ -140,23 +140,23 @@ The workspace should evolve toward these crates:
 
 | Crate | Responsibility |
 | --- | --- |
-| `routeplane-config` | Structured config schema, revision store, validation, diff, candidate/running workflow. |
-| `routeplane-birdconf` | BIRD2-compatible lexer, parser, AST, diagnostics, include handling, and AST-to-structured normalization. |
-| `routeplane-filter` | BIRD2 filter language AST, type checker, compiler, VM/interpreter, policy trace, and hit counters. |
-| `routeplane-rib` | Route table model, nettypes, route entries, route attributes, best-route selection, next-hop resolution, ECMP. |
-| `routeplane-channel` | Protocol channel bindings, import/export filter execution, reload scoping, route event fanout. |
-| `routeplane-kernel` | Linux netlink interface, kernel route import/export, interface/address/VRF watch support. |
-| `routeplane-protocol` | Shared protocol actor traits, lifecycle, event types, status models, counters. |
-| `routeplane-proto-*` | Individual protocol crates for BGP, OSPF, RIP, Babel, BFD, RPKI, Static, Direct, Pipe, MRT, BMP, RAdv, EVPN, L3VPN, Bridge, Aggregator, Perf. |
-| `routeplaned` | Main all-in-one daemon, REST API, Web static serving, supervisor, config manager wiring. |
-| `routeplanectl` | CLI and BIRD-like operational command client. |
-| `routeplane-web` | Web UI source consuming REST/OpenAPI. |
+| `netpilot-config` | Structured config schema, revision store, validation, diff, candidate/running workflow. |
+| `netpilot-birdconf` | BIRD2-compatible lexer, parser, AST, diagnostics, include handling, and AST-to-structured normalization. |
+| `netpilot-filter` | BIRD2 filter language AST, type checker, compiler, VM/interpreter, policy trace, and hit counters. |
+| `netpilot-rib` | Route table model, nettypes, route entries, route attributes, best-route selection, next-hop resolution, ECMP. |
+| `netpilot-channel` | Protocol channel bindings, import/export filter execution, reload scoping, route event fanout. |
+| `netpilot-kernel` | Linux netlink interface, kernel route import/export, interface/address/VRF watch support. |
+| `netpilot-protocol` | Shared protocol actor traits, lifecycle, event types, status models, counters. |
+| `netpilot-proto-*` | Individual protocol crates for BGP, OSPF, RIP, Babel, BFD, RPKI, Static, Direct, Pipe, MRT, BMP, RAdv, EVPN, L3VPN, Bridge, Aggregator, Perf. |
+| `netpilotd` | Main all-in-one daemon, REST API, Web static serving, supervisor, config manager wiring. |
+| `netpilotctl` | CLI and BIRD-like operational command client. |
+| `netpilot-web` | Web UI source consuming REST/OpenAPI. |
 
 The initial repository may add these crates gradually. The names are design targets, not a requirement to scaffold every crate at once.
 
 ## Routing Table and Nettype Model
 
-BIRD2 uses independent routing tables, each holding routes of one nettype. RoutePlane follows that model.
+BIRD2 uses independent routing tables, each holding routes of one nettype. NetPilot follows that model.
 
 ### Required Nettypes
 
@@ -199,7 +199,7 @@ The global selection order follows the BIRD2 model:
 1. Compare route preference.
 2. Compare source protocol instance preference.
 3. If source protocols are the same type, invoke protocol-specific selection.
-4. If protocol types differ after preference comparison, keep behavior deterministic but document it as RoutePlane-defined.
+4. If protocol types differ after preference comparison, keep behavior deterministic but document it as NetPilot-defined.
 
 Protocol-specific algorithms live inside protocol crates. The RIB provides ordering hooks and stores suboptimal routes.
 
@@ -229,7 +229,7 @@ BFD and Device are service actors without route channels. They publish dependenc
 
 ## BIRD2 Configuration Compatibility
 
-RoutePlane must support both native structured config and BIRD2-compatible text config.
+NetPilot must support both native structured config and BIRD2-compatible text config.
 
 ```text
 BIRD2 config text
@@ -247,7 +247,7 @@ BIRD2 config text
 - Support BIRD2 global options, table declarations, protocol blocks, templates, channels, filters, functions, constants, sets, and include directives.
 - Preserve source spans for high-quality errors in CLI and Web.
 - Support parse-only mode equivalent to `bird -p`.
-- Normalize compatible syntax into RoutePlane structured config without losing semantics.
+- Normalize compatible syntax into NetPilot structured config without losing semantics.
 - Report unsupported constructs explicitly with compatibility level, not vague parser errors.
 
 ### Include Handling
@@ -262,7 +262,7 @@ The parser supports `include` with:
 
 ### Native and Compatible Modes
 
-RoutePlane supports three input modes:
+NetPilot supports three input modes:
 
 | Mode | Behavior |
 | --- | --- |
@@ -274,7 +274,7 @@ Round-trip formatting is desirable but not required for the first parser milesto
 
 ## Filter and Policy Compatibility
 
-BIRD2 filters are a central compatibility requirement. RoutePlane implements a constrained filter VM.
+BIRD2 filters are a central compatibility requirement. NetPilot implements a constrained filter VM.
 
 ```text
 Filter source
@@ -301,7 +301,7 @@ Filter compatibility must be tested with golden BIRD2 configs and route samples.
 
 ## Configuration Workflow
 
-RoutePlane keeps the candidate/running model from Milestone 1 and extends it for BIRD2 parity.
+NetPilot keeps the candidate/running model from Milestone 1 and extends it for BIRD2 parity.
 
 ```text
 edit candidate
@@ -341,7 +341,7 @@ High-risk diffs include:
 
 ## Reconfiguration Semantics
 
-RoutePlane should match BIRD2's operational expectation that config changes do not require daemon restart.
+NetPilot should match BIRD2's operational expectation that config changes do not require daemon restart.
 
 Reload behavior:
 
@@ -356,9 +356,9 @@ Every reload decision is visible in diff preview.
 
 ## Remote Control and CLI
 
-RoutePlane exposes both native and BIRD-like operations.
+NetPilot exposes both native and BIRD-like operations.
 
-### `routeplanectl`
+### `netpilotctl`
 
 Required command families:
 
@@ -372,7 +372,7 @@ Required command families:
 
 ### Control Socket
 
-RoutePlane should support a local control endpoint with semantics close to BIRD's control socket. The implementation may use a Unix socket on Linux and a named pipe or TCP loopback endpoint on Windows development builds.
+NetPilot should support a local control endpoint with semantics close to BIRD's control socket. The implementation may use a Unix socket on Linux and a named pipe or TCP loopback endpoint on Windows development builds.
 
 ### API Mapping
 
@@ -452,7 +452,7 @@ Later controller storage:
 
 ## Security and Privileges
 
-RoutePlane requires privileged operations on production routers. The daemon should minimize privilege exposure.
+NetPilot requires privileged operations on production routers. The daemon should minimize privilege exposure.
 
 Security requirements:
 
@@ -478,11 +478,11 @@ Required Linux features:
 - Raw socket support for protocols that need it.
 - Network namespace based test environments.
 
-BIRD2 also supports BSD platforms. RoutePlane may add BSD adapters later, but Linux parity comes first.
+BIRD2 also supports BSD platforms. NetPilot may add BSD adapters later, but Linux parity comes first.
 
 ## Observability
 
-RoutePlane must expose:
+NetPilot must expose:
 
 - Structured logs.
 - Protocol event stream.
@@ -501,7 +501,7 @@ Testing must prove compatibility, not only internal correctness.
 Required test layers:
 
 - Unit tests for parsers, AST normalization, validation, diff, RIB selection, route attributes, and filter VM.
-- Golden tests using BIRD2 config snippets and expected RoutePlane structured config.
+- Golden tests using BIRD2 config snippets and expected NetPilot structured config.
 - Golden tests for BIRD2 filter behavior with sample routes.
 - Protocol state-machine tests for BGP, OSPF, RIP, Babel, BFD, RPKI, and others.
 - Wire-format tests using captured protocol packets where practical.
@@ -592,7 +592,7 @@ For critical routing behavior, "works in one happy path" is not enough. The test
 
 ### Phase 9: Operational Compatibility
 
-- `routeplanectl` and local control endpoint.
+- `netpilotctl` and local control endpoint.
 - BIRD-like show/configure/reload commands.
 - Web parity dashboards for every protocol.
 - Migration tooling from existing `bird.conf`.
@@ -608,7 +608,7 @@ For critical routing behavior, "works in one happy path" is not enough. The test
 
 The next implementation plan should not try to implement all BIRD2 features at once. It should build the foundation required for later parity:
 
-1. Create `routeplane-rib` with nettypes, route entries, tables, and best-route selection.
+1. Create `netpilot-rib` with nettypes, route entries, tables, and best-route selection.
 2. Create shared protocol/channel traits.
 3. Extend structured config with tables, channels, Static, Direct, Device, and Kernel.
 4. Add compatibility matrix tests that start as expected failures or inventory checks.
@@ -620,13 +620,13 @@ This keeps the project moving while protecting the full BIRD2 target from becomi
 
 - Exact first target operating system for production testing: Linux distribution and kernel minimum.
 - Whether native structured config should prefer JSON, YAML, or TOML on disk.
-- Whether `routeplanectl` should intentionally mimic `birdc` command text or provide a cleaner native command set plus aliases.
+- Whether `netpilotctl` should intentionally mimic `birdc` command text or provide a cleaner native command set plus aliases.
 - Exact BIRD2 syntax subset for the first parser milestone.
 - Whether BSD support is a hard requirement after Linux parity or a later optional adapter.
 
 ## Feature Gap Analysis (vs BIRD2 2.19.1 + FRR)
 
-> This section added 2026-06-12 after cross-referencing RoutePlane's 233-feature list against BIRD 2.19.1 official documentation, FRR documentation, and modern network operator requirements. 100 additional features identified.
+> This section added 2026-06-12 after cross-referencing NetPilot's 233-feature list against BIRD 2.19.1 official documentation, FRR documentation, and modern network operator requirements. 100 additional features identified.
 
 ### Gap Category A: Missing BIRD2 Configuration System Options
 
@@ -711,7 +711,7 @@ This keeps the project moving while protecting the full BIRD2 target from becomi
 | 295 | BGP views: independent routing tables not installed to kernel (route-server use case) | FRR |
 | 296 | BGP link-bandwidth extended community: IEEE float or uint32 encoded link bandwidth | FRR |
 | 297 | OSPF NSSA detailed support: NSSA-LSA type 7, translate-always/translate-never/candidate | BIRD2 |
-| 298 | OSPF template/from inheritance: BIRD2 notes this as "not implemented for OSPF" — RoutePlane should support it | BIRD2 |
+| 298 | OSPF template/from inheritance: BIRD2 notes this as "not implemented for OSPF" — NetPilot should support it | BIRD2 |
 | 299 | Static route nexthop types complete: blackhole, unreachable, prohibit (not just blackhole) | BIRD2 |
 | 300 | RPKI ASPA complete checks: `aspa_check_downstream(table)`, `aspa_check_upstream(table)` in filters | BIRD2 |
 
@@ -770,7 +770,7 @@ This keeps the project moving while protecting the full BIRD2 target from becomi
 | F: Modern Platform Needs | 13 (#321-#333) | P3 |
 | **Total** | **100** | — |
 
-**Overall RoutePlane feature count: 233 original + 100 gap additions = 333 total features.**
+**Overall NetPilot feature count: 233 original + 100 gap additions = 333 total features.**
 
 ## Explicit Non-Goals
 

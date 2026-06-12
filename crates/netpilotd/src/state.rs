@@ -1,4 +1,4 @@
-use routeplane_config::{ConfigStore, RoutePlaneConfig};
+use netpilot_config::{ConfigStore, RoutePlaneConfig};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 

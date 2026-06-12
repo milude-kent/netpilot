@@ -5,7 +5,7 @@ use axum::{
     http::StatusCode,
     routing::{get, post},
 };
-use routeplane_config::{CommitRequest, RollbackRequest, RoutePlaneConfig};
+use netpilot_config::{CommitRequest, RollbackRequest, RoutePlaneConfig};
 use serde::Deserialize;
 
 pub fn build_router(state: AppState) -> Router {
@@ -49,7 +49,7 @@ async fn put_candidate_config(
 
 async fn get_config_diff(
     State(state): State<AppState>,
-) -> Json<routeplane_config::diff::ConfigDiff> {
+) -> Json<netpilot_config::diff::ConfigDiff> {
     let store = state.config_store.read().await;
     Json(store.diff())
 }
@@ -57,7 +57,7 @@ async fn get_config_diff(
 async fn commit_config(
     State(state): State<AppState>,
     Json(request): Json<ApiCommitRequest>,
-) -> Result<Json<routeplane_config::Revision>, (StatusCode, String)> {
+) -> Result<Json<netpilot_config::Revision>, (StatusCode, String)> {
     let mut store = state.config_store.write().await;
     let revision = store
         .commit(CommitRequest {
@@ -71,7 +71,7 @@ async fn commit_config(
 async fn rollback_config(
     State(state): State<AppState>,
     Json(request): Json<RollbackRequest>,
-) -> Result<Json<routeplane_config::Revision>, (StatusCode, String)> {
+) -> Result<Json<netpilot_config::Revision>, (StatusCode, String)> {
     let mut store = state.config_store.write().await;
     let revision = store
         .rollback(request)

@@ -1,5 +1,5 @@
-use routeplane_filter::builtins::{from_hex, print, printn};
-use routeplane_filter::value::FilterValue;
+use netpilot_filter::builtins::{from_hex, print, printn};
+use netpilot_filter::value::FilterValue;
 use std::net::{IpAddr, Ipv4Addr};
 
 #[test]

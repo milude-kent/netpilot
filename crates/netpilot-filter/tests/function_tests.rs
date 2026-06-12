@@ -1,4 +1,4 @@
-use routeplane_filter::ast::*;
+use netpilot_filter::ast::*;
 
 #[test]
 fn filter_function_with_return_type() {

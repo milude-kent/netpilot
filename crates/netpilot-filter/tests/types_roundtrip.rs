@@ -1,7 +1,7 @@
-use routeplane_filter::Nettype;
-use routeplane_filter::builtins;
-use routeplane_filter::types::FilterType;
-use routeplane_filter::value::{FilterValue, PrefixData, RouteDistinguisher};
+use netpilot_filter::Nettype;
+use netpilot_filter::builtins;
+use netpilot_filter::types::FilterType;
+use netpilot_filter::value::{FilterValue, PrefixData, RouteDistinguisher};
 use std::net::{IpAddr, Ipv4Addr};
 
 #[test]
@@ -177,7 +177,7 @@ fn filter_value_bool_roundtrip() {
 
 #[test]
 fn filter_value_prefix_roundtrip() {
-    use routeplane_filter::value::PrefixData;
+    use netpilot_filter::value::PrefixData;
     let pd = PrefixData {
         nettype: Nettype::Ip4,
         ip: "10.0.0.0".parse().unwrap(),
@@ -200,7 +200,7 @@ fn filter_value_prefix_roundtrip() {
 
 #[test]
 fn filter_value_ec_roundtrip() {
-    use routeplane_filter::value::EcValue;
+    use netpilot_filter::value::EcValue;
     let ev = EcValue {
         kind: 1,
         key: 100,
@@ -227,7 +227,7 @@ fn filter_value_ip_roundtrip() {
 
 // --- bgppath tests ---
 
-use routeplane_filter::value::{AsPath, AsPathSegment};
+use netpilot_filter::value::{AsPath, AsPathSegment};
 
 #[test]
 fn bgppath_construct_and_access() {
@@ -302,7 +302,7 @@ fn bgppath_prepend_on_empty_path() {
 
 // --- bgpmask tests ---
 
-use routeplane_filter::value::{AsMaskPattern, AsPathMask};
+use netpilot_filter::value::{AsMaskPattern, AsPathMask};
 
 #[test]
 fn bgpmask_matches_empty_path() {
@@ -401,8 +401,8 @@ fn bgpmask_range_matches() {
 
 // --- Community list tests (#272) ---
 
-use routeplane_filter::value::{ClistEntry, EcValue, LcValue};
-use routeplane_filter::value::{
+use netpilot_filter::value::{ClistEntry, EcValue, LcValue};
+use netpilot_filter::value::{
     clist_add, clist_delete, clist_filter, clist_max, clist_min, eclist_add, eclist_delete,
     eclist_filter, eclist_min, lclist_add, lclist_delete, lclist_filter, lclist_min,
 };
@@ -535,13 +535,13 @@ fn clist_empty_operations() {
 
 #[test]
 fn bytestring_from_hex_valid() {
-    let bs = routeplane_filter::builtins::from_hex("0102ff").expect("valid hex");
+    let bs = netpilot_filter::builtins::from_hex("0102ff").expect("valid hex");
     assert_eq!(bs, vec![0x01, 0x02, 0xff]);
 }
 
 #[test]
 fn bytestring_from_hex_invalid() {
-    assert!(routeplane_filter::builtins::from_hex("xyz").is_err());
+    assert!(netpilot_filter::builtins::from_hex("xyz").is_err());
 }
 
 #[test]

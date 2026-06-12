@@ -261,6 +261,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "netpilot-config"
+version = "0.1.0"
+dependencies = [
+ "netpilot-filter",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "time",
+]
+
+[[package]]
+name = "netpilot-filter"
+version = "0.1.0"
+dependencies = [
+ "hex",
+]
+
+[[package]]
+name = "netpilotd"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "netpilot-config",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower",
+]
+
+[[package]]
 name = "num-conv"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -306,36 +336,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "41f2619966050689382d2b44f664f4bc593e129785a36d6ee376ddf37259b924"
 dependencies = [
  "proc-macro2",
-]
-
-[[package]]
-name = "routeplane-config"
-version = "0.1.0"
-dependencies = [
- "routeplane-filter",
- "serde",
- "serde_json",
- "thiserror",
- "time",
-]
-
-[[package]]
-name = "routeplane-filter"
-version = "0.1.0"
-dependencies = [
- "hex",
-]
-
-[[package]]
-name = "routeplaned"
-version = "0.1.0"
-dependencies = [
- "axum",
- "routeplane-config",
- "serde",
- "serde_json",
- "tokio",
- "tower",
 ]
 
 [[package]]

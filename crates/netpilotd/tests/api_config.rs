@@ -2,8 +2,8 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use routeplane_config::{ProtocolConfig, RoutePlaneConfig};
-use routeplaned::{api::build_router, state::AppState};
+use netpilot_config::{ProtocolConfig, RoutePlaneConfig};
+use netpilotd::{api::build_router, state::AppState};
 use tower::ServiceExt;
 
 #[tokio::test]

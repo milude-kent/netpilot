@@ -1,4 +1,4 @@
-use routeplaned::{api::build_router, state::AppState};
+use netpilotd::{api::build_router, state::AppState};
 use tokio::net::TcpListener;
 
 #[tokio::main]

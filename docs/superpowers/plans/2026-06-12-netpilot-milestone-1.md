@@ -1,10 +1,10 @@
-# RoutePlane Milestone 1 Implementation Plan
+# NetPilot Milestone 1 Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the first working RoutePlane foundation: a Rust workspace with `routeplaned`, structured configuration types, candidate/running commit and rollback logic, a minimal REST API, and tests proving the configuration workflow.
+**Goal:** Build the first working NetPilot foundation: a Rust workspace with `netpilotd`, structured configuration types, candidate/running commit and rollback logic, a minimal REST API, and tests proving the configuration workflow.
 
-**Architecture:** Start with an all-in-one `routeplaned` binary and focused crates. `routeplane-config` owns schema, validation, revisions, diffs, commit, and rollback. `routeplaned` exposes a small API over that service. Protocol actors, RIB, policy VM, and kernel netlink are represented only by clean module boundaries in this milestone.
+**Architecture:** Start with an all-in-one `netpilotd` binary and focused crates. `netpilot-config` owns schema, validation, revisions, diffs, commit, and rollback. `netpilotd` exposes a small API over that service. Protocol actors, RIB, policy VM, and kernel netlink are represented only by clean module boundaries in this milestone.
 
 **Tech Stack:** Rust 1.95, Cargo workspace, `tokio`, `axum`, `serde`, `serde_json`, `thiserror`, `time`, `tempfile`, and `reqwest` for API tests.
 
@@ -14,29 +14,29 @@
 
 - Create: `Cargo.toml`
   - Workspace manifest for the first two crates.
-- Create: `crates/routeplane-config/Cargo.toml`
+- Create: `crates/netpilot-config/Cargo.toml`
   - Library crate manifest for structured configuration and commit logic.
-- Create: `crates/routeplane-config/src/lib.rs`
+- Create: `crates/netpilot-config/src/lib.rs`
   - Public exports for config, store, revision, diff, and validation modules.
-- Create: `crates/routeplane-config/src/schema.rs`
+- Create: `crates/netpilot-config/src/schema.rs`
   - Versioned structured configuration types.
-- Create: `crates/routeplane-config/src/diff.rs`
+- Create: `crates/netpilot-config/src/diff.rs`
   - Lightweight structured diff summary between candidate and running config.
-- Create: `crates/routeplane-config/src/validation.rs`
+- Create: `crates/netpilot-config/src/validation.rs`
   - Semantic validation for router-id, tables, protocols, and dangerous changes.
-- Create: `crates/routeplane-config/src/store.rs`
+- Create: `crates/netpilot-config/src/store.rs`
   - In-memory candidate/running store with revision history and rollback.
-- Create: `crates/routeplane-config/tests/config_store.rs`
+- Create: `crates/netpilot-config/tests/config_store.rs`
   - Integration tests for candidate edit, commit, diff, validation, and rollback.
-- Create: `crates/routeplaned/Cargo.toml`
+- Create: `crates/netpilotd/Cargo.toml`
   - Binary crate manifest for the daemon and API.
-- Create: `crates/routeplaned/src/main.rs`
+- Create: `crates/netpilotd/src/main.rs`
   - Process entry point.
-- Create: `crates/routeplaned/src/api.rs`
+- Create: `crates/netpilotd/src/api.rs`
   - Axum routes for health, config, diff, commit, rollback, and revisions.
-- Create: `crates/routeplaned/src/state.rs`
+- Create: `crates/netpilotd/src/state.rs`
   - Shared application state wrapper around the config store.
-- Create: `crates/routeplaned/tests/api_config.rs`
+- Create: `crates/netpilotd/tests/api_config.rs`
   - API integration tests.
 - Create: `README.md`
   - Project name, scope, and first-run commands.
@@ -46,14 +46,14 @@
 **Files:**
 - Create: `Cargo.toml`
 - Create: `README.md`
-- Modify: `docs/superpowers/specs/2026-06-12-routeplane-routing-platform-design.md`
+- Modify: `docs/superpowers/specs/2026-06-12-netpilot-routing-platform-design.md`
 
 - [ ] **Step 1: Create the workspace manifest**
 
 ```toml
 [workspace]
 members = [
-    "crates/routeplane-config",
+    "crates/netpilot-config",
 ]
 resolver = "2"
 
@@ -76,22 +76,22 @@ tower = { version = "0.5", features = ["util"] }
 - [ ] **Step 2: Create the README**
 
 ```markdown
-# RoutePlane
+# NetPilot
 
-RoutePlane is a Rust routing platform inspired by BIRD2. The first milestone builds the daemon foundation, structured configuration model, candidate/running commit workflow, rollback support, and a small REST API.
+NetPilot is a Rust routing platform inspired by BIRD2. The first milestone builds the daemon foundation, structured configuration model, candidate/running commit workflow, rollback support, and a small REST API.
 
 The long-term architecture is a Rust microkernel with protocol actors for BGP, OSPF, RIP, Babel, Static, Direct, Kernel, BFD, RPKI, MRT, and Pipe.
 
 ## First Milestone
 
-- `routeplane-config`: structured config schema, validation, diff, revision history, commit, and rollback.
-- `routeplaned`: all-in-one daemon with a REST API for health and configuration workflow.
+- `netpilot-config`: structured config schema, validation, diff, revision history, commit, and rollback.
+- `netpilotd`: all-in-one daemon with a REST API for health and configuration workflow.
 
 ## Development
 
 ```powershell
 cargo test
-cargo run -p routeplaned
+cargo run -p netpilotd
 ```
 ```
 
@@ -104,28 +104,28 @@ Expected: Cargo reports no Rust packages yet or formatting succeeds after crate 
 - [ ] **Step 4: Commit**
 
 ```powershell
-git add Cargo.toml README.md docs/superpowers/specs/2026-06-12-routeplane-routing-platform-design.md
-git commit -m "chore: name project RoutePlane"
+git add Cargo.toml README.md docs/superpowers/specs/2026-06-12-netpilot-routing-platform-design.md
+git commit -m "chore: name project NetPilot"
 ```
 
 ## Task 2: Configuration Schema
 
 **Files:**
-- Create: `crates/routeplane-config/Cargo.toml`
-- Create: `crates/routeplane-config/src/lib.rs`
-- Create: `crates/routeplane-config/src/schema.rs`
-- Create: `crates/routeplane-config/tests/config_store.rs`
+- Create: `crates/netpilot-config/Cargo.toml`
+- Create: `crates/netpilot-config/src/lib.rs`
+- Create: `crates/netpilot-config/src/schema.rs`
+- Create: `crates/netpilot-config/tests/config_store.rs`
 
 - [ ] **Step 1: Write failing schema tests**
 
 ```rust
-use routeplane_config::{
-    AddressFamily, ProtocolConfig, RoutePlaneConfig, RouterIdentity, StaticRoute, TableConfig,
+use netpilot_config::{
+    AddressFamily, ProtocolConfig, NetPilotConfig, RouterIdentity, StaticRoute, TableConfig,
 };
 
 #[test]
 fn default_config_has_main_table_and_schema_version() {
-    let config = RoutePlaneConfig::default();
+    let config = NetPilotConfig::default();
 
     assert_eq!(config.schema_version, 1);
     assert_eq!(config.tables.len(), 1);
@@ -134,7 +134,7 @@ fn default_config_has_main_table_and_schema_version() {
 
 #[test]
 fn static_route_config_round_trips_as_json() {
-    let config = RoutePlaneConfig {
+    let config = NetPilotConfig {
         identity: RouterIdentity {
             router_id: "192.0.2.1".to_string(),
             local_asn: Some(64512),
@@ -153,11 +153,11 @@ fn static_route_config_round_trips_as_json() {
                 address_family: AddressFamily::Ipv4,
             }],
         }],
-        ..RoutePlaneConfig::default()
+        ..NetPilotConfig::default()
     };
 
     let encoded = serde_json::to_string(&config).expect("config serializes");
-    let decoded: RoutePlaneConfig = serde_json::from_str(&encoded).expect("config deserializes");
+    let decoded: NetPilotConfig = serde_json::from_str(&encoded).expect("config deserializes");
 
     assert_eq!(decoded.identity.router_id, "192.0.2.1");
     assert_eq!(decoded.protocols.len(), 1);
@@ -166,7 +166,7 @@ fn static_route_config_round_trips_as_json() {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cargo test -p routeplane-config schema`
+Run: `cargo test -p netpilot-config schema`
 
 Expected: FAIL because the crate and types do not exist yet.
 
@@ -174,7 +174,7 @@ Expected: FAIL because the crate and types do not exist yet.
 
 ```toml
 [package]
-name = "routeplane-config"
+name = "netpilot-config"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
@@ -195,7 +195,7 @@ pub mod store;
 pub mod validation;
 
 pub use schema::{
-    AddressFamily, BgpNeighbor, ProtocolConfig, RoutePlaneConfig, RouterIdentity, StaticRoute,
+    AddressFamily, BgpNeighbor, ProtocolConfig, NetPilotConfig, RouterIdentity, StaticRoute,
     TableConfig,
 };
 pub use store::{CommitRequest, ConfigStore, Revision, RollbackRequest};
@@ -209,14 +209,14 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct RoutePlaneConfig {
+pub struct NetPilotConfig {
     pub schema_version: u32,
     pub identity: RouterIdentity,
     pub tables: Vec<TableConfig>,
     pub protocols: Vec<ProtocolConfig>,
 }
 
-impl Default for RoutePlaneConfig {
+impl Default for NetPilotConfig {
     fn default() -> Self {
         Self {
             schema_version: 1,
@@ -288,7 +288,7 @@ pub enum AddressFamily {
 
 - [ ] **Step 6: Add empty module files so exports compile**
 
-Create `crates/routeplane-config/src/diff.rs`:
+Create `crates/netpilot-config/src/diff.rs`:
 
 ```rust
 use serde::{Deserialize, Serialize};
@@ -300,7 +300,7 @@ pub struct ConfigDiff {
 }
 ```
 
-Create `crates/routeplane-config/src/validation.rs`:
+Create `crates/netpilot-config/src/validation.rs`:
 
 ```rust
 use thiserror::Error;
@@ -317,10 +317,10 @@ pub enum ValidationError {
 }
 ```
 
-Create `crates/routeplane-config/src/store.rs`:
+Create `crates/netpilot-config/src/store.rs`:
 
 ```rust
-use crate::schema::RoutePlaneConfig;
+use crate::schema::NetPilotConfig;
 
 #[derive(Clone, Debug)]
 pub struct CommitRequest {
@@ -338,55 +338,55 @@ pub struct RollbackRequest {
 #[derive(Clone, Debug)]
 pub struct Revision {
     pub id: u64,
-    pub config: RoutePlaneConfig,
+    pub config: NetPilotConfig,
     pub author: String,
     pub note: String,
 }
 
 #[derive(Clone, Debug)]
 pub struct ConfigStore {
-    running: RoutePlaneConfig,
-    candidate: RoutePlaneConfig,
+    running: NetPilotConfig,
+    candidate: NetPilotConfig,
     revisions: Vec<Revision>,
 }
 ```
 
 - [ ] **Step 7: Run tests to verify schema passes**
 
-Run: `cargo test -p routeplane-config`
+Run: `cargo test -p netpilot-config`
 
 Expected: PASS for schema tests. Warnings about unused fields in `ConfigStore` are acceptable until Task 4.
 
 - [ ] **Step 8: Commit**
 
 ```powershell
-git add crates/routeplane-config
-git commit -m "feat: add RoutePlane config schema"
+git add crates/netpilot-config
+git commit -m "feat: add NetPilot config schema"
 ```
 
 ## Task 3: Validation and Diff
 
 **Files:**
-- Modify: `crates/routeplane-config/src/diff.rs`
-- Modify: `crates/routeplane-config/src/validation.rs`
-- Modify: `crates/routeplane-config/tests/config_store.rs`
+- Modify: `crates/netpilot-config/src/diff.rs`
+- Modify: `crates/netpilot-config/src/validation.rs`
+- Modify: `crates/netpilot-config/tests/config_store.rs`
 
 - [ ] **Step 1: Add failing validation and diff tests**
 
 ```rust
-use routeplane_config::{
-    diff::ConfigDiff, validation::validate_config, ProtocolConfig, RoutePlaneConfig, StaticRoute,
+use netpilot_config::{
+    diff::ConfigDiff, validation::validate_config, ProtocolConfig, NetPilotConfig, StaticRoute,
 };
 
 #[test]
 fn validation_rejects_protocol_referencing_missing_table() {
-    let config = RoutePlaneConfig {
+    let config = NetPilotConfig {
         protocols: vec![ProtocolConfig::Static {
             name: "bad-static".to_string(),
             table: "missing".to_string(),
             routes: Vec::<StaticRoute>::new(),
         }],
-        ..RoutePlaneConfig::default()
+        ..NetPilotConfig::default()
     };
 
     let error = validate_config(&config).expect_err("missing table should fail");
@@ -396,7 +396,7 @@ fn validation_rejects_protocol_referencing_missing_table() {
 
 #[test]
 fn validation_warns_when_router_id_is_empty() {
-    let config = RoutePlaneConfig::default();
+    let config = NetPilotConfig::default();
     let report = validate_config(&config).expect("default config is valid");
 
     assert!(report
@@ -407,14 +407,14 @@ fn validation_warns_when_router_id_is_empty() {
 
 #[test]
 fn diff_reports_changed_protocol_count() {
-    let running = RoutePlaneConfig::default();
-    let candidate = RoutePlaneConfig {
+    let running = NetPilotConfig::default();
+    let candidate = NetPilotConfig {
         protocols: vec![ProtocolConfig::Static {
             name: "static-default".to_string(),
             table: "master".to_string(),
             routes: Vec::new(),
         }],
-        ..RoutePlaneConfig::default()
+        ..NetPilotConfig::default()
     };
 
     let diff = ConfigDiff::between(&running, &candidate);
@@ -426,14 +426,14 @@ fn diff_reports_changed_protocol_count() {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cargo test -p routeplane-config`
+Run: `cargo test -p netpilot-config`
 
 Expected: FAIL because `validate_config` and `ConfigDiff::between` do not exist.
 
 - [ ] **Step 3: Implement diff**
 
 ```rust
-use crate::schema::RoutePlaneConfig;
+use crate::schema::NetPilotConfig;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -443,7 +443,7 @@ pub struct ConfigDiff {
 }
 
 impl ConfigDiff {
-    pub fn between(running: &RoutePlaneConfig, candidate: &RoutePlaneConfig) -> Self {
+    pub fn between(running: &NetPilotConfig, candidate: &NetPilotConfig) -> Self {
         let mut summary = Vec::new();
 
         if running.identity != candidate.identity {
@@ -481,7 +481,7 @@ impl ConfigDiff {
 - [ ] **Step 4: Implement validation**
 
 ```rust
-use crate::schema::{ProtocolConfig, RoutePlaneConfig};
+use crate::schema::{ProtocolConfig, NetPilotConfig};
 use std::collections::HashSet;
 use thiserror::Error;
 
@@ -496,7 +496,7 @@ pub enum ValidationError {
     Message(String),
 }
 
-pub fn validate_config(config: &RoutePlaneConfig) -> Result<ValidationReport, ValidationError> {
+pub fn validate_config(config: &NetPilotConfig) -> Result<ValidationReport, ValidationError> {
     let mut warnings = Vec::new();
 
     if config.schema_version != 1 {
@@ -535,39 +535,39 @@ pub fn validate_config(config: &RoutePlaneConfig) -> Result<ValidationReport, Va
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `cargo test -p routeplane-config`
+Run: `cargo test -p netpilot-config`
 
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
 ```powershell
-git add crates/routeplane-config
-git commit -m "feat: validate and diff RoutePlane config"
+git add crates/netpilot-config
+git commit -m "feat: validate and diff NetPilot config"
 ```
 
 ## Task 4: Candidate, Commit, Revision, and Rollback Store
 
 **Files:**
-- Modify: `crates/routeplane-config/src/store.rs`
-- Modify: `crates/routeplane-config/src/lib.rs`
-- Modify: `crates/routeplane-config/tests/config_store.rs`
+- Modify: `crates/netpilot-config/src/store.rs`
+- Modify: `crates/netpilot-config/src/lib.rs`
+- Modify: `crates/netpilot-config/tests/config_store.rs`
 
 - [ ] **Step 1: Add failing store workflow tests**
 
 ```rust
-use routeplane_config::{CommitRequest, ConfigStore, ProtocolConfig, RoutePlaneConfig, RollbackRequest};
+use netpilot_config::{CommitRequest, ConfigStore, ProtocolConfig, NetPilotConfig, RollbackRequest};
 
 #[test]
 fn store_commits_candidate_to_running_and_records_revision() {
-    let mut store = ConfigStore::new(RoutePlaneConfig::default());
-    let candidate = RoutePlaneConfig {
+    let mut store = ConfigStore::new(NetPilotConfig::default());
+    let candidate = NetPilotConfig {
         protocols: vec![ProtocolConfig::Static {
             name: "static-default".to_string(),
             table: "master".to_string(),
             routes: Vec::new(),
         }],
-        ..RoutePlaneConfig::default()
+        ..NetPilotConfig::default()
     };
 
     store.replace_candidate(candidate.clone()).expect("candidate is valid");
@@ -588,7 +588,7 @@ fn store_commits_candidate_to_running_and_records_revision() {
 
 #[test]
 fn store_rolls_back_to_previous_revision() {
-    let mut store = ConfigStore::new(RoutePlaneConfig::default());
+    let mut store = ConfigStore::new(NetPilotConfig::default());
     let first = store
         .commit(CommitRequest {
             author: "operator".to_string(),
@@ -596,13 +596,13 @@ fn store_rolls_back_to_previous_revision() {
         })
         .expect("initial commit succeeds");
 
-    let changed = RoutePlaneConfig {
+    let changed = NetPilotConfig {
         protocols: vec![ProtocolConfig::Static {
             name: "static-default".to_string(),
             table: "master".to_string(),
             routes: Vec::new(),
         }],
-        ..RoutePlaneConfig::default()
+        ..NetPilotConfig::default()
     };
 
     store.replace_candidate(changed).expect("candidate is valid");
@@ -622,13 +622,13 @@ fn store_rolls_back_to_previous_revision() {
         .expect("rollback succeeds");
 
     assert_eq!(rollback.id, 3);
-    assert_eq!(store.running(), &RoutePlaneConfig::default());
+    assert_eq!(store.running(), &NetPilotConfig::default());
 }
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cargo test -p routeplane-config store`
+Run: `cargo test -p netpilot-config store`
 
 Expected: FAIL because store methods are not implemented.
 
@@ -637,7 +637,7 @@ Expected: FAIL because store methods are not implemented.
 ```rust
 use crate::{
     diff::ConfigDiff,
-    schema::RoutePlaneConfig,
+    schema::NetPilotConfig,
     validation::{validate_config, ValidationError},
 };
 use time::OffsetDateTime;
@@ -658,7 +658,7 @@ pub struct RollbackRequest {
 #[derive(Clone, Debug)]
 pub struct Revision {
     pub id: u64,
-    pub config: RoutePlaneConfig,
+    pub config: NetPilotConfig,
     pub author: String,
     pub note: String,
     pub created_at: OffsetDateTime,
@@ -666,14 +666,14 @@ pub struct Revision {
 
 #[derive(Clone, Debug)]
 pub struct ConfigStore {
-    running: RoutePlaneConfig,
-    candidate: RoutePlaneConfig,
+    running: NetPilotConfig,
+    candidate: NetPilotConfig,
     revisions: Vec<Revision>,
     next_revision_id: u64,
 }
 
 impl ConfigStore {
-    pub fn new(initial: RoutePlaneConfig) -> Self {
+    pub fn new(initial: NetPilotConfig) -> Self {
         Self {
             running: initial.clone(),
             candidate: initial,
@@ -682,11 +682,11 @@ impl ConfigStore {
         }
     }
 
-    pub fn running(&self) -> &RoutePlaneConfig {
+    pub fn running(&self) -> &NetPilotConfig {
         &self.running
     }
 
-    pub fn candidate(&self) -> &RoutePlaneConfig {
+    pub fn candidate(&self) -> &NetPilotConfig {
         &self.candidate
     }
 
@@ -694,7 +694,7 @@ impl ConfigStore {
         &self.revisions
     }
 
-    pub fn replace_candidate(&mut self, candidate: RoutePlaneConfig) -> Result<(), ValidationError> {
+    pub fn replace_candidate(&mut self, candidate: NetPilotConfig) -> Result<(), ValidationError> {
         validate_config(&candidate)?;
         self.candidate = candidate;
         Ok(())
@@ -733,7 +733,7 @@ impl ConfigStore {
         Ok(revision)
     }
 
-    fn create_revision(&mut self, author: String, note: String, config: RoutePlaneConfig) -> Revision {
+    fn create_revision(&mut self, author: String, note: String, config: NetPilotConfig) -> Revision {
         let revision = Revision {
             id: self.next_revision_id,
             config,
@@ -749,26 +749,26 @@ impl ConfigStore {
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cargo test -p routeplane-config`
+Run: `cargo test -p netpilot-config`
 
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add crates/routeplane-config
+git add crates/netpilot-config
 git commit -m "feat: add config commit and rollback store"
 ```
 
-## Task 5: routeplaned API Skeleton
+## Task 5: netpilotd API Skeleton
 
 **Files:**
 - Modify: `Cargo.toml`
-- Create: `crates/routeplaned/Cargo.toml`
-- Create: `crates/routeplaned/src/main.rs`
-- Create: `crates/routeplaned/src/api.rs`
-- Create: `crates/routeplaned/src/state.rs`
-- Create: `crates/routeplaned/tests/api_config.rs`
+- Create: `crates/netpilotd/Cargo.toml`
+- Create: `crates/netpilotd/src/main.rs`
+- Create: `crates/netpilotd/src/api.rs`
+- Create: `crates/netpilotd/src/state.rs`
+- Create: `crates/netpilotd/tests/api_config.rs`
 
 - [ ] **Step 1: Add failing API tests**
 
@@ -777,8 +777,8 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use routeplaned::{api::build_router, state::AppState};
-use routeplane_config::{ProtocolConfig, RoutePlaneConfig};
+use netpilotd::{api::build_router, state::AppState};
+use netpilot_config::{ProtocolConfig, NetPilotConfig};
 use tower::ServiceExt;
 
 #[tokio::test]
@@ -795,13 +795,13 @@ async fn health_endpoint_returns_ok() {
 #[tokio::test]
 async fn config_candidate_commit_flow_works_over_api() {
     let app = build_router(AppState::default());
-    let candidate = RoutePlaneConfig {
+    let candidate = NetPilotConfig {
         protocols: vec![ProtocolConfig::Static {
             name: "static-default".to_string(),
             table: "master".to_string(),
             routes: Vec::new(),
         }],
-        ..RoutePlaneConfig::default()
+        ..NetPilotConfig::default()
     };
 
     let response = app
@@ -838,19 +838,19 @@ async fn config_candidate_commit_flow_works_over_api() {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cargo test -p routeplaned`
+Run: `cargo test -p netpilotd`
 
-Expected: FAIL because `routeplaned` crate does not exist.
+Expected: FAIL because `netpilotd` crate does not exist.
 
-- [ ] **Step 3: Add routeplaned manifest**
+- [ ] **Step 3: Add netpilotd manifest**
 
 Update the workspace manifest to include the daemon crate:
 
 ```toml
 [workspace]
 members = [
-    "crates/routeplane-config",
-    "crates/routeplaned",
+    "crates/netpilot-config",
+    "crates/netpilotd",
 ]
 resolver = "2"
 ```
@@ -859,14 +859,14 @@ Then add the crate manifest:
 
 ```toml
 [package]
-name = "routeplaned"
+name = "netpilotd"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
 axum.workspace = true
-routeplane-config = { path = "../routeplane-config" }
+netpilot-config = { path = "../netpilot-config" }
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
@@ -878,7 +878,7 @@ tower.workspace = true
 - [ ] **Step 4: Add app state**
 
 ```rust
-use routeplane_config::{ConfigStore, RoutePlaneConfig};
+use netpilot_config::{ConfigStore, NetPilotConfig};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -890,7 +890,7 @@ pub struct AppState {
 impl Default for AppState {
     fn default() -> Self {
         Self {
-            config_store: Arc::new(RwLock::new(ConfigStore::new(RoutePlaneConfig::default()))),
+            config_store: Arc::new(RwLock::new(ConfigStore::new(NetPilotConfig::default()))),
         }
     }
 }
@@ -906,7 +906,7 @@ use axum::{
     routing::{get, post, put},
     Json, Router,
 };
-use routeplane_config::{CommitRequest, RoutePlaneConfig, RollbackRequest};
+use netpilot_config::{CommitRequest, NetPilotConfig, RollbackRequest};
 use serde::Deserialize;
 
 pub fn build_router(state: AppState) -> Router {
@@ -924,19 +924,19 @@ async fn health() -> &'static str {
     "ok"
 }
 
-async fn get_running_config(State(state): State<AppState>) -> Json<RoutePlaneConfig> {
+async fn get_running_config(State(state): State<AppState>) -> Json<NetPilotConfig> {
     let store = state.config_store.read().await;
     Json(store.running().clone())
 }
 
-async fn get_candidate_config(State(state): State<AppState>) -> Json<RoutePlaneConfig> {
+async fn get_candidate_config(State(state): State<AppState>) -> Json<NetPilotConfig> {
     let store = state.config_store.read().await;
     Json(store.candidate().clone())
 }
 
 async fn put_candidate_config(
     State(state): State<AppState>,
-    Json(candidate): Json<RoutePlaneConfig>,
+    Json(candidate): Json<NetPilotConfig>,
 ) -> Result<StatusCode, (StatusCode, String)> {
     let mut store = state.config_store.write().await;
     store
@@ -945,7 +945,7 @@ async fn put_candidate_config(
     Ok(StatusCode::NO_CONTENT)
 }
 
-async fn get_config_diff(State(state): State<AppState>) -> Json<routeplane_config::diff::ConfigDiff> {
+async fn get_config_diff(State(state): State<AppState>) -> Json<netpilot_config::diff::ConfigDiff> {
     let store = state.config_store.read().await;
     Json(store.diff())
 }
@@ -953,7 +953,7 @@ async fn get_config_diff(State(state): State<AppState>) -> Json<routeplane_confi
 async fn commit_config(
     State(state): State<AppState>,
     Json(request): Json<ApiCommitRequest>,
-) -> Result<Json<routeplane_config::Revision>, (StatusCode, String)> {
+) -> Result<Json<netpilot_config::Revision>, (StatusCode, String)> {
     let mut store = state.config_store.write().await;
     let revision = store
         .commit(CommitRequest {
@@ -967,7 +967,7 @@ async fn commit_config(
 async fn rollback_config(
     State(state): State<AppState>,
     Json(request): Json<RollbackRequest>,
-) -> Result<Json<routeplane_config::Revision>, (StatusCode, String)> {
+) -> Result<Json<netpilot_config::Revision>, (StatusCode, String)> {
     let mut store = state.config_store.write().await;
     let revision = store
         .rollback(request)
@@ -984,17 +984,17 @@ struct ApiCommitRequest {
 
 - [ ] **Step 6: Add lib exports and main**
 
-Create `crates/routeplaned/src/lib.rs`:
+Create `crates/netpilotd/src/lib.rs`:
 
 ```rust
 pub mod api;
 pub mod state;
 ```
 
-Create `crates/routeplaned/src/main.rs`:
+Create `crates/netpilotd/src/main.rs`:
 
 ```rust
-use routeplaned::{api::build_router, state::AppState};
+use netpilotd::{api::build_router, state::AppState};
 use tokio::net::TcpListener;
 
 #[tokio::main]
@@ -1008,7 +1008,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 - [ ] **Step 7: Derive serialization for revision request/response**
 
-Update `crates/routeplane-config/src/store.rs` so `CommitRequest`, `RollbackRequest`, and `Revision` derive serde traits:
+Update `crates/netpilot-config/src/store.rs` so `CommitRequest`, `RollbackRequest`, and `Revision` derive serde traits:
 
 ```rust
 use serde::{Deserialize, Serialize};
@@ -1029,7 +1029,7 @@ pub struct RollbackRequest {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Revision {
     pub id: u64,
-    pub config: RoutePlaneConfig,
+    pub config: NetPilotConfig,
     pub author: String,
     pub note: String,
     pub created_at: OffsetDateTime,
@@ -1038,14 +1038,14 @@ pub struct Revision {
 
 - [ ] **Step 8: Run API tests**
 
-Run: `cargo test -p routeplaned`
+Run: `cargo test -p netpilotd`
 
 Expected: PASS.
 
 - [ ] **Step 9: Commit**
 
 ```powershell
-git add crates/routeplaned crates/routeplane-config
+git add crates/netpilotd crates/netpilot-config
 git commit -m "feat: expose config workflow API"
 ```
 
@@ -1062,7 +1062,7 @@ git commit -m "feat: expose config workflow API"
 ```powershell
 cargo fmt --check
 cargo test
-cargo run -p routeplaned
+cargo run -p netpilotd
 ```
 
 The API listens on `127.0.0.1:8080` in the first milestone.
@@ -1088,7 +1088,7 @@ Expected: PASS.
 
 - [ ] **Step 5: Run daemon smoke check**
 
-Run: `cargo run -p routeplaned`
+Run: `cargo run -p netpilotd`
 
 Expected: The process starts and binds `127.0.0.1:8080`. Stop it with `Ctrl+C` after confirming startup. If port `8080` is already used, change the bind address in a later task; do not broaden scope in this milestone.
 
@@ -1096,7 +1096,7 @@ Expected: The process starts and binds `127.0.0.1:8080`. Stop it with `Ctrl+C` a
 
 ```powershell
 git add README.md Cargo.toml crates
-git commit -m "test: verify RoutePlane milestone 1 baseline"
+git commit -m "test: verify NetPilot milestone 1 baseline"
 ```
 
 ## Self-Review
@@ -1104,7 +1104,7 @@ git commit -m "test: verify RoutePlane milestone 1 baseline"
 Spec coverage for this milestone:
 
 - Project name: covered by Task 1.
-- Rust workspace and `routeplaned`: covered by Tasks 1 and 5.
+- Rust workspace and `netpilotd`: covered by Tasks 1 and 5.
 - Candidate/running workflow: covered by Task 4.
 - Commit and rollback: covered by Task 4 and API tests in Task 5.
 - Structured config schema: covered by Task 2.

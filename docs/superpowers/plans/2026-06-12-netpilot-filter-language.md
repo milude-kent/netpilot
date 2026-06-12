@@ -1,21 +1,21 @@
-# RoutePlane Filter Language Foundation — Implementation Plan
+# NetPilot Filter Language Foundation — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
-**Goal:** Implement the complete BIRD2-compatible filter language type system, control structures, introspection, and protocol-specific route attributes in the `routeplane-filter` crate.
+**Goal:** Implement the complete BIRD2-compatible filter language type system, control structures, introspection, and protocol-specific route attributes in the `netpilot-filter` crate.
 
-**Architecture:** Create `routeplane-filter` as a new workspace crate. Types, values, AST, and built-in functions are separate modules. The VM/interpreter operates on a typed value stack. Route attribute access is abstracted behind a trait to allow protocol crates to register their attributes.
+**Architecture:** Create `netpilot-filter` as a new workspace crate. Types, values, AST, and built-in functions are separate modules. The VM/interpreter operates on a typed value stack. Route attribute access is abstracted behind a trait to allow protocol crates to register their attributes.
 
 **Tech Stack:** Rust 2024 edition, `serde`, `thiserror`. No external parser dependency — filter parsing is handled in a later milestone; this milestone focuses on the runtime type system, VM, and attribute model.
 
-**Prerequisites:** Milestone 1 complete (`routeplane-config` and `routeplaned` work).
+**Prerequisites:** Milestone 1 complete (`netpilot-config` and `netpilotd` work).
 
 ---
 
 ## File Structure
 
 ```
-crates/routeplane-filter/
+crates/netpilot-filter/
 ├── Cargo.toml                          # New crate manifest
 ├── src/
 │   ├── lib.rs                          # Public exports: types, value, builtins, attributes
@@ -34,27 +34,27 @@ crates/routeplane-filter/
 ```
 
 **Also modified:**
-- `Cargo.toml` — add `routeplane-filter` to workspace members
-- `crates/routeplane-config/src/schema.rs` — add MPLS, EVPN, and nettype fields to config types
+- `Cargo.toml` — add `netpilot-filter` to workspace members
+- `crates/netpilot-config/src/schema.rs` — add MPLS, EVPN, and nettype fields to config types
 
 ---
 
-## Task 1: Create routeplane-filter Crate Skeleton
+## Task 1: Create netpilot-filter Crate Skeleton
 
 **Files:**
-- Create: `crates/routeplane-filter/Cargo.toml`
-- Create: `crates/routeplane-filter/src/lib.rs`
-- Create: `crates/routeplane-filter/src/types.rs`
-- Create: `crates/routeplane-filter/src/value.rs`
+- Create: `crates/netpilot-filter/Cargo.toml`
+- Create: `crates/netpilot-filter/src/lib.rs`
+- Create: `crates/netpilot-filter/src/types.rs`
+- Create: `crates/netpilot-filter/src/value.rs`
 - Modify: `Cargo.toml`
 
 - [ ] **Step 1: Write failing crate structure test**
 
-Create `crates/routeplane-filter/tests/types_roundtrip.rs`:
+Create `crates/netpilot-filter/tests/types_roundtrip.rs`:
 
 ```rust
-use routeplane_filter::types::FilterType;
-use routeplane_filter::value::FilterValue;
+use netpilot_filter::types::FilterType;
+use netpilot_filter::value::FilterValue;
 
 #[test]
 fn bool_type_exists() {
@@ -93,16 +93,16 @@ fn string_type_exists() {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cargo test -p routeplane-filter`
+Run: `cargo test -p netpilot-filter`
 Expected: FAIL because crate does not exist yet.
 
 - [ ] **Step 3: Create crate manifest**
 
-Create `crates/routeplane-filter/Cargo.toml`:
+Create `crates/netpilot-filter/Cargo.toml`:
 
 ```toml
 [package]
-name = "routeplane-filter"
+name = "netpilot-filter"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
@@ -119,16 +119,16 @@ Modify `Cargo.toml` — change the `members` array:
 ```toml
 [workspace]
 members = [
-    "crates/routeplane-config",
-    "crates/routeplane-filter",
-    "crates/routeplaned",
+    "crates/netpilot-config",
+    "crates/netpilot-filter",
+    "crates/netpilotd",
 ]
 resolver = "2"
 ```
 
 - [ ] **Step 5: Create lib.rs with public exports**
 
-Create `crates/routeplane-filter/src/lib.rs`:
+Create `crates/netpilot-filter/src/lib.rs`:
 
 ```rust
 pub mod attributes;
@@ -146,7 +146,7 @@ pub use value::FilterValue;
 
 - [ ] **Step 6: Implement minimal types.rs**
 
-Create `crates/routeplane-filter/src/types.rs`:
+Create `crates/netpilot-filter/src/types.rs`:
 
 ```rust
 use std::fmt;
@@ -217,7 +217,7 @@ impl fmt::Display for FilterType {
 
 - [ ] **Step 7: Implement minimal value.rs**
 
-Create `crates/routeplane-filter/src/value.rs`:
+Create `crates/netpilot-filter/src/value.rs`:
 
 ```rust
 use crate::types::FilterType;
@@ -381,7 +381,7 @@ pub struct PairSetRange {
 
 - [ ] **Step 8: Create placeholder modules**
 
-Create `crates/routeplane-filter/src/attributes.rs`:
+Create `crates/netpilot-filter/src/attributes.rs`:
 
 ```rust
 use crate::{types::FilterType, value::FilterValue};
@@ -395,7 +395,7 @@ pub trait RouteAttribute {
 }
 ```
 
-Create `crates/routeplane-filter/src/builtins.rs`:
+Create `crates/netpilot-filter/src/builtins.rs`:
 
 ```rust
 use crate::value::FilterValue;
@@ -421,7 +421,7 @@ pub fn from_hex(hex_str: &str) -> Result<Vec<u8>, String> {
 }
 ```
 
-Create `crates/routeplane-filter/src/nettype.rs`:
+Create `crates/netpilot-filter/src/nettype.rs`:
 
 ```rust
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -475,7 +475,7 @@ impl Nettype {
 
 - [ ] **Step 9: Add hex dependency**
 
-Modify `crates/routeplane-filter/Cargo.toml`, add to `[dependencies]`:
+Modify `crates/netpilot-filter/Cargo.toml`, add to `[dependencies]`:
 
 ```toml
 hex = "0.4"
@@ -483,14 +483,14 @@ hex = "0.4"
 
 - [ ] **Step 10: Run tests to verify skeleton passes**
 
-Run: `cargo test -p routeplane-filter`
+Run: `cargo test -p netpilot-filter`
 Expected: 5 tests PASS. Placement modules compile.
 
 - [ ] **Step 11: Commit**
 
 ```bash
-git add Cargo.toml Cargo.lock crates/routeplane-filter
-git commit -m "feat: create routeplane-filter crate skeleton with complete type system"
+git add Cargo.toml Cargo.lock crates/netpilot-filter
+git commit -m "feat: create netpilot-filter crate skeleton with complete type system"
 ```
 
 ---
@@ -498,15 +498,15 @@ git commit -m "feat: create routeplane-filter crate skeleton with complete type 
 ## Task 2: bgppath and bgpmask Types (#270, #271)
 
 **Files:**
-- Modify: `crates/routeplane-filter/src/value.rs`
-- Modify: `crates/routeplane-filter/tests/types_roundtrip.rs`
+- Modify: `crates/netpilot-filter/src/value.rs`
+- Modify: `crates/netpilot-filter/tests/types_roundtrip.rs`
 
 - [ ] **Step 1: Write failing bgppath tests**
 
-Add to `crates/routeplane-filter/tests/types_roundtrip.rs`:
+Add to `crates/netpilot-filter/tests/types_roundtrip.rs`:
 
 ```rust
-use routeplane_filter::value::{AsPath, AsPathSegment};
+use netpilot_filter::value::{AsPath, AsPathSegment};
 
 #[test]
 fn bgppath_construct_and_access() {
@@ -569,12 +569,12 @@ fn bgppath_filter_keeps_matching() {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cargo test -p routeplane-filter types_roundtrip`
+Run: `cargo test -p netpilot-filter types_roundtrip`
 Expected: FAIL — `.first()`, `.last()`, `.len()`, `.prepend()`, `.delete()`, `.filter()` don't exist on AsPath.
 
 - [ ] **Step 3: Implement AsPath methods**
 
-Modify `crates/routeplane-filter/src/value.rs` — add impl block for AsPath after the struct definitions:
+Modify `crates/netpilot-filter/src/value.rs` — add impl block for AsPath after the struct definitions:
 
 ```rust
 impl AsPath {
@@ -685,10 +685,10 @@ impl AsPathSegment {
 
 - [ ] **Step 4: Add failing bgpmask tests**
 
-Add to `crates/routeplane-filter/tests/types_roundtrip.rs`:
+Add to `crates/netpilot-filter/tests/types_roundtrip.rs`:
 
 ```rust
-use routeplane_filter::value::{AsMaskPattern, AsPathMask};
+use netpilot_filter::value::{AsMaskPattern, AsPathMask};
 
 #[test]
 fn bgpmask_matches_empty_path() {
@@ -755,12 +755,12 @@ fn bgpmask_any_optional_skips() {
 
 - [ ] **Step 5: Run tests to verify they fail**
 
-Run: `cargo test -p routeplane-filter types_roundtrip`
+Run: `cargo test -p netpilot-filter types_roundtrip`
 Expected: FAIL — `AsPathMask::matches()` doesn't exist.
 
 - [ ] **Step 6: Implement AsPathMask matching**
 
-Modify `crates/routeplane-filter/src/value.rs` — add impl block for AsPathMask:
+Modify `crates/netpilot-filter/src/value.rs` — add impl block for AsPathMask:
 
 ```rust
 impl AsPathMask {
@@ -851,13 +851,13 @@ impl AsPathMask {
 
 - [ ] **Step 7: Run all bgppath/bgpmask tests**
 
-Run: `cargo test -p routeplane-filter types_roundtrip`
+Run: `cargo test -p netpilot-filter types_roundtrip`
 Expected: 10 tests PASS (5 from Task 1 + 5 new bgppath + 5 new bgpmask).
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add crates/routeplane-filter
+git add crates/netpilot-filter
 git commit -m "feat: implement bgppath operations and bgpmask matching (#270, #271)"
 ```
 
@@ -866,15 +866,15 @@ git commit -m "feat: implement bgppath operations and bgpmask matching (#270, #2
 ## Task 3: clist, eclist, lclist Mutable Community Lists (#272)
 
 **Files:**
-- Modify: `crates/routeplane-filter/src/value.rs`
-- Modify: `crates/routeplane-filter/tests/types_roundtrip.rs`
+- Modify: `crates/netpilot-filter/src/value.rs`
+- Modify: `crates/netpilot-filter/tests/types_roundtrip.rs`
 
 - [ ] **Step 1: Write failing clist/eclist/lclist tests**
 
-Add to `crates/routeplane-filter/tests/types_roundtrip.rs`:
+Add to `crates/netpilot-filter/tests/types_roundtrip.rs`:
 
 ```rust
-use routeplane_filter::value::{ClistEntry, EcValue, LcValue};
+use netpilot_filter::value::{ClistEntry, EcValue, LcValue};
 
 #[test]
 fn clist_operations() {
@@ -941,7 +941,7 @@ fn lclist_operations() {
 }
 ```
 
-Make these free functions accessible via a trait. Add to `crates/routeplane-filter/src/value.rs`:
+Make these free functions accessible via a trait. Add to `crates/netpilot-filter/src/value.rs`:
 
 ```rust
 // Community list operations
@@ -1024,7 +1024,7 @@ pub fn lclist_max(list: &[LcValue]) -> Option<&LcValue> {
 
 - [ ] **Step 2: Add Eq to EcValue and LcValue**
 
-Modify `crates/routeplane-filter/src/value.rs` — ensure these derives:
+Modify `crates/netpilot-filter/src/value.rs` — ensure these derives:
 
 ```rust
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1036,13 +1036,13 @@ pub struct LcValue { ... }
 
 - [ ] **Step 3: Run tests**
 
-Run: `cargo test -p routeplane-filter types_roundtrip`
+Run: `cargo test -p netpilot-filter types_roundtrip`
 Expected: 13 tests PASS.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add crates/routeplane-filter
+git add crates/netpilot-filter
 git commit -m "feat: implement clist, eclist, lclist mutable community list operations (#272)"
 ```
 
@@ -1051,28 +1051,28 @@ git commit -m "feat: implement clist, eclist, lclist mutable community list oper
 ## Task 4: bytestring, mac, rd Types (#273, #274, #275)
 
 **Files:**
-- Modify: `crates/routeplane-filter/src/value.rs`
-- Modify: `crates/routeplane-filter/src/builtins.rs`
-- Modify: `crates/routeplane-filter/tests/types_roundtrip.rs`
+- Modify: `crates/netpilot-filter/src/value.rs`
+- Modify: `crates/netpilot-filter/src/builtins.rs`
+- Modify: `crates/netpilot-filter/tests/types_roundtrip.rs`
 
 - [ ] **Step 1: Write failing tests**
 
-Add to `crates/routeplane-filter/tests/types_roundtrip.rs`:
+Add to `crates/netpilot-filter/tests/types_roundtrip.rs`:
 
 ```rust
-use routeplane_filter::value::{RouteDistinguisher, PrefixData};
-use routeplane_filter::nettype::Nettype;
+use netpilot_filter::value::{RouteDistinguisher, PrefixData};
+use netpilot_filter::nettype::Nettype;
 use std::net::{Ipv4Addr, Ipv6Addr, IpAddr};
 
 #[test]
 fn bytestring_from_hex() {
-    let bs = routeplane_filter::builtins::from_hex("0102ff").expect("valid hex");
+    let bs = netpilot_filter::builtins::from_hex("0102ff").expect("valid hex");
     assert_eq!(bs, vec![0x01, 0x02, 0xff]);
 }
 
 #[test]
 fn bytestring_from_hex_invalid() {
-    let result = routeplane_filter::builtins::from_hex("xyz");
+    let result = netpilot_filter::builtins::from_hex("xyz");
     assert!(result.is_err());
 }
 
@@ -1087,8 +1087,8 @@ fn bytestring_concat() {
 #[test]
 fn mac_construction() {
     let mac: [u8; 6] = [0x62, 0x68, 0x7f, 0xd9, 0xc6, 0xec];
-    let fv = routeplane_filter::value::FilterValue::Mac(mac);
-    assert_eq!(fv.type_of(), routeplane_filter::types::FilterType::Mac);
+    let fv = netpilot_filter::value::FilterValue::Mac(mac);
+    assert_eq!(fv.type_of(), netpilot_filter::types::FilterType::Mac);
 }
 
 #[test]
@@ -1097,8 +1097,8 @@ fn rd_type0_construction() {
         admin: 64500,
         assigned: 100,
     };
-    let fv = routeplane_filter::value::FilterValue::Rd(rd);
-    assert_eq!(fv.type_of(), routeplane_filter::types::FilterType::Rd);
+    let fv = netpilot_filter::value::FilterValue::Rd(rd);
+    assert_eq!(fv.type_of(), netpilot_filter::types::FilterType::Rd);
 }
 
 #[test]
@@ -1107,8 +1107,8 @@ fn rd_type1_construction() {
         ip: Ipv4Addr::new(192, 0, 2, 1),
         assigned: 100,
     };
-    let fv = routeplane_filter::value::FilterValue::Rd(rd);
-    assert_eq!(fv.type_of(), routeplane_filter::types::FilterType::Rd);
+    let fv = netpilot_filter::value::FilterValue::Rd(rd);
+    assert_eq!(fv.type_of(), netpilot_filter::types::FilterType::Rd);
 }
 
 #[test]
@@ -1117,8 +1117,8 @@ fn rd_type2_construction() {
         asn: 64500,
         assigned: 100,
     };
-    let fv = routeplane_filter::value::FilterValue::Rd(rd);
-    assert_eq!(fv.type_of(), routeplane_filter::types::FilterType::Rd);
+    let fv = netpilot_filter::value::FilterValue::Rd(rd);
+    assert_eq!(fv.type_of(), netpilot_filter::types::FilterType::Rd);
 }
 
 #[test]
@@ -1148,22 +1148,22 @@ fn prefix_with_rd() {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cargo test -p routeplane-filter types_roundtrip`
+Run: `cargo test -p netpilot-filter types_roundtrip`
 Expected: FAIL — `from_hex` doesn't work yet (needs hex crate properly wired).
 
 - [ ] **Step 3: Ensure hex dependency is correctly configured**
 
-Modify `crates/routeplane-filter/Cargo.toml` — verify `hex = "0.4"` is present in `[dependencies]`.
+Modify `crates/netpilot-filter/Cargo.toml` — verify `hex = "0.4"` is present in `[dependencies]`.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cargo test -p routeplane-filter types_roundtrip`
+Run: `cargo test -p netpilot-filter types_roundtrip`
 Expected: 21 tests PASS (8 new + 13 existing).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add crates/routeplane-filter
+git add crates/netpilot-filter
 git commit -m "feat: add bytestring, mac, and route-distinguisher types (#273, #274, #275)"
 ```
 
@@ -1172,16 +1172,16 @@ git commit -m "feat: add bytestring, mac, and route-distinguisher types (#273, #
 ## Task 5: for Loop and case Statement (#269, #279)
 
 **Files:**
-- Create: `crates/routeplane-filter/src/ast.rs`
-- Modify: `crates/routeplane-filter/src/lib.rs`
-- Create: `crates/routeplane-filter/tests/control_flow.rs`
+- Create: `crates/netpilot-filter/src/ast.rs`
+- Modify: `crates/netpilot-filter/src/lib.rs`
+- Create: `crates/netpilot-filter/tests/control_flow.rs`
 
 - [ ] **Step 1: Write failing control flow tests**
 
-Create `crates/routeplane-filter/tests/control_flow.rs`:
+Create `crates/netpilot-filter/tests/control_flow.rs`:
 
 ```rust
-use routeplane_filter::ast::*;
+use netpilot_filter::ast::*;
 
 #[test]
 fn for_loop_over_int_set() {
@@ -1257,12 +1257,12 @@ fn case_statement_with_inline_set() {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cargo test -p routeplane-filter control_flow`
+Run: `cargo test -p netpilot-filter control_flow`
 Expected: FAIL — `ast` module doesn't exist.
 
 - [ ] **Step 3: Create AST module**
 
-Create `crates/routeplane-filter/src/ast.rs`:
+Create `crates/netpilot-filter/src/ast.rs`:
 
 ```rust
 use crate::value::IntSetRange;
@@ -1421,7 +1421,7 @@ pub struct FilterFunction {
 
 - [ ] **Step 4: Update lib.rs exports**
 
-Modify `crates/routeplane-filter/src/lib.rs`:
+Modify `crates/netpilot-filter/src/lib.rs`:
 
 ```rust
 pub mod ast;
@@ -1441,13 +1441,13 @@ pub use value::FilterValue;
 
 - [ ] **Step 5: Run tests**
 
-Run: `cargo test -p routeplane-filter`
+Run: `cargo test -p netpilot-filter`
 Expected: 25 tests PASS (4 control_flow + 21 types_roundtrip).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add crates/routeplane-filter
+git add crates/netpilot-filter
 git commit -m "feat: implement for-loop and case-statement AST with set-expression branches (#269, #279)"
 ```
 
@@ -1456,16 +1456,16 @@ git commit -m "feat: implement for-loop and case-statement AST with set-expressi
 ## Task 6: print, printn Debugging (#276)
 
 **Files:**
-- Modify: `crates/routeplane-filter/src/builtins.rs`
-- Create: `crates/routeplane-filter/tests/builtins_test.rs`
+- Modify: `crates/netpilot-filter/src/builtins.rs`
+- Create: `crates/netpilot-filter/tests/builtins_test.rs`
 
 - [ ] **Step 1: Write failing print tests**
 
-Create `crates/routeplane-filter/tests/builtins_test.rs`:
+Create `crates/netpilot-filter/tests/builtins_test.rs`:
 
 ```rust
-use routeplane_filter::builtins::{print, printn};
-use routeplane_filter::value::FilterValue;
+use netpilot_filter::builtins::{print, printn};
+use netpilot_filter::value::FilterValue;
 use std::sync::Mutex;
 
 static PRINT_BUFFER: Mutex<Vec<String>> = Mutex::new(Vec::new());
@@ -1505,7 +1505,7 @@ fn format_values(values: &[FilterValue], newline: bool) -> String {
 
 - [ ] **Step 2: Implement Display for FilterValue**
 
-Modify `crates/routeplane-filter/src/value.rs` — add Display impl:
+Modify `crates/netpilot-filter/src/value.rs` — add Display impl:
 
 ```rust
 impl fmt::Display for FilterValue {
@@ -1573,7 +1573,7 @@ impl fmt::Display for FilterValue {
 
 - [ ] **Step 3: Update builtins.rs with real implementations**
 
-Modify `crates/routeplane-filter/src/builtins.rs`:
+Modify `crates/netpilot-filter/src/builtins.rs`:
 
 ```rust
 use crate::value::FilterValue;
@@ -1611,11 +1611,11 @@ pub fn from_hex(hex_str: &str) -> Result<Vec<u8>, String> {
 
 - [ ] **Step 4: Update builtins_test.rs to use real functions**
 
-Modify `crates/routeplane-filter/tests/builtins_test.rs`:
+Modify `crates/netpilot-filter/tests/builtins_test.rs`:
 
 ```rust
-use routeplane_filter::builtins::{from_hex, print, printn};
-use routeplane_filter::value::FilterValue;
+use netpilot_filter::builtins::{from_hex, print, printn};
+use netpilot_filter::value::FilterValue;
 
 #[test]
 fn print_formats_multiple_values_with_newline() {
@@ -1649,8 +1649,8 @@ fn print_ip_output() {
 
 #[test]
 fn print_prefix_output() {
-    use routeplane_filter::value::PrefixData;
-    use routeplane_filter::nettype::Nettype;
+    use netpilot_filter::value::PrefixData;
+    use netpilot_filter::nettype::Nettype;
     use std::net::{IpAddr, Ipv4Addr};
 
     let prefix = FilterValue::Prefix(PrefixData {
@@ -1686,13 +1686,13 @@ fn from_hex_invalid_rejects() {
 
 - [ ] **Step 5: Run tests**
 
-Run: `cargo test -p routeplane-filter`
+Run: `cargo test -p netpilot-filter`
 Expected: 32 tests PASS (7 builtins + 4 control_flow + 21 types_roundtrip).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add crates/routeplane-filter
+git add crates/netpilot-filter
 git commit -m "feat: implement print/printn debugging and from_hex builtin (#276)"
 ```
 
@@ -1701,13 +1701,13 @@ git commit -m "feat: implement print/printn debugging and from_hex builtin (#276
 ## Task 7: defined() and unset() Introspection (#277, #278)
 
 **Files:**
-- Modify: `crates/routeplane-filter/src/attributes.rs`
-- Modify: `crates/routeplane-filter/src/builtins.rs`
-- Modify: `crates/routeplane-filter/tests/builtins_test.rs`
+- Modify: `crates/netpilot-filter/src/attributes.rs`
+- Modify: `crates/netpilot-filter/src/builtins.rs`
+- Modify: `crates/netpilot-filter/tests/builtins_test.rs`
 
 - [ ] **Step 1: Build attribute registry**
 
-Modify `crates/routeplane-filter/src/attributes.rs`:
+Modify `crates/netpilot-filter/src/attributes.rs`:
 
 ```rust
 use crate::{types::FilterType, value::FilterValue};
@@ -1777,7 +1777,7 @@ impl AttributeRegistry {
 
 - [ ] **Step 2: Wire defined()/unset() to registry**
 
-Modify `crates/routeplane-filter/src/builtins.rs` — replace placeholder implementations:
+Modify `crates/netpilot-filter/src/builtins.rs` — replace placeholder implementations:
 
 ```rust
 use crate::attributes::AttributeRegistry;
@@ -1796,13 +1796,13 @@ pub fn unset(registry: &mut AttributeRegistry, attr_name: &str) -> Result<(), St
 
 - [ ] **Step 3: Write tests for defined/unset**
 
-Modify `crates/routeplane-filter/tests/builtins_test.rs` — add:
+Modify `crates/netpilot-filter/tests/builtins_test.rs` — add:
 
 ```rust
-use routeplane_filter::attributes::{AttributeRegistry, RouteAttribute};
-use routeplane_filter::builtins::{defined, unset};
-use routeplane_filter::types::FilterType;
-use routeplane_filter::value::FilterValue;
+use netpilot_filter::attributes::{AttributeRegistry, RouteAttribute};
+use netpilot_filter::builtins::{defined, unset};
+use netpilot_filter::types::FilterType;
+use netpilot_filter::value::FilterValue;
 
 // Concrete test attribute
 struct TestAttribute {
@@ -1864,13 +1864,13 @@ fn unset_fails_on_nonexistent_attribute() {
 
 - [ ] **Step 4: Run tests**
 
-Run: `cargo test -p routeplane-filter`
+Run: `cargo test -p netpilot-filter`
 Expected: 37 tests PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add crates/routeplane-filter
+git add crates/netpilot-filter
 git commit -m "feat: implement defined() and unset() with attribute registry (#277, #278)"
 ```
 
@@ -1879,15 +1879,15 @@ git commit -m "feat: implement defined() and unset() with attribute registry (#2
 ## Task 8: Typed Function System (#280)
 
 **Files:**
-- Modify: `crates/routeplane-filter/src/ast.rs`
-- Create: `crates/routeplane-filter/tests/function_tests.rs`
+- Modify: `crates/netpilot-filter/src/ast.rs`
+- Create: `crates/netpilot-filter/tests/function_tests.rs`
 
 - [ ] **Step 1: Write failing function tests**
 
-Create `crates/routeplane-filter/tests/function_tests.rs`:
+Create `crates/netpilot-filter/tests/function_tests.rs`:
 
 ```rust
-use routeplane_filter::ast::*;
+use netpilot_filter::ast::*;
 
 #[test]
 fn filter_function_with_return_type() {
@@ -1961,12 +1961,12 @@ fn filter_function_with_local_variables() {
 
 - [ ] **Step 2: Run tests**
 
-Run: `cargo test -p routeplane-filter function_tests`
+Run: `cargo test -p netpilot-filter function_tests`
 Expected: PASS — AST types are already defined from Task 5.
 
 - [ ] **Step 3: Add type validation for functions**
 
-Modify `crates/routeplane-filter/src/ast.rs` — add a type-checking helper:
+Modify `crates/netpilot-filter/src/ast.rs` — add a type-checking helper:
 
 ```rust
 impl FilterFunction {
@@ -2003,7 +2003,7 @@ fn is_valid_type_name(name: &str) -> bool {
 
 - [ ] **Step 4: Add validation test**
 
-Add to `crates/routeplane-filter/tests/function_tests.rs`:
+Add to `crates/netpilot-filter/tests/function_tests.rs`:
 
 ```rust
 #[test]
@@ -2034,13 +2034,13 @@ fn function_accepts_valid_types() {
 
 - [ ] **Step 5: Run tests**
 
-Run: `cargo test -p routeplane-filter`
+Run: `cargo test -p netpilot-filter`
 Expected: 41 tests PASS.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add crates/routeplane-filter
+git add crates/netpilot-filter
 git commit -m "feat: implement typed filter function system with type validation (#280)"
 ```
 
@@ -2049,18 +2049,18 @@ git commit -m "feat: implement typed filter function system with type validation
 ## Task 9: Custom Route Attributes (#281)
 
 **Files:**
-- Modify: `crates/routeplane-filter/src/attributes.rs`
-- Modify: `crates/routeplane-filter/src/lib.rs`
-- Create: `crates/routeplane-filter/tests/attributes_test.rs`
+- Modify: `crates/netpilot-filter/src/attributes.rs`
+- Modify: `crates/netpilot-filter/src/lib.rs`
+- Create: `crates/netpilot-filter/tests/attributes_test.rs`
 
 - [ ] **Step 1: Write failing custom attribute tests**
 
-Create `crates/routeplane-filter/tests/attributes_test.rs`:
+Create `crates/netpilot-filter/tests/attributes_test.rs`:
 
 ```rust
-use routeplane_filter::attributes::{AttributeRegistry, RouteAttribute};
-use routeplane_filter::types::FilterType;
-use routeplane_filter::value::FilterValue;
+use netpilot_filter::attributes::{AttributeRegistry, RouteAttribute};
+use netpilot_filter::types::FilterType;
+use netpilot_filter::value::FilterValue;
 
 #[test]
 fn custom_int_attribute_round_trips() {
@@ -2103,7 +2103,7 @@ fn custom_attribute_is_not_read_only() {
 
 #[test]
 fn read_only_attributes_cannot_be_written() {
-    use routeplane_filter::attributes::ReadOnlyAttribute;
+    use netpilot_filter::attributes::ReadOnlyAttribute;
     let mut registry = AttributeRegistry::new();
     registry.register(ReadOnlyAttribute::new("net", FilterValue::String("10.0.0.0/8".to_string())));
 
@@ -2114,7 +2114,7 @@ fn read_only_attributes_cannot_be_written() {
 
 - [ ] **Step 2: Add custom attribute implementations**
 
-Modify `crates/routeplane-filter/src/attributes.rs` — add before `AttributeRegistry`:
+Modify `crates/netpilot-filter/src/attributes.rs` — add before `AttributeRegistry`:
 
 ```rust
 // --- Built-in concrete attribute types for custom attribute declaration ---
@@ -2203,7 +2203,7 @@ impl RouteAttribute for ReadOnlyAttribute {
 
 - [ ] **Step 3: Update lib.rs exports**
 
-Modify `crates/routeplane-filter/src/lib.rs`:
+Modify `crates/netpilot-filter/src/lib.rs`:
 
 ```rust
 pub use attributes::{
@@ -2213,13 +2213,13 @@ pub use attributes::{
 
 - [ ] **Step 4: Run tests**
 
-Run: `cargo test -p routeplane-filter`
+Run: `cargo test -p netpilot-filter`
 Expected: 45 tests PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add crates/routeplane-filter
+git add crates/netpilot-filter
 git commit -m "feat: implement custom route attributes with registry (#281)"
 ```
 
@@ -2228,16 +2228,16 @@ git commit -m "feat: implement custom route attributes with registry (#281)"
 ## Task 10: MPLS Route Attributes — gw_mpls, mpls_label, mpls_policy, mpls_class (#282, #283)
 
 **Files:**
-- Modify: `crates/routeplane-filter/src/attributes.rs`
-- Modify: `crates/routeplane-filter/tests/attributes_test.rs`
+- Modify: `crates/netpilot-filter/src/attributes.rs`
+- Modify: `crates/netpilot-filter/tests/attributes_test.rs`
 
 - [ ] **Step 1: Write failing MPLS attribute tests**
 
-Add to `crates/routeplane-filter/tests/attributes_test.rs`:
+Add to `crates/netpilot-filter/tests/attributes_test.rs`:
 
 ```rust
-use routeplane_filter::attributes::MplsAttributes;
-use routeplane_filter::value::FilterValue;
+use netpilot_filter::attributes::MplsAttributes;
+use netpilot_filter::value::FilterValue;
 
 #[test]
 fn gw_mpls_attribute_round_trips() {
@@ -2292,7 +2292,7 @@ fn mpls_class_attribute_round_trips() {
 
 - [ ] **Step 2: Implement MPLS attributes**
 
-Add to `crates/routeplane-filter/src/attributes.rs`:
+Add to `crates/netpilot-filter/src/attributes.rs`:
 
 ```rust
 /// Registers all MPLS-related route attributes.
@@ -2385,7 +2385,7 @@ impl RouteAttribute for EnumAttribute {
 
 - [ ] **Step 3: Update lib.rs exports**
 
-Modify `crates/routeplane-filter/src/lib.rs`:
+Modify `crates/netpilot-filter/src/lib.rs`:
 
 ```rust
 pub use attributes::{
@@ -2396,13 +2396,13 @@ pub use attributes::{
 
 - [ ] **Step 4: Run tests**
 
-Run: `cargo test -p routeplane-filter`
+Run: `cargo test -p netpilot-filter`
 Expected: 49 tests PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add crates/routeplane-filter
+git add crates/netpilot-filter
 git commit -m "feat: implement MPLS route attributes (gw_mpls, mpls_label, mpls_policy, mpls_class) (#282, #283)"
 ```
 
@@ -2411,17 +2411,17 @@ git commit -m "feat: implement MPLS route attributes (gw_mpls, mpls_label, mpls_
 ## Task 11: igp_metric and EVPN Prefix Operators (#284, #285)
 
 **Files:**
-- Modify: `crates/routeplane-filter/src/value.rs`
-- Modify: `crates/routeplane-filter/src/attributes.rs`
-- Modify: `crates/routeplane-filter/tests/attributes_test.rs`
+- Modify: `crates/netpilot-filter/src/value.rs`
+- Modify: `crates/netpilot-filter/src/attributes.rs`
+- Modify: `crates/netpilot-filter/tests/attributes_test.rs`
 
 - [ ] **Step 1: Write failing tests for igp_metric and EVPN accessors**
 
-Add to `crates/routeplane-filter/tests/attributes_test.rs`:
+Add to `crates/netpilot-filter/tests/attributes_test.rs`:
 
 ```rust
-use routeplane_filter::value::PrefixData;
-use routeplane_filter::nettype::Nettype;
+use netpilot_filter::value::PrefixData;
+use netpilot_filter::nettype::Nettype;
 use std::net::{IpAddr, Ipv4Addr};
 
 #[test]
@@ -2517,13 +2517,13 @@ fn evpn_imet_prefix() {
 
 - [ ] **Step 2: Run tests**
 
-Run: `cargo test -p routeplane-filter`
+Run: `cargo test -p netpilot-filter`
 Expected: 53 tests PASS (the PrefixData structure already supports these fields from Task 1; tests should pass as-is).
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add crates/routeplane-filter
+git add crates/netpilot-filter
 git commit -m "feat: add igp_metric attribute and EVPN prefix operators (#284, #285)"
 ```
 
@@ -2532,15 +2532,15 @@ git commit -m "feat: add igp_metric attribute and EVPN prefix operators (#284, #
 ## Task 12: Nettype Constants (#286)
 
 **Files:**
-- Modify: `crates/routeplane-filter/src/nettype.rs`
-- Create: `crates/routeplane-filter/tests/nettype_tests.rs`
+- Modify: `crates/netpilot-filter/src/nettype.rs`
+- Create: `crates/netpilot-filter/tests/nettype_tests.rs`
 
 - [ ] **Step 1: Write failing nettype tests**
 
-Create `crates/routeplane-filter/tests/nettype_tests.rs`:
+Create `crates/netpilot-filter/tests/nettype_tests.rs`:
 
 ```rust
-use routeplane_filter::nettype::Nettype;
+use netpilot_filter::nettype::Nettype;
 
 #[test]
 fn nettype_from_constant_names() {
@@ -2583,32 +2583,32 @@ fn nettype_display_is_debug_friendly() {
 
 - [ ] **Step 2: Run tests**
 
-Run: `cargo test -p routeplane-filter nettype_tests`
+Run: `cargo test -p netpilot-filter nettype_tests`
 Expected: PASS — functionality already implemented in Task 1.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add crates/routeplane-filter
+git add crates/netpilot-filter
 git commit -m "feat: add nettype constants matching BIRD2 NET_* naming (#286)"
 ```
 
 ---
 
-## Task 13: Integration — Wire Filter Types into routeplane-config
+## Task 13: Integration — Wire Filter Types into netpilot-config
 
 **Files:**
-- Modify: `crates/routeplane-config/Cargo.toml`
-- Modify: `crates/routeplane-config/src/schema.rs`
-- Modify: `crates/routeplane-config/src/lib.rs`
+- Modify: `crates/netpilot-config/Cargo.toml`
+- Modify: `crates/netpilot-config/src/schema.rs`
+- Modify: `crates/netpilot-config/src/lib.rs`
 
-- [ ] **Step 1: Add routeplane-filter dependency**
+- [ ] **Step 1: Add netpilot-filter dependency**
 
-Modify `crates/routeplane-config/Cargo.toml`:
+Modify `crates/netpilot-config/Cargo.toml`:
 
 ```toml
 [dependencies]
-routeplane-filter = { path = "../routeplane-filter" }
+netpilot-filter = { path = "../netpilot-filter" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -2617,10 +2617,10 @@ time.workspace = true
 
 - [ ] **Step 2: Add nettype field to TableConfig**
 
-Modify `crates/routeplane-config/src/schema.rs` — update `TableConfig`:
+Modify `crates/netpilot-config/src/schema.rs` — update `TableConfig`:
 
 ```rust
-use routeplane_filter::nettype::Nettype;
+use netpilot_filter::nettype::Nettype;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -2673,7 +2673,7 @@ impl From<NettypeDef> for Nettype {
 
 - [ ] **Step 3: Add MPLS and EVPN fields to protocol configs**
 
-Modify `crates/routeplane-config/src/schema.rs` — add to `StaticRoute`:
+Modify `crates/netpilot-config/src/schema.rs` — add to `StaticRoute`:
 
 ```rust
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -2701,11 +2701,11 @@ pub enum StaticNexthopType {
 
 - [ ] **Step 4: Update lib.rs exports**
 
-Modify `crates/routeplane-config/src/lib.rs`:
+Modify `crates/netpilot-config/src/lib.rs`:
 
 ```rust
 pub use schema::{
-    AddressFamily, BgpNeighbor, NettypeDef, ProtocolConfig, RoutePlaneConfig, RouterIdentity,
+    AddressFamily, BgpNeighbor, NettypeDef, ProtocolConfig, NetPilotConfig, RouterIdentity,
     StaticNexthopType, StaticRoute, TableConfig,
 };
 ```
@@ -2718,7 +2718,7 @@ Expected: All tests PASS (existing config tests + all new filter tests).
 - [ ] **Step 6: Commit**
 
 ```bash
-git add crates/routeplane-config crates/routeplane-filter
+git add crates/netpilot-config crates/netpilot-filter
 git commit -m "feat: integrate filter types into config schema with nettype, MPLS, EVPN support"
 ```
 
@@ -2727,14 +2727,14 @@ git commit -m "feat: integrate filter types into config schema with nettype, MPL
 ## Task 14: Golden Filter Tests (#90 — extended)
 
 **Files:**
-- Create: `crates/routeplane-filter/tests/golden/bird2_types.rs`
+- Create: `crates/netpilot-filter/tests/golden/bird2_types.rs`
 
 - [ ] **Step 1: Write golden tests matching BIRD2 filter behavior**
 
-Create `crates/routeplane-filter/tests/golden/bird2_types.rs`:
+Create `crates/netpilot-filter/tests/golden/bird2_types.rs`:
 
 ```rust
-use routeplane_filter::{
+use netpilot_filter::{
     attributes::{AttributeRegistry, CustomIntAttribute, MplsAttributes, RouteAttribute},
     builtins::{defined, from_hex, print, printn},
     nettype::Nettype,
@@ -2749,7 +2749,7 @@ use std::net::{IpAddr, Ipv4Addr};
 // ============================================================
 // BIRD2 Golden Tests — Behavior Verification
 // ============================================================
-// These tests verify that RoutePlane's filter types behave
+// These tests verify that NetPilot's filter types behave
 // identically to BIRD2's documented behavior.
 // ============================================================
 
@@ -2841,7 +2841,7 @@ fn golden_bgpmask_plus_matches_one_or_more() {
 
 #[test]
 fn golden_clist_add_no_duplicates() {
-    use routeplane_filter::value::clist_add;
+    use netpilot_filter::value::clist_add;
     let mut clist: Vec<(u16, u16)> = vec![(64500, 100)];
     clist_add(&mut clist, (64500, 100)); // duplicate — ignored
     assert_eq!(clist.len(), 1);
@@ -2986,7 +2986,7 @@ impl Default for PrefixData {
 
 - [ ] **Step 2: Run golden tests**
 
-Run: `cargo test -p routeplane-filter golden`
+Run: `cargo test -p netpilot-filter golden`
 Expected: All 18 golden tests PASS.
 
 - [ ] **Step 3: Run full workspace test suite**
@@ -3002,7 +3002,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add crates/routeplane-filter crates/routeplane-config
+git add crates/netpilot-filter crates/netpilot-config
 git commit -m "test: add BIRD2 golden filter type and behavior tests (#90 extended)"
 ```
 
@@ -3051,7 +3051,7 @@ No TBD, TODO, or vague references. All code is concrete with exact types, method
 
 ## Execution Handoff
 
-Plan complete and saved to `docs/superpowers/plans/2026-06-12-routeplane-filter-language.md`.
+Plan complete and saved to `docs/superpowers/plans/2026-06-12-netpilot-filter-language.md`.
 
 **Two execution options:**
 

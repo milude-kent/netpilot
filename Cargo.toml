@@ -1,8 +1,8 @@
 [workspace]
 members = [
-    "crates/routeplane-config",
-    "crates/routeplane-filter",
-    "crates/routeplaned",
+    "crates/netpilot-config",
+    "crates/netpilot-filter",
+    "crates/netpilotd",
 ]
 resolver = "2"
 
