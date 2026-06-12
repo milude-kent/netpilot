@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/routeplane-config",
+    "crates/routeplane-filter",
     "crates/routeplaned",
 ]
 resolver = "2"
