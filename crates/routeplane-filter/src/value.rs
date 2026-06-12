@@ -93,26 +93,26 @@ pub enum RouteDistinguisher {
     Type2 { asn: u32, assigned: u16 },
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EcValue {
     pub kind: u8,
     pub key: u16,
     pub value: u32,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LcValue {
     pub asn: u32,
     pub data1: u32,
     pub data2: u32,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AsPath {
     pub segments: Vec<AsPathSegment>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AsPathSegment {
     AsSequence(Vec<u32>),
     AsSet(Vec<u32>),
@@ -120,12 +120,12 @@ pub enum AsPathSegment {
     ConfedSet(Vec<u32>),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AsPathMask {
     pub patterns: Vec<AsMaskPattern>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AsMaskPattern {
     Any,
     AnyOptional,
@@ -137,7 +137,7 @@ pub enum AsMaskPattern {
 
 pub type ClistEntry = (u16, u16);
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IntSetRange {
     pub start: u32,
     pub end: u32,
@@ -149,7 +149,7 @@ pub struct PrefixSetEntry {
     pub is_range: bool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PairSetRange {
     pub start: (u16, u16),
     pub end: (u16, u16),
