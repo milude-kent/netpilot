@@ -112,6 +112,77 @@ pub struct AsPath {
     pub segments: Vec<AsPathSegment>,
 }
 
+impl AsPath {
+    pub fn first(&self) -> Option<u32> {
+        self.segments.first().and_then(|seg| seg.first_asn())
+    }
+
+    pub fn last(&self) -> Option<u32> {
+        self.segments.last().and_then(|seg| seg.last_asn())
+    }
+
+    pub fn last_nonaggregated(&self) -> Option<u32> {
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|seg| match seg {
+                AsPathSegment::AsSequence(asns) => asns.last().copied(),
+                AsPathSegment::ConfedSequence(asns) => asns.last().copied(),
+                _ => None,
+            })
+    }
+
+    pub fn len(&self) -> usize {
+        self.segments.iter().map(|seg| seg.len()).sum()
+    }
+
+    pub fn empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn prepend(&mut self, asn: u32) {
+        match self.segments.first_mut() {
+            Some(AsPathSegment::AsSequence(asns)) => {
+                asns.insert(0, asn);
+            }
+            _ => {
+                self.segments.insert(0, AsPathSegment::AsSequence(vec![asn]));
+            }
+        }
+    }
+
+    pub fn delete(&mut self, asn: u32) {
+        for seg in &mut self.segments {
+            match seg {
+                AsPathSegment::AsSequence(asns)
+                | AsPathSegment::AsSet(asns)
+                | AsPathSegment::ConfedSequence(asns)
+                | AsPathSegment::ConfedSet(asns) => {
+                    asns.retain(|a| *a != asn);
+                }
+            }
+        }
+        self.segments.retain(|seg| seg.len() > 0);
+    }
+
+    pub fn filter<F>(&mut self, predicate: F)
+    where
+        F: Fn(&u32) -> bool,
+    {
+        for seg in &mut self.segments {
+            match seg {
+                AsPathSegment::AsSequence(asns)
+                | AsPathSegment::AsSet(asns)
+                | AsPathSegment::ConfedSequence(asns)
+                | AsPathSegment::ConfedSet(asns) => {
+                    asns.retain(|a| predicate(a));
+                }
+            }
+        }
+        self.segments.retain(|seg| seg.len() > 0);
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AsPathSegment {
     AsSequence(Vec<u32>),
@@ -120,9 +191,110 @@ pub enum AsPathSegment {
     ConfedSet(Vec<u32>),
 }
 
+impl AsPathSegment {
+    fn first_asn(&self) -> Option<u32> {
+        self.asns().first().copied()
+    }
+
+    fn last_asn(&self) -> Option<u32> {
+        self.asns().last().copied()
+    }
+
+    fn len(&self) -> usize {
+        self.asns().len()
+    }
+
+    pub fn asns(&self) -> &[u32] {
+        match self {
+            AsPathSegment::AsSequence(asns) => asns,
+            AsPathSegment::AsSet(asns) => asns,
+            AsPathSegment::ConfedSequence(asns) => asns,
+            AsPathSegment::ConfedSet(asns) => asns,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AsPathMask {
     pub patterns: Vec<AsMaskPattern>,
+}
+
+impl AsPathMask {
+    /// Match this mask against an AS path using recursive backtracking.
+    pub fn matches(&self, path: &AsPath) -> bool {
+        let flat: Vec<u32> = path
+            .segments
+            .iter()
+            .flat_map(|seg| seg.asns().to_vec())
+            .collect();
+        self.match_recursive(&flat, 0, 0)
+    }
+
+    fn match_recursive(&self, asns: &[u32], pat_idx: usize, asn_idx: usize) -> bool {
+        if pat_idx >= self.patterns.len() {
+            return asn_idx >= asns.len();
+        }
+
+        match &self.patterns[pat_idx] {
+            AsMaskPattern::Exact(n) => {
+                if asn_idx < asns.len() && asns[asn_idx] == *n {
+                    self.match_recursive(asns, pat_idx + 1, asn_idx + 1)
+                } else {
+                    false
+                }
+            }
+            AsMaskPattern::Set(set) => {
+                if asn_idx < asns.len() && set.contains(&asns[asn_idx]) {
+                    self.match_recursive(asns, pat_idx + 1, asn_idx + 1)
+                } else {
+                    false
+                }
+            }
+            AsMaskPattern::Range(lo, hi) => {
+                if asn_idx < asns.len() && asns[asn_idx] >= *lo && asns[asn_idx] <= *hi {
+                    self.match_recursive(asns, pat_idx + 1, asn_idx + 1)
+                } else {
+                    false
+                }
+            }
+            AsMaskPattern::Any => {
+                if asn_idx < asns.len() {
+                    self.match_recursive(asns, pat_idx + 1, asn_idx + 1)
+                } else {
+                    false
+                }
+            }
+            AsMaskPattern::AnyOptional => {
+                // try skipping
+                if self.match_recursive(asns, pat_idx + 1, asn_idx) {
+                    return true;
+                }
+                // or consume one
+                if asn_idx < asns.len() {
+                    self.match_recursive(asns, pat_idx + 1, asn_idx + 1)
+                } else {
+                    self.match_recursive(asns, pat_idx + 1, asn_idx)
+                }
+            }
+            AsMaskPattern::OneOrMore => {
+                if asn_idx >= asns.len() {
+                    return false;
+                }
+                // consume at least one, then greedy
+                let mut idx = asn_idx + 1;
+                loop {
+                    if self.match_recursive(asns, pat_idx + 1, idx) {
+                        return true;
+                    }
+                    if idx >= asns.len() {
+                        break;
+                    }
+                    idx += 1;
+                }
+                false
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -223,3 +223,177 @@ fn filter_value_ip_roundtrip() {
     let v6 = FilterValue::Ip("::1".parse().unwrap());
     assert_eq!(v6.type_of(), FilterType::Ip);
 }
+
+// --- bgppath tests ---
+
+use routeplane_filter::value::{AsPath, AsPathSegment};
+
+#[test]
+fn bgppath_construct_and_access() {
+    let path = AsPath {
+        segments: vec![
+            AsPathSegment::AsSequence(vec![64500, 64501, 64502]),
+            AsPathSegment::AsSet(vec![64510, 64511]),
+        ],
+    };
+
+    // .first — first ASN in path
+    assert_eq!(path.first(), Some(64500));
+
+    // .last — last ASN in path
+    assert_eq!(path.last(), Some(64511));
+
+    // .last_nonaggregated — last ASN in last AS_SEQUENCE
+    assert_eq!(path.last_nonaggregated(), Some(64502));
+
+    // .len — total number of ASNs
+    assert_eq!(path.len(), 5);
+
+    // .empty
+    let empty_path = AsPath { segments: vec![] };
+    assert!(empty_path.empty());
+    assert!(!path.empty());
+}
+
+#[test]
+fn bgppath_prepend() {
+    let mut path = AsPath {
+        segments: vec![AsPathSegment::AsSequence(vec![64500])],
+    };
+    path.prepend(64999);
+    assert_eq!(path.first(), Some(64999));
+    assert_eq!(path.len(), 2);
+}
+
+#[test]
+fn bgppath_delete_removes_asn() {
+    let mut path = AsPath {
+        segments: vec![AsPathSegment::AsSequence(vec![64500, 64501, 64502])],
+    };
+    path.delete(64501);
+    assert_eq!(path.len(), 2);
+    // 64501 should be removed
+    let all_asns: Vec<u32> = path.segments.iter()
+        .flat_map(|s| s.asns().to_vec()).collect();
+    assert!(!all_asns.contains(&64501));
+}
+
+#[test]
+fn bgppath_filter_keeps_matching() {
+    let mut path = AsPath {
+        segments: vec![AsPathSegment::AsSequence(vec![64500, 64501, 64502])],
+    };
+    // filter keeps only ASNs > 64500
+    path.filter(|asn| *asn > 64500);
+    assert_eq!(path.len(), 2);
+}
+
+#[test]
+fn bgppath_prepend_on_empty_path() {
+    let mut path = AsPath { segments: vec![] };
+    path.prepend(64500);
+    assert_eq!(path.first(), Some(64500));
+    assert_eq!(path.len(), 1);
+}
+
+// --- bgpmask tests ---
+
+use routeplane_filter::value::{AsMaskPattern, AsPathMask};
+
+#[test]
+fn bgpmask_matches_empty_path() {
+    let mask = AsPathMask { patterns: vec![] };
+    let path = AsPath { segments: vec![] };
+    assert!(mask.matches(&path));
+}
+
+#[test]
+fn bgpmask_matches_exact_sequence() {
+    let mask = AsPathMask {
+        patterns: vec![
+            AsMaskPattern::Exact(64500),
+            AsMaskPattern::Exact(64501),
+        ],
+    };
+    let path = AsPath {
+        segments: vec![AsPathSegment::AsSequence(vec![64500, 64501])],
+    };
+    assert!(mask.matches(&path));
+}
+
+#[test]
+fn bgpmask_any_matches_single() {
+    let mask = AsPathMask {
+        patterns: vec![AsMaskPattern::Any, AsMaskPattern::Exact(64500)],
+    };
+    let path = AsPath {
+        segments: vec![AsPathSegment::AsSequence(vec![64999, 64500])],
+    };
+    assert!(mask.matches(&path));
+}
+
+#[test]
+fn bgpmask_one_or_more_matches_multiple() {
+    let mask = AsPathMask {
+        patterns: vec![AsMaskPattern::OneOrMore],
+    };
+    let path = AsPath {
+        segments: vec![AsPathSegment::AsSequence(vec![64500, 64501])],
+    };
+    assert!(mask.matches(&path));
+
+    let empty_path = AsPath { segments: vec![] };
+    assert!(!mask.matches(&empty_path));
+}
+
+#[test]
+fn bgpmask_any_optional_skips() {
+    let mask = AsPathMask {
+        patterns: vec![
+            AsMaskPattern::Exact(64500),
+            AsMaskPattern::AnyOptional,
+            AsMaskPattern::Exact(64502),
+        ],
+    };
+    // matches 64500 64502 directly (skip middle)
+    let path = AsPath {
+        segments: vec![AsPathSegment::AsSequence(vec![64500, 64502])],
+    };
+    assert!(mask.matches(&path));
+
+    // matches 64500 64999 64502 (with middle)
+    let path2 = AsPath {
+        segments: vec![AsPathSegment::AsSequence(vec![64500, 64999, 64502])],
+    };
+    assert!(mask.matches(&path2));
+}
+
+#[test]
+fn bgpmask_set_matches() {
+    let mask = AsPathMask {
+        patterns: vec![AsMaskPattern::Set(vec![64500, 64501, 64502])],
+    };
+    let path = AsPath {
+        segments: vec![AsPathSegment::AsSequence(vec![64501])],
+    };
+    assert!(mask.matches(&path));
+    let path2 = AsPath {
+        segments: vec![AsPathSegment::AsSequence(vec![64999])],
+    };
+    assert!(!mask.matches(&path2));
+}
+
+#[test]
+fn bgpmask_range_matches() {
+    let mask = AsPathMask {
+        patterns: vec![AsMaskPattern::Range(64500, 64510)],
+    };
+    let path = AsPath {
+        segments: vec![AsPathSegment::AsSequence(vec![64505])],
+    };
+    assert!(mask.matches(&path));
+    let path2 = AsPath {
+        segments: vec![AsPathSegment::AsSequence(vec![64511])],
+    };
+    assert!(!mask.matches(&path2));
+}
