@@ -624,6 +624,154 @@ This keeps the project moving while protecting the full BIRD2 target from becomi
 - Exact BIRD2 syntax subset for the first parser milestone.
 - Whether BSD support is a hard requirement after Linux parity or a later optional adapter.
 
+## Feature Gap Analysis (vs BIRD2 2.19.1 + FRR)
+
+> This section added 2026-06-12 after cross-referencing RoutePlane's 233-feature list against BIRD 2.19.1 official documentation, FRR documentation, and modern network operator requirements. 100 additional features identified.
+
+### Gap Category A: Missing BIRD2 Configuration System Options
+
+| # | Feature | Source |
+|---|---------|--------|
+| 234 | Channel route limits: `import limit` / `receive limit` / `export limit` with action (warn/block/restart/disable) | BIRD2 |
+| 235 | Channel `import keep filtered`: retain routes rejected by import filter, queryable via `show route filtered` | BIRD2 |
+| 236 | Channel `rpki reload`: auto-reevaluate routes on ROA/ASPA changes | BIRD2 |
+| 237 | Table GC options: `gc threshold` (min routes to trigger GC), `gc period` (adaptive 10-600s) | BIRD2 |
+| 238 | Table `sorted` / `trie` options: sorted route list guarantee, trie-accelerated lookups | BIRD2 |
+| 239 | Table `min settle time` / `max settle time`: RPKI reload stabilization windows | BIRD2 |
+| 240 | MPLS domain configuration: `mpls domain <name> { label range { start; length; } }` — independent label space management | BIRD2 |
+| 241 | MPLS channel options: `domain`, `label range`, `label policy` (static/prefix/aggregate/vrf) | BIRD2 |
+| 242 | MPLS max stack depth: compile-time limit (BIRD2 default 8 labels) | BIRD2 |
+| 243 | Password/authentication system: multi-password with id, time windows (generate from/to, accept from/to), algorithms (HMAC-SHA256/384/512, BLAKE2s/b) | BIRD2 |
+| 244 | `tx class/dscp`: IP header ToS/DS/DSCP marking (default 0xc0) | BIRD2 |
+| 245 | `tx priority`: local packet priority via Linux SO_PRIORITY (default 7) | BIRD2 |
+| 246 | Protocol `description`: human-readable description text per protocol instance | BIRD2 |
+| 247 | `router id from [...]`: auto-select router-id from interface address pattern | BIRD2 |
+| 248 | `hostname`: global hostname configuration (defaults to uname -n) | BIRD2 |
+| 249 | CLI socket configuration: `cli "<name>"` + `restrict` read-only mode | BIRD2 |
+| 250 | `define` constant system: global numeric/string constant definitions | BIRD2 |
+| 251 | Custom route attributes: `attribute <type> <name>` for declaring custom attributes | BIRD2 |
+| 252 | `watchdog warning/timeout`: I/O loop warning/abort thresholds | BIRD2 |
+| 253 | `debug latency` tracking: internal event timing instrumentation | BIRD2 |
+| 254 | Multiple time formats: `timeformat route|protocol|base|log` per-subsystem format | BIRD2 |
+| 255 | `mpls table` keyword: dedicated MPLS routing table type | BIRD2 |
+
+### Gap Category B: Missing BIRD2 CLI Commands
+
+| # | Feature | Source |
+|---|---------|--------|
+| 256 | `eval <expr>`: evaluate filter expressions directly in CLI | BIRD2 |
+| 257 | `dump resources|sockets|events|interfaces|neighbors|attributes|routes|protocols "<file>"`: export internal state | BIRD2 |
+| 258 | `debug <protocols>|<pattern>|all all|off|{states|routes|filters|events|packets}`: dynamic per-protocol debug level | BIRD2 |
+| 259 | `down`: graceful daemon shutdown | BIRD2 |
+| 260 | `graceful restart`: trigger graceful restart then exit | BIRD2 |
+| 261 | `echo all|off|{classes} [buffer-size]`: control log class output | BIRD2 |
+| 262 | `timeformat "<fmt1>" [limit "<fmt2>"]`: dynamic time display format switch | BIRD2 |
+| 263 | Restricted CLI mode: `birdc -r` read-only operations | BIRD2 |
+| 264 | `configure soft`: soft reconfiguration (only reload changed protocols) | BIRD2 |
+| 265 | `configure undo`: undo unconfirmed confirmed commit | BIRD2 |
+| 266 | `configure timeout <n>`: confirmed commit with auto-rollback timeout | BIRD2 |
+| 267 | `show route filter <name>`: debug filter output for a specific filter function | BIRD2 |
+| 268 | `show route filtered`: show routes retained by import keep filtered | BIRD2 |
+
+### Gap Category C: Missing BIRD2 Filter Language Features
+
+| # | Feature | Source |
+|---|---------|--------|
+| 269 | `for` loop: `for [type] <var> in <expr> do <cmd>` — iterate over tables/sets | BIRD2 |
+| 270 | `bgppath` type with operations: `.first`, `.last`, `.last_nonaggregated`, `.len`, `.empty`, `.prepend(n)`, `.delete(n)`, `.filter(n)` | BIRD2 |
+| 271 | `bgpmask` type: AS path matching pattern `[= * 64500 + =]` with wildcards and sets | BIRD2 |
+| 272 | `clist`/`eclist`/`lclist` mutable community lists: `.len`, `.empty`, `.add(p)`, `.delete(p)`, `.filter(p)`, `.min`, `.max` | BIRD2 |
+| 273 | `bytestring` type: arbitrary byte sequences with `++` concat and `from_hex()` function | BIRD2 |
+| 274 | `mac` type: MAC address type with literal notation | BIRD2 |
+| 275 | `rd` type: Route Distinguisher type (three forms per RFC 4364) | BIRD2 |
+| 276 | `print` / `printn` statements: filter-internal debug output (with/without newline) | BIRD2 |
+| 277 | `defined(<attribute>)` function: check if route attribute exists | BIRD2 |
+| 278 | `unset(<attribute>)` function: undefine optional route attribute | BIRD2 |
+| 279 | `case` full syntax: `case <expr> { <set_expr>: <stmt>; else: <stmt>; }` with set-expression branches | BIRD2 |
+| 280 | Typed function system: `function <name>(<params>) -> <type> [vars] { ... }` with explicit return types | BIRD2 |
+| 281 | Custom attribute read/write in filter: declare with `attribute <type> <name>`, access in filters | BIRD2 |
+| 282 | `gw_mpls` attribute: outgoing MPLS label on route | BIRD2 |
+| 283 | `mpls_label` / `mpls_policy` / `mpls_class` attributes: MPLS-related route attributes | BIRD2 |
+| 284 | `igp_metric` attribute: IGP metric distance for BGP internal path comparison | BIRD2 |
+| 285 | EVPN prefix operators: `.evpn_type`, `.evpn_tag`, `.evpn_esi`, `.router_ip` for EVPN route subtypes | BIRD2 |
+| 286 | Prefix nettype constants: `NET_IP4`, `NET_IP6`, `NET_VPN4`, `NET_VPN6`, `NET_EVPN`, `NET_EVPN_EAD`, `NET_EVPN_MAC`, `NET_EVPN_IMET`, `NET_EVPN_ES`, etc. | BIRD2 |
+
+### Gap Category D: Missing Protocol Details (BIRD2 + FRR)
+
+| # | Feature | Source |
+|---|---------|--------|
+| 287 | BGP `import table` / `export table` syntax: explicit channel table bindings | BIRD2 |
+| 288 | BGP Long-Lived Graceful Restart (LLGR): configurable stale time up to 16,777,215 seconds, per-AFI staling | FRR |
+| 289 | BGP per-peer GR mode: restarter, helper, disable per neighbor | FRR |
+| 290 | BGP update-delay vs advertisement-delay: distinguish FIB programming delay from neighbor advertisement delay | FRR |
+| 291 | BGP coalesce-time: update-group batching merge interval (default 1000ms) | FRR |
+| 292 | BGP dynamic neighbor listen: `bgp listen range <prefix>` for dynamic peer acceptance | FRR |
+| 293 | BGP-LU (Labeled Unicast, SAFI 4): RFC 3107 / RFC 8277 | FRR |
+| 294 | BGP multi-AS per daemon via VRF: single bgpd process running multiple autonomous systems | FRR |
+| 295 | BGP views: independent routing tables not installed to kernel (route-server use case) | FRR |
+| 296 | BGP link-bandwidth extended community: IEEE float or uint32 encoded link bandwidth | FRR |
+| 297 | OSPF NSSA detailed support: NSSA-LSA type 7, translate-always/translate-never/candidate | BIRD2 |
+| 298 | OSPF template/from inheritance: BIRD2 notes this as "not implemented for OSPF" — RoutePlane should support it | BIRD2 |
+| 299 | Static route nexthop types complete: blackhole, unreachable, prohibit (not just blackhole) | BIRD2 |
+| 300 | RPKI ASPA complete checks: `aspa_check_downstream(table)`, `aspa_check_upstream(table)` in filters | BIRD2 |
+
+### Gap Category E: FRR-Unique Protocols/Services (not in BIRD2)
+
+| # | Feature | Source |
+|---|---------|--------|
+| 301 | IS-IS protocol: IGP widely used in enterprise/SP networks. FRR supports, BIRD2 does not | FRR |
+| 302 | PIM / PIMv6 (Multicast routing): multicast route distribution. BIRD2 has zero multicast support | FRR |
+| 303 | LDP (Label Distribution Protocol): MPLS label distribution. BIRD2 has MPLS forwarding but no LDP | FRR |
+| 304 | EIGRP: Cisco proprietary protocol, FRR has basic support | FRR |
+| 305 | NHRP (Next Hop Resolution Protocol): DMVPN/hub-spoke scenarios | FRR |
+| 306 | PBR (Policy-Based Routing): source/destination/port-based route selection | FRR |
+| 307 | VRRP (Virtual Router Redundancy Protocol): gateway HA without proprietary solutions | FRR |
+| 308 | SBFD (Seamless BFD): stateless BFD for large-scale deployments | FRR |
+| 309 | OpenFabric: IS-IS-derived fabric protocol | FRR |
+| 310 | BGP-LS (BGP Link State): topology export to controllers (draft-ietf-idr-ls-distribution) | FRR |
+| 311 | BGPsec: BGP path validation security extensions | Industry |
+| 312 | SNMP support: SNMP agent with routing MIBs | FRR |
+| 313 | YANG models (IETF Routing YANG): RFC 8349, RFC 8294, and protocol-specific YANG modules | FRR mgmtd |
+| 314 | NETCONF / RESTCONF: standardized configuration protocols | FRR mgmtd |
+| 315 | gNMI streaming telemetry: gRPC Network Management Interface for real-time state push | FRR mgmtd |
+| 316 | gRPC northbound interface: protobuf-based management API (FRR already implemented) | FRR |
+| 317 | Segment Routing — SR-MPLS: IGP-based source routing with label stacks | FRR |
+| 318 | Segment Routing — SRv6: IPv6-based segment routing | FRR |
+| 319 | BGP Flowspec (SAFI 133/134): BGP-based traffic filtering and policy distribution | FRR |
+| 320 | VNC (Virtual Network Controller): SDN controller integration virtual network | FRR |
+
+### Gap Category F: Modern Networking Platform Requirements (2026)
+
+| # | Feature | Source |
+|---|---------|--------|
+| 321 | eBPF/XDP high-performance forwarding: kernel-level line-rate packet processing | Industry |
+| 322 | Kubernetes CNI integration: Calico/Cilium-compatible CNI plugin | Industry |
+| 323 | Kubernetes CRD controller: manage routing config via K8s Custom Resources | Industry |
+| 324 | Ansible module: automated deployment and configuration management | Industry |
+| 325 | Terraform provider: Infrastructure-as-Code support | Industry |
+| 326 | NetBox / CMDB integration: auto-discovery and sync of network assets | Industry |
+| 327 | NAT64 / 464XLAT: IPv6 transition technologies | Industry |
+| 328 | BGP Flow Specification complete: SAFI 133 (IPv4 flowspec) + 134 (IPv6 flowspec) | Industry |
+| 329 | HTTP/3 (QUIC) API: API transport over QUIC for reduced connection latency | Industry |
+| 330 | WASM policy plugins: custom filter/policy as WebAssembly sandboxed modules | Industry |
+| 331 | GPU-accelerated route processing: GPU offload for route computation and policy evaluation | Industry |
+| 332 | Controller/SDN northbound SDK: gRPC + protobuf-based controller SDK | Industry |
+| 333 | Chaos engineering hooks: protocol fault injection for resilience testing | Industry |
+
+### Gap Summary
+
+| Category | Count | Priority |
+|----------|-------|----------|
+| A: BIRD2 Config Options | 22 (#234-#255) | P1 |
+| B: BIRD2 CLI Commands | 13 (#256-#268) | P0-P1 |
+| C: BIRD2 Filter Language | 18 (#269-#286) | P0 |
+| D: Protocol Details | 14 (#287-#300) | P1 |
+| E: FRR-Unique Protocols | 20 (#301-#320) | P2 |
+| F: Modern Platform Needs | 13 (#321-#333) | P3 |
+| **Total** | **100** | — |
+
+**Overall RoutePlane feature count: 233 original + 100 gap additions = 333 total features.**
+
 ## Explicit Non-Goals
 
 These are non-goals for the next implementation plan only, not for the long-term product:
@@ -634,4 +782,4 @@ These are non-goals for the next implementation plan only, not for the long-term
 - Hardware router ASIC programming.
 - A byte-for-byte clone of BIRD internals.
 
-Long term, BIRD2 functional and configuration compatibility remains in scope.
+Long term, BIRD2 functional and configuration compatibility remains in scope. All 333 features above are part of the long-term roadmap.
