@@ -1,7 +1,7 @@
 use crate::types::FilterType;
 use std::net::Ipv4Addr;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FilterValue {
     Bool(bool),
     Int(u32),
@@ -68,7 +68,7 @@ impl FilterValue {
 
 // --- Sub-types ---
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PrefixData {
     pub nettype: crate::nettype::Nettype,
     pub ip: std::net::IpAddr,
@@ -86,7 +86,7 @@ pub struct PrefixData {
     pub router_ip: Option<std::net::IpAddr>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RouteDistinguisher {
     Type0 { admin: u16, assigned: u32 },
     Type1 { ip: Ipv4Addr, assigned: u16 },
@@ -143,7 +143,7 @@ pub struct IntSetRange {
     pub end: u32,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PrefixSetEntry {
     pub prefix: PrefixData,
     pub is_range: bool,
