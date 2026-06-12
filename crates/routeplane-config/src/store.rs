@@ -3,22 +3,23 @@ use crate::{
     schema::RoutePlaneConfig,
     validation::{validate_config, ValidationError},
 };
+use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CommitRequest {
     pub author: String,
     pub note: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RollbackRequest {
     pub revision_id: u64,
     pub author: String,
     pub note: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Revision {
     pub id: u64,
     pub config: RoutePlaneConfig,
