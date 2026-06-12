@@ -1,4 +1,5 @@
 use crate::types::FilterType;
+use std::fmt;
 use std::net::Ipv4Addr;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -63,6 +64,258 @@ impl FilterValue {
                 })
             }
         }
+    }
+}
+
+impl fmt::Display for FilterValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FilterValue::Bool(v) => write!(f, "{}", if *v { "true" } else { "false" }),
+            FilterValue::Int(v) => write!(f, "{v}"),
+            FilterValue::Pair(a, b) => write!(f, "({a},{b})"),
+            FilterValue::Quad(a, b, c, d) => write!(f, "{a}.{b}.{c}.{d}"),
+            FilterValue::String(v) => write!(f, "{v}"),
+            FilterValue::Bytestring(v) => {
+                for byte in v {
+                    write!(f, "{byte:02x}")?;
+                }
+                Ok(())
+            }
+            FilterValue::Ip(v) => write!(f, "{v}"),
+            FilterValue::Mac(v) => {
+                write!(f, "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", v[0], v[1], v[2], v[3], v[4], v[5])
+            }
+            FilterValue::Prefix(v) => write!(f, "{v}"),
+            FilterValue::Rd(v) => write!(f, "{v}"),
+            FilterValue::Ec(v) => write!(f, "{v}"),
+            FilterValue::Lc(v) => write!(f, "{v}"),
+            FilterValue::Bgppath(v) => write!(f, "{v}"),
+            FilterValue::Bgpmask(v) => write!(f, "{v}"),
+            FilterValue::Clist(v) => {
+                write!(f, "[")?;
+                for (i, (a, b)) in v.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "({a},{b})")?;
+                }
+                write!(f, "]")
+            }
+            FilterValue::Eclist(v) => {
+                write!(f, "[")?;
+                for (i, ec) in v.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{ec}")?;
+                }
+                write!(f, "]")
+            }
+            FilterValue::Lclist(v) => {
+                write!(f, "[")?;
+                for (i, lc) in v.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{lc}")?;
+                }
+                write!(f, "]")
+            }
+            FilterValue::IntSet(v) => {
+                write!(f, "[")?;
+                for (i, r) in v.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{r}")?;
+                }
+                write!(f, "]")
+            }
+            FilterValue::PrefixSet(v) => {
+                write!(f, "[")?;
+                for (i, entry) in v.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", entry.prefix)?;
+                    if entry.is_range {
+                        write!(f, "..")?;
+                    }
+                }
+                write!(f, "]")
+            }
+            FilterValue::PairSet(v) => {
+                write!(f, "[")?;
+                for (i, r) in v.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{r}")?;
+                }
+                write!(f, "]")
+            }
+            FilterValue::EcSet(v) => {
+                write!(f, "[")?;
+                for (i, ec) in v.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{ec}")?;
+                }
+                write!(f, "]")
+            }
+            FilterValue::LcSet(v) => {
+                write!(f, "[")?;
+                for (i, lc) in v.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{lc}")?;
+                }
+                write!(f, "]")
+            }
+            FilterValue::Enum { type_name: _, variant } => write!(f, "{variant}"),
+        }
+    }
+}
+
+impl fmt::Display for PrefixData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}/{}", self.ip, self.length)
+    }
+}
+
+impl fmt::Display for RouteDistinguisher {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RouteDistinguisher::Type0 { admin, assigned } => write!(f, "{admin}:{assigned}"),
+            RouteDistinguisher::Type1 { ip, assigned } => write!(f, "{ip}:{assigned}"),
+            RouteDistinguisher::Type2 { asn, assigned } => write!(f, "{asn}:{assigned}"),
+        }
+    }
+}
+
+impl fmt::Display for EcValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({},{},{})", self.kind, self.key, self.value)
+    }
+}
+
+impl fmt::Display for LcValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({},{},{})", self.asn, self.data1, self.data2)
+    }
+}
+
+impl fmt::Display for AsPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (i, seg) in self.segments.iter().enumerate() {
+            if i > 0 {
+                write!(f, " ")?;
+            }
+            write!(f, "{seg}")?;
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Display for AsPathSegment {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AsPathSegment::AsSequence(asns) => {
+                for (i, asn) in asns.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, " ")?;
+                    }
+                    write!(f, "{asn}")?;
+                }
+            }
+            AsPathSegment::AsSet(asns) => {
+                write!(f, "[")?;
+                for (i, asn) in asns.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, " ")?;
+                    }
+                    write!(f, "{asn}")?;
+                }
+                write!(f, "]")?;
+            }
+            AsPathSegment::ConfedSequence(asns) => {
+                write!(f, "(")?;
+                for (i, asn) in asns.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, " ")?;
+                    }
+                    write!(f, "{asn}")?;
+                }
+                write!(f, ")")?;
+            }
+            AsPathSegment::ConfedSet(asns) => {
+                write!(f, "([")?;
+                for (i, asn) in asns.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, " ")?;
+                    }
+                    write!(f, "{asn}")?;
+                }
+                write!(f, "])")?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Display for AsPathMask {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (i, pat) in self.patterns.iter().enumerate() {
+            if i > 0 {
+                write!(f, " ")?;
+            }
+            write!(f, "{pat}")?;
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Display for AsMaskPattern {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AsMaskPattern::Any => write!(f, "*"),
+            AsMaskPattern::AnyOptional => write!(f, "?"),
+            AsMaskPattern::OneOrMore => write!(f, "+"),
+            AsMaskPattern::Exact(n) => write!(f, "{n}"),
+            AsMaskPattern::Set(set) => {
+                write!(f, "[")?;
+                for (i, asn) in set.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, " ")?;
+                    }
+                    write!(f, "{asn}")?;
+                }
+                write!(f, "]")
+            }
+            AsMaskPattern::Range(lo, hi) => write!(f, "{lo}..{hi}"),
+        }
+    }
+}
+
+impl fmt::Display for IntSetRange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.start == self.end {
+            write!(f, "{}", self.start)
+        } else {
+            write!(f, "{}..{}", self.start, self.end)
+        }
+    }
+}
+
+impl fmt::Display for PairSetRange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({},{})", self.start.0, self.start.1)?;
+        if self.start != self.end {
+            write!(f, "..({},{})", self.end.0, self.end.1)?;
+        }
+        Ok(())
     }
 }
 

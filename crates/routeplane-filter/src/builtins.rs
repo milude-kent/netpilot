@@ -1,19 +1,35 @@
+use crate::attributes::AttributeRegistry;
 use crate::value::FilterValue;
 
-pub fn defined(_attr_name: &str) -> bool {
-    false
+pub fn defined(registry: &AttributeRegistry, attr_name: &str) -> bool {
+    registry.is_defined(attr_name)
 }
 
-pub fn unset(_attr_name: &str) -> Result<(), String> {
-    Err("not implemented".into())
+pub fn unset(registry: &mut AttributeRegistry, attr_name: &str) -> Result<(), String> {
+    registry.unset(attr_name)
 }
 
-pub fn print(_values: &[FilterValue]) {
-    // placeholder
+pub fn print(values: &[FilterValue]) -> String {
+    let mut out = String::new();
+    for (i, v) in values.iter().enumerate() {
+        if i > 0 {
+            out.push(' ');
+        }
+        out.push_str(&v.to_string());
+    }
+    out.push('\n');
+    out
 }
 
-pub fn printn(_values: &[FilterValue]) {
-    // placeholder
+pub fn printn(values: &[FilterValue]) -> String {
+    let mut out = String::new();
+    for (i, v) in values.iter().enumerate() {
+        if i > 0 {
+            out.push(' ');
+        }
+        out.push_str(&v.to_string());
+    }
+    out
 }
 
 pub fn from_hex(hex_str: &str) -> Result<Vec<u8>, String> {

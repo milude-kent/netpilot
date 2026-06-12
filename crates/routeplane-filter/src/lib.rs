@@ -6,7 +6,7 @@ pub mod types;
 pub mod value;
 
 pub use ast::*;
-pub use attributes::RouteAttribute;
+pub use attributes::{AttributeRegistry, RouteAttribute};
 pub use builtins::{defined, from_hex, print, printn, unset};
 pub use nettype::Nettype;
 pub use types::FilterType;
