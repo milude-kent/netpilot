@@ -326,3 +326,80 @@ pub struct PairSetRange {
     pub start: (u16, u16),
     pub end: (u16, u16),
 }
+
+// --- Community list operations ---
+
+pub fn clist_add(list: &mut Vec<ClistEntry>, entry: ClistEntry) {
+    if !list.contains(&entry) {
+        list.push(entry);
+    }
+}
+
+pub fn clist_delete(list: &mut Vec<ClistEntry>, entry: ClistEntry) {
+    list.retain(|e| *e != entry);
+}
+
+pub fn clist_filter<F>(list: &mut Vec<ClistEntry>, predicate: F)
+where
+    F: Fn(&ClistEntry) -> bool,
+{
+    list.retain(|e| predicate(e));
+}
+
+pub fn clist_min(list: &[ClistEntry]) -> Option<ClistEntry> {
+    list.iter().min_by_key(|(a, d)| (*a, *d)).copied()
+}
+
+pub fn clist_max(list: &[ClistEntry]) -> Option<ClistEntry> {
+    list.iter().max_by_key(|(a, d)| (*a, *d)).copied()
+}
+
+pub fn eclist_add(list: &mut Vec<EcValue>, entry: EcValue) {
+    if !list.contains(&entry) {
+        list.push(entry);
+    }
+}
+
+pub fn eclist_delete(list: &mut Vec<EcValue>, entry: &EcValue) {
+    list.retain(|e| e != entry);
+}
+
+pub fn eclist_filter<F>(list: &mut Vec<EcValue>, predicate: F)
+where
+    F: Fn(&EcValue) -> bool,
+{
+    list.retain(|e| predicate(e));
+}
+
+pub fn eclist_min(list: &[EcValue]) -> Option<&EcValue> {
+    list.iter().min_by_key(|ec| (ec.kind, ec.key, ec.value))
+}
+
+pub fn eclist_max(list: &[EcValue]) -> Option<&EcValue> {
+    list.iter().max_by_key(|ec| (ec.kind, ec.key, ec.value))
+}
+
+pub fn lclist_add(list: &mut Vec<LcValue>, entry: LcValue) {
+    if !list.contains(&entry) {
+        list.push(entry);
+    }
+}
+
+pub fn lclist_delete(list: &mut Vec<LcValue>, entry: &LcValue) {
+    list.retain(|e| e != entry);
+}
+
+pub fn lclist_filter<F>(list: &mut Vec<LcValue>, predicate: F)
+where
+    F: Fn(&LcValue) -> bool,
+{
+    list.retain(|e| predicate(e));
+}
+
+pub fn lclist_min(list: &[LcValue]) -> Option<&LcValue> {
+    list.iter().min_by_key(|lc| (lc.asn, lc.data1, lc.data2))
+}
+
+pub fn lclist_max(list: &[LcValue]) -> Option<&LcValue> {
+    list.iter().max_by_key(|lc| (lc.asn, lc.data1, lc.data2))
+}

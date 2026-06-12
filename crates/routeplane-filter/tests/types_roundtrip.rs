@@ -397,3 +397,92 @@ fn bgpmask_range_matches() {
     };
     assert!(!mask.matches(&path2));
 }
+
+// --- Community list tests (#272) ---
+
+use routeplane_filter::value::{EcValue, LcValue, ClistEntry};
+use routeplane_filter::value::{
+    clist_add, clist_delete, clist_filter, clist_min, clist_max,
+    eclist_add, eclist_delete, eclist_filter, eclist_min,
+    lclist_add, lclist_delete, lclist_filter, lclist_min,
+};
+
+#[test]
+fn clist_operations() {
+    let mut clist: Vec<ClistEntry> = vec![(64500, 100), (64500, 200)];
+
+    assert_eq!(clist.len(), 2);
+
+    // .add(p) — no duplicates
+    clist_add(&mut clist, (64500, 300));
+    assert_eq!(clist.len(), 3);
+    clist_add(&mut clist, (64500, 300)); // duplicate
+    assert_eq!(clist.len(), 3);
+
+    // .delete(p)
+    clist_delete(&mut clist, (64500, 100));
+    assert_eq!(clist.len(), 2);
+
+    // .filter(p)
+    clist_filter(&mut clist, |(asn, _)| *asn == 64500);
+    assert_eq!(clist.len(), 2);
+
+    // .min
+    assert_eq!(clist_min(&clist), Some((64500, 200)));
+
+    // .max
+    assert_eq!(clist_max(&clist), Some((64500, 300)));
+}
+
+#[test]
+fn eclist_operations() {
+    let mut eclist: Vec<EcValue> = vec![
+        EcValue { kind: 2, key: 0, value: 100 },
+        EcValue { kind: 2, key: 0, value: 200 },
+    ];
+
+    assert_eq!(eclist.len(), 2);
+
+    eclist_add(&mut eclist, EcValue { kind: 2, key: 1, value: 300 });
+    assert_eq!(eclist.len(), 3);
+
+    eclist_delete(&mut eclist, &EcValue { kind: 2, key: 0, value: 100 });
+    assert_eq!(eclist.len(), 2);
+
+    eclist_filter(&mut eclist, |ec| ec.key == 0);
+    assert_eq!(eclist.len(), 1);
+
+    let min_val = eclist_min(&eclist);
+    assert!(min_val.is_some());
+}
+
+#[test]
+fn lclist_operations() {
+    let mut lclist: Vec<LcValue> = vec![
+        LcValue { asn: 64500, data1: 1, data2: 100 },
+        LcValue { asn: 64500, data1: 1, data2: 200 },
+    ];
+
+    assert_eq!(lclist.len(), 2);
+
+    lclist_add(&mut lclist, LcValue { asn: 64500, data1: 1, data2: 300 });
+    assert_eq!(lclist.len(), 3);
+
+    lclist_delete(&mut lclist, &LcValue { asn: 64500, data1: 1, data2: 100 });
+    assert_eq!(lclist.len(), 2);
+
+    lclist_filter(&mut lclist, |lc| lc.data1 == 1);
+    assert_eq!(lclist.len(), 2);
+
+    let min_val = lclist_min(&lclist);
+    assert!(min_val.is_some());
+}
+
+#[test]
+fn clist_empty_operations() {
+    let mut clist: Vec<ClistEntry> = vec![];
+    assert_eq!(clist_min(&clist), None);
+    assert_eq!(clist_max(&clist), None);
+    clist_add(&mut clist, (64500, 100));
+    assert_eq!(clist.len(), 1);
+}
