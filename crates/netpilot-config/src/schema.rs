@@ -8,6 +8,16 @@ pub struct RoutePlaneConfig {
     pub identity: RouterIdentity,
     pub tables: Vec<TableConfig>,
     pub protocols: Vec<ProtocolConfig>,
+    pub hostname: Option<String>,
+    pub defines: Option<Vec<ConstantDef>>,
+    pub watchdog_warning_secs: Option<u32>,
+    pub watchdog_timeout_secs: Option<u32>,
+    pub debug_latency: Option<bool>,
+    pub debug_latency_limit_micros: Option<u64>,
+    pub timeformat_route: Option<String>,
+    pub timeformat_protocol: Option<String>,
+    pub timeformat_base: Option<String>,
+    pub timeformat_log: Option<String>,
 }
 
 impl Default for RoutePlaneConfig {
@@ -19,8 +29,24 @@ impl Default for RoutePlaneConfig {
                 name: "master".to_string(),
                 nettype: None,
                 kernel_table: Some(254),
+                gc_threshold: None,
+                gc_period_secs: None,
+                sorted: None,
+                trie: None,
+                min_settle_time_secs: None,
+                max_settle_time_secs: None,
             }],
             protocols: Vec::new(),
+            hostname: None,
+            defines: None,
+            watchdog_warning_secs: None,
+            watchdog_timeout_secs: None,
+            debug_latency: None,
+            debug_latency_limit_micros: None,
+            timeformat_route: None,
+            timeformat_protocol: None,
+            timeformat_base: None,
+            timeformat_log: None,
         }
     }
 }
@@ -30,6 +56,7 @@ impl Default for RoutePlaneConfig {
 pub struct RouterIdentity {
     pub router_id: String,
     pub local_asn: Option<u32>,
+    pub router_id_from: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -38,6 +65,12 @@ pub struct TableConfig {
     pub name: String,
     pub nettype: Option<NettypeDef>,
     pub kernel_table: Option<u32>,
+    pub gc_threshold: Option<u32>,
+    pub gc_period_secs: Option<u32>,
+    pub sorted: Option<bool>,
+    pub trie: Option<bool>,
+    pub min_settle_time_secs: Option<u32>,
+    pub max_settle_time_secs: Option<u32>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -47,13 +80,83 @@ pub enum ProtocolConfig {
         name: String,
         table: String,
         routes: Vec<StaticRoute>,
+        limits: Option<ChannelLimits>,
+        import_keep_filtered: Option<bool>,
+        rpki_reload: Option<bool>,
+        passwords: Option<Vec<AuthPassword>>,
+        password: Option<String>,
+        tx_class: Option<u8>,
+        tx_priority: Option<u8>,
+        description: Option<String>,
     },
     Bgp {
         name: String,
         table: String,
         local_asn: u32,
         neighbors: Vec<BgpNeighbor>,
+        limits: Option<ChannelLimits>,
+        import_keep_filtered: Option<bool>,
+        rpki_reload: Option<bool>,
+        passwords: Option<Vec<AuthPassword>>,
+        password: Option<String>,
+        tx_class: Option<u8>,
+        tx_priority: Option<u8>,
+        description: Option<String>,
     },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct ChannelLimits {
+    pub import_limit: Option<u32>,
+    pub import_limit_action: Option<LimitAction>,
+    pub receive_limit: Option<u32>,
+    pub receive_limit_action: Option<LimitAction>,
+    pub export_limit: Option<u32>,
+    pub export_limit_action: Option<LimitAction>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum LimitAction {
+    Warn,
+    Block,
+    Restart,
+    Disable,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct AuthPassword {
+    pub id: Option<u8>,
+    pub password: String,
+    pub generate_from: Option<String>,
+    pub generate_to: Option<String>,
+    pub accept_from: Option<String>,
+    pub accept_to: Option<String>,
+    pub algorithm: Option<AuthAlgorithm>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AuthAlgorithm {
+    KeyedMd5,
+    KeyedSha1,
+    HmacSha1,
+    HmacSha256,
+    HmacSha384,
+    HmacSha512,
+    Blake2s128,
+    Blake2s256,
+    Blake2b256,
+    Blake2b512,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct ConstantDef {
+    pub name: String,
+    pub value: serde_json::Value,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

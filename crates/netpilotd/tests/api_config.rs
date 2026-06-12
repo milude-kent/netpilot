@@ -30,6 +30,14 @@ async fn config_candidate_commit_flow_works_over_api() {
             name: "static-default".to_string(),
             table: "master".to_string(),
             routes: Vec::new(),
+            limits: None,
+            import_keep_filtered: None,
+            rpki_reload: None,
+            passwords: None,
+            password: None,
+            tx_class: None,
+            tx_priority: None,
+            description: None,
         }],
         ..RoutePlaneConfig::default()
     };

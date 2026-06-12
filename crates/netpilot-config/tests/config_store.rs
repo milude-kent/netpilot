@@ -19,11 +19,18 @@ fn static_route_config_round_trips_as_json() {
         identity: RouterIdentity {
             router_id: "192.0.2.1".to_string(),
             local_asn: Some(64512),
+            router_id_from: None,
         },
         tables: vec![TableConfig {
             name: "edge".to_string(),
             nettype: None,
             kernel_table: Some(100),
+            gc_threshold: None,
+            gc_period_secs: None,
+            sorted: None,
+            trie: None,
+            min_settle_time_secs: None,
+            max_settle_time_secs: None,
         }],
         protocols: vec![ProtocolConfig::Static {
             name: "static-edge".to_string(),
@@ -37,6 +44,14 @@ fn static_route_config_round_trips_as_json() {
                 mpls_label: None,
                 igp_metric: None,
             }],
+            limits: None,
+            import_keep_filtered: None,
+            rpki_reload: None,
+            passwords: None,
+            password: None,
+            tx_class: None,
+            tx_priority: None,
+            description: None,
         }],
         ..RoutePlaneConfig::default()
     };
@@ -55,6 +70,14 @@ fn validation_rejects_protocol_referencing_missing_table() {
             name: "bad-static".to_string(),
             table: "missing".to_string(),
             routes: Vec::<StaticRoute>::new(),
+            limits: None,
+            import_keep_filtered: None,
+            rpki_reload: None,
+            passwords: None,
+            password: None,
+            tx_class: None,
+            tx_priority: None,
+            description: None,
         }],
         ..RoutePlaneConfig::default()
     };
@@ -85,6 +108,14 @@ fn diff_reports_changed_protocol_count() {
             name: "static-default".to_string(),
             table: "master".to_string(),
             routes: Vec::new(),
+            limits: None,
+            import_keep_filtered: None,
+            rpki_reload: None,
+            passwords: None,
+            password: None,
+            tx_class: None,
+            tx_priority: None,
+            description: None,
         }],
         ..RoutePlaneConfig::default()
     };
@@ -103,6 +134,14 @@ fn store_commits_candidate_to_running_and_records_revision() {
             name: "static-default".to_string(),
             table: "master".to_string(),
             routes: Vec::new(),
+            limits: None,
+            import_keep_filtered: None,
+            rpki_reload: None,
+            passwords: None,
+            password: None,
+            tx_class: None,
+            tx_priority: None,
+            description: None,
         }],
         ..RoutePlaneConfig::default()
     };
@@ -140,6 +179,14 @@ fn store_rolls_back_to_previous_revision() {
             name: "static-default".to_string(),
             table: "master".to_string(),
             routes: Vec::new(),
+            limits: None,
+            import_keep_filtered: None,
+            rpki_reload: None,
+            passwords: None,
+            password: None,
+            tx_class: None,
+            tx_priority: None,
+            description: None,
         }],
         ..RoutePlaneConfig::default()
     };
