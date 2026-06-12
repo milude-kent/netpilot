@@ -1,10 +1,10 @@
-# Rust Routing Platform Design
+# RiftCore Routing Platform Design
 
 Date: 2026-06-12
 
 ## Goal
 
-Build a Rust-based routing platform similar in scope to BIRD2, with a Web management plane, Linux server/cloud host as the first target, and support for a candidate/running configuration workflow with commit, confirmed commit, rollback, audit, and future controller/agent split deployment.
+Build **RiftCore**, a Rust-based routing platform similar in scope to BIRD2, with a Web management plane, Linux server/cloud host as the first target, and support for a candidate/running configuration workflow with commit, confirmed commit, rollback, audit, and future controller/agent split deployment.
 
 The selected architecture is **Rust microkernel + protocol actors**. The system should run as a single all-in-one deployment first, while preserving boundaries that allow a future controller to manage multiple routing agents.
 
