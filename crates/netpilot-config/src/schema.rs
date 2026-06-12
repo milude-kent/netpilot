@@ -104,11 +104,43 @@ pub enum ProtocolConfig {
         table: String,
         local_asn: u32,
         neighbors: Vec<BgpNeighbor>,
+        import_table: Option<String>,
+        export_table: Option<String>,
+        update_delay_secs: Option<u32>,
+        advertisement_delay_secs: Option<u32>,
+        coalesce_time_millis: Option<u32>,
+        listen_range: Option<String>,
+        vrf: Option<String>,
+        view: Option<String>,
+        from_template: Option<String>,
+        aspa_downstream_check: Option<bool>,
+        aspa_upstream_check: Option<bool>,
         limits: Option<ChannelLimits>,
         import_keep_filtered: Option<bool>,
         rpki_reload: Option<bool>,
         passwords: Option<Vec<AuthPassword>>,
         password: Option<String>,
+        tx_class: Option<u8>,
+        tx_priority: Option<u8>,
+        description: Option<String>,
+    },
+    Ospf {
+        name: String,
+        table: String,
+        router_id: Option<String>,
+        instance_id: Option<u8>,
+        ecmp: Option<bool>,
+        ecmp_limit: Option<u32>,
+        areas: Vec<OspfAreaConfig>,
+        stub_router: Option<bool>,
+        rfc1583_compat: Option<bool>,
+        merge_external: Option<bool>,
+        tick_secs: Option<u32>,
+        from_template: Option<String>,
+        limits: Option<ChannelLimits>,
+        import_keep_filtered: Option<bool>,
+        rpki_reload: Option<bool>,
+        passwords: Option<Vec<AuthPassword>>,
         tx_class: Option<u8>,
         tx_priority: Option<u8>,
         description: Option<String>,
@@ -164,6 +196,23 @@ pub enum AuthAlgorithm {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
+pub enum GrMode {
+    Restarter,
+    Helper,
+    Disable,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum LinkBandwidth {
+    IeeeFloat(f64),
+    Uint32(u32),
+}
+
+impl Eq for LinkBandwidth {}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct ConstantDef {
     pub name: String,
     pub value: serde_json::Value,
@@ -197,6 +246,10 @@ pub struct BgpNeighbor {
     pub remote_address: String,
     pub remote_asn: u32,
     pub address_families: Vec<AddressFamily>,
+    pub long_lived_graceful_restart: Option<bool>,
+    pub llgr_stale_time_secs: Option<u32>,
+    pub graceful_restart_mode: Option<GrMode>,
+    pub link_bandwidth: Option<LinkBandwidth>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -204,6 +257,8 @@ pub struct BgpNeighbor {
 pub enum AddressFamily {
     Ipv4,
     Ipv6,
+    Ipv4Labeled,
+    Ipv6Labeled,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -223,6 +278,23 @@ pub enum NettypeDef {
     Mpls,
     Evpn,
     Neighbor,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct OspfAreaConfig {
+    pub area_id: String,
+    pub nssa: Option<bool>,
+    pub nssa_translator: Option<bool>,
+    pub nssa_translator_stability_secs: Option<u32>,
+    pub default_cost: Option<u32>,
+    pub default_cost2: Option<u32>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct TemplateRef {
+    pub template_name: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
