@@ -10,7 +10,12 @@ use tower::ServiceExt;
 async fn health_endpoint_returns_ok() {
     let app = build_router(AppState::default());
     let response = app
-        .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
 

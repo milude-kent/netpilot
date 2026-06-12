@@ -1,6 +1,6 @@
 use routeplane_config::{
-    diff::ConfigDiff, validation::validate_config, AddressFamily, CommitRequest, ConfigStore,
-    ProtocolConfig, RollbackRequest, RoutePlaneConfig, RouterIdentity, StaticRoute, TableConfig,
+    AddressFamily, CommitRequest, ConfigStore, ProtocolConfig, RollbackRequest, RoutePlaneConfig,
+    RouterIdentity, StaticRoute, TableConfig, diff::ConfigDiff, validation::validate_config,
 };
 
 #[test]
@@ -64,10 +64,12 @@ fn validation_warns_when_router_id_is_empty() {
     let config = RoutePlaneConfig::default();
     let report = validate_config(&config).expect("default config is valid");
 
-    assert!(report
-        .warnings
-        .iter()
-        .any(|warning| warning.contains("router-id")));
+    assert!(
+        report
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("router-id"))
+    );
 }
 
 #[test]
@@ -100,7 +102,9 @@ fn store_commits_candidate_to_running_and_records_revision() {
         ..RoutePlaneConfig::default()
     };
 
-    store.replace_candidate(candidate.clone()).expect("candidate is valid");
+    store
+        .replace_candidate(candidate.clone())
+        .expect("candidate is valid");
     let diff = store.diff();
     assert!(diff.changed);
 
@@ -135,7 +139,9 @@ fn store_rolls_back_to_previous_revision() {
         ..RoutePlaneConfig::default()
     };
 
-    store.replace_candidate(changed).expect("candidate is valid");
+    store
+        .replace_candidate(changed)
+        .expect("candidate is valid");
     store
         .commit(CommitRequest {
             author: "operator".to_string(),

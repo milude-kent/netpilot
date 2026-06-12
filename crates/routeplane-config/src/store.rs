@@ -1,7 +1,7 @@
 use crate::{
     diff::ConfigDiff,
     schema::RoutePlaneConfig,
-    validation::{validate_config, ValidationError},
+    validation::{ValidationError, validate_config},
 };
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
@@ -86,10 +86,7 @@ impl ConfigStore {
             .find(|revision| revision.id == request.revision_id)
             .map(|revision| revision.config.clone())
             .ok_or_else(|| {
-                ValidationError::Message(format!(
-                    "revision {} does not exist",
-                    request.revision_id
-                ))
+                ValidationError::Message(format!("revision {} does not exist", request.revision_id))
             })?;
 
         validate_config(&target)?;

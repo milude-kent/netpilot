@@ -15,3 +15,13 @@ The long-term architecture is a Rust microkernel with protocol actors for BGP, O
 cargo test
 cargo run -p routeplaned
 ```
+
+## Verification
+
+```powershell
+cargo fmt --check
+cargo test
+cargo run -p routeplaned
+```
+
+The API listens on `127.0.0.1:8080` in the first milestone.

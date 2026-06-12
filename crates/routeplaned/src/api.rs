@@ -1,11 +1,11 @@
 use crate::state::AppState;
 use axum::{
+    Json, Router,
     extract::State,
     http::StatusCode,
     routing::{get, post},
-    Json, Router,
 };
-use routeplane_config::{CommitRequest, RoutePlaneConfig, RollbackRequest};
+use routeplane_config::{CommitRequest, RollbackRequest, RoutePlaneConfig};
 use serde::Deserialize;
 
 pub fn build_router(state: AppState) -> Router {
