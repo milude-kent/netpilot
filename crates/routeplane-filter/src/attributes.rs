@@ -282,3 +282,24 @@ impl RouteAttribute for EnumAttribute {
         false
     }
 }
+
+pub struct MplsAttributes;
+
+impl MplsAttributes {
+    pub fn register_all(registry: &mut AttributeRegistry) {
+        registry.register(CustomIntAttribute::new("gw_mpls", 0));
+        registry.register(CustomIntAttribute::new("mpls_label", 0));
+        registry.register(EnumAttribute::new(
+            "mpls_policy",
+            vec![
+                "MPLS_POLICY_NONE",
+                "MPLS_POLICY_STATIC",
+                "MPLS_POLICY_PREFIX",
+                "MPLS_POLICY_AGGREGATE",
+                "MPLS_POLICY_VRF",
+            ],
+            0,
+        ));
+        registry.register(CustomIntAttribute::new("mpls_class", 0));
+    }
+}

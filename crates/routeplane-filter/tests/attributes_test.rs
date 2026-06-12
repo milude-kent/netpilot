@@ -1,4 +1,4 @@
-use routeplane_filter::attributes::{AttributeRegistry, RouteAttribute};
+use routeplane_filter::attributes::{AttributeRegistry, CustomIntAttribute, MplsAttributes, RouteAttribute};
 use routeplane_filter::builtins::{defined, unset};
 use routeplane_filter::types::FilterType;
 use routeplane_filter::value::FilterValue;
@@ -68,4 +68,90 @@ fn unset_fails_readonly() {
 #[test]
 fn unset_fails_missing() {
     assert!(unset(&mut AttributeRegistry::new(), "nonexistent").is_err());
+}
+
+#[test]
+fn gw_mpls_attribute() {
+    let mut r = AttributeRegistry::new();
+    MplsAttributes::register_all(&mut r);
+    r.write("gw_mpls", FilterValue::Int(1000)).unwrap();
+    assert_eq!(r.read("gw_mpls").unwrap(), FilterValue::Int(1000));
+}
+
+#[test]
+fn mpls_label_attribute() {
+    let mut r = AttributeRegistry::new();
+    MplsAttributes::register_all(&mut r);
+    r.write("mpls_label", FilterValue::Int(2000)).unwrap();
+    assert_eq!(r.read("mpls_label").unwrap(), FilterValue::Int(2000));
+}
+
+#[test]
+fn mpls_policy_default_is_none() {
+    let mut r = AttributeRegistry::new();
+    MplsAttributes::register_all(&mut r);
+    let val = r.read("mpls_policy").unwrap();
+    assert!(matches!(&val, FilterValue::Enum { variant, .. } if variant == "MPLS_POLICY_NONE"));
+}
+
+#[test]
+fn mpls_policy_set_to_prefix() {
+    let mut r = AttributeRegistry::new();
+    MplsAttributes::register_all(&mut r);
+    r.write(
+        "mpls_policy",
+        FilterValue::Enum {
+            type_name: "mpls_policy".into(),
+            variant: "MPLS_POLICY_PREFIX".into(),
+        },
+    )
+    .unwrap();
+    let val = r.read("mpls_policy").unwrap();
+    assert!(matches!(&val, FilterValue::Enum { variant, .. } if variant == "MPLS_POLICY_PREFIX"));
+}
+
+#[test]
+fn mpls_class_attribute() {
+    let mut r = AttributeRegistry::new();
+    MplsAttributes::register_all(&mut r);
+    r.write("mpls_class", FilterValue::Int(5)).unwrap();
+    assert_eq!(r.read("mpls_class").unwrap(), FilterValue::Int(5));
+}
+
+#[test]
+fn igp_metric_attribute() {
+    let mut r = AttributeRegistry::new();
+    r.register(CustomIntAttribute::new("igp_metric", 0));
+    r.write("igp_metric", FilterValue::Int(100)).unwrap();
+    assert_eq!(r.read("igp_metric").unwrap(), FilterValue::Int(100));
+}
+
+#[test]
+fn evpn_mac_prefix_operators() {
+    use routeplane_filter::value::PrefixData;
+    use routeplane_filter::nettype::Nettype;
+    use std::net::{IpAddr, Ipv4Addr};
+    let prefix = PrefixData {
+        nettype: Nettype::EvpnMac,
+        ip: IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)),
+        length: 32,
+        mac: Some([0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff]),
+        vlan_id: Some(100),
+        evpn_type: Some(2),
+        evpn_tag: Some(200),
+        evpn_esi: Some([0x00; 10]),
+        router_ip: Some(IpAddr::V4(Ipv4Addr::new(192, 0, 2, 1))),
+        rd: None,
+        source_ip: None,
+        source_length: None,
+        maxlen: None,
+        asn: None,
+    };
+    assert_eq!(prefix.evpn_type, Some(2));
+    assert_eq!(prefix.mac, Some([0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff]));
+    assert_eq!(prefix.evpn_tag, Some(200));
+    assert_eq!(
+        prefix.router_ip,
+        Some(IpAddr::V4(Ipv4Addr::new(192, 0, 2, 1)))
+    );
 }

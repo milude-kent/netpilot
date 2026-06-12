@@ -8,7 +8,7 @@ pub mod value;
 pub use ast::*;
 pub use attributes::{
     AttributeRegistry, CustomIntAttribute, CustomStringAttribute, EnumAttribute,
-    ReadOnlyAttribute, RouteAttribute,
+    MplsAttributes, ReadOnlyAttribute, RouteAttribute,
 };
 pub use builtins::{defined, from_hex, print, printn, unset};
 pub use nettype::Nettype;
