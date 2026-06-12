@@ -1,8 +1,8 @@
+use routeplane_filter::Nettype;
+use routeplane_filter::builtins;
 use routeplane_filter::types::FilterType;
 use routeplane_filter::value::{FilterValue, PrefixData, RouteDistinguisher};
 use std::net::{IpAddr, Ipv4Addr};
-use routeplane_filter::Nettype;
-use routeplane_filter::builtins;
 
 #[test]
 fn bool_type_exists() {
@@ -274,8 +274,11 @@ fn bgppath_delete_removes_asn() {
     path.delete(64501);
     assert_eq!(path.len(), 2);
     // 64501 should be removed
-    let all_asns: Vec<u32> = path.segments.iter()
-        .flat_map(|s| s.asns().to_vec()).collect();
+    let all_asns: Vec<u32> = path
+        .segments
+        .iter()
+        .flat_map(|s| s.asns().to_vec())
+        .collect();
     assert!(!all_asns.contains(&64501));
 }
 
@@ -311,10 +314,7 @@ fn bgpmask_matches_empty_path() {
 #[test]
 fn bgpmask_matches_exact_sequence() {
     let mask = AsPathMask {
-        patterns: vec![
-            AsMaskPattern::Exact(64500),
-            AsMaskPattern::Exact(64501),
-        ],
+        patterns: vec![AsMaskPattern::Exact(64500), AsMaskPattern::Exact(64501)],
     };
     let path = AsPath {
         segments: vec![AsPathSegment::AsSequence(vec![64500, 64501])],
@@ -401,11 +401,10 @@ fn bgpmask_range_matches() {
 
 // --- Community list tests (#272) ---
 
-use routeplane_filter::value::{EcValue, LcValue, ClistEntry};
+use routeplane_filter::value::{ClistEntry, EcValue, LcValue};
 use routeplane_filter::value::{
-    clist_add, clist_delete, clist_filter, clist_min, clist_max,
-    eclist_add, eclist_delete, eclist_filter, eclist_min,
-    lclist_add, lclist_delete, lclist_filter, lclist_min,
+    clist_add, clist_delete, clist_filter, clist_max, clist_min, eclist_add, eclist_delete,
+    eclist_filter, eclist_min, lclist_add, lclist_delete, lclist_filter, lclist_min,
 };
 
 #[test]
@@ -438,16 +437,38 @@ fn clist_operations() {
 #[test]
 fn eclist_operations() {
     let mut eclist: Vec<EcValue> = vec![
-        EcValue { kind: 2, key: 0, value: 100 },
-        EcValue { kind: 2, key: 0, value: 200 },
+        EcValue {
+            kind: 2,
+            key: 0,
+            value: 100,
+        },
+        EcValue {
+            kind: 2,
+            key: 0,
+            value: 200,
+        },
     ];
 
     assert_eq!(eclist.len(), 2);
 
-    eclist_add(&mut eclist, EcValue { kind: 2, key: 1, value: 300 });
+    eclist_add(
+        &mut eclist,
+        EcValue {
+            kind: 2,
+            key: 1,
+            value: 300,
+        },
+    );
     assert_eq!(eclist.len(), 3);
 
-    eclist_delete(&mut eclist, &EcValue { kind: 2, key: 0, value: 100 });
+    eclist_delete(
+        &mut eclist,
+        &EcValue {
+            kind: 2,
+            key: 0,
+            value: 100,
+        },
+    );
     assert_eq!(eclist.len(), 2);
 
     eclist_filter(&mut eclist, |ec| ec.key == 0);
@@ -460,16 +481,38 @@ fn eclist_operations() {
 #[test]
 fn lclist_operations() {
     let mut lclist: Vec<LcValue> = vec![
-        LcValue { asn: 64500, data1: 1, data2: 100 },
-        LcValue { asn: 64500, data1: 1, data2: 200 },
+        LcValue {
+            asn: 64500,
+            data1: 1,
+            data2: 100,
+        },
+        LcValue {
+            asn: 64500,
+            data1: 1,
+            data2: 200,
+        },
     ];
 
     assert_eq!(lclist.len(), 2);
 
-    lclist_add(&mut lclist, LcValue { asn: 64500, data1: 1, data2: 300 });
+    lclist_add(
+        &mut lclist,
+        LcValue {
+            asn: 64500,
+            data1: 1,
+            data2: 300,
+        },
+    );
     assert_eq!(lclist.len(), 3);
 
-    lclist_delete(&mut lclist, &LcValue { asn: 64500, data1: 1, data2: 100 });
+    lclist_delete(
+        &mut lclist,
+        &LcValue {
+            asn: 64500,
+            data1: 1,
+            data2: 100,
+        },
+    );
     assert_eq!(lclist.len(), 2);
 
     lclist_filter(&mut lclist, |lc| lc.data1 == 1);
@@ -518,7 +561,10 @@ fn mac_value_roundtrip() {
 
 #[test]
 fn rd_type0_format() {
-    let rd = RouteDistinguisher::Type0 { admin: 64500, assigned: 100 };
+    let rd = RouteDistinguisher::Type0 {
+        admin: 64500,
+        assigned: 100,
+    };
     let fv = FilterValue::Rd(rd);
     assert_eq!(fv.type_of(), FilterType::Rd);
 }
@@ -526,16 +572,19 @@ fn rd_type0_format() {
 #[test]
 fn rd_type1_format() {
     let rd = RouteDistinguisher::Type1 {
-        ip: Ipv4Addr::new(192, 0, 2, 1), assigned: 100 };
-    assert_eq!(FilterValue::Rd(rd).type_of(),
-        FilterType::Rd);
+        ip: Ipv4Addr::new(192, 0, 2, 1),
+        assigned: 100,
+    };
+    assert_eq!(FilterValue::Rd(rd).type_of(), FilterType::Rd);
 }
 
 #[test]
 fn rd_type2_format() {
-    let rd = RouteDistinguisher::Type2 { asn: 64500, assigned: 100 };
-    assert_eq!(FilterValue::Rd(rd).type_of(),
-        FilterType::Rd);
+    let rd = RouteDistinguisher::Type2 {
+        asn: 64500,
+        assigned: 100,
+    };
+    assert_eq!(FilterValue::Rd(rd).type_of(), FilterType::Rd);
 }
 
 #[test]
@@ -544,10 +593,20 @@ fn prefix_with_rd_field() {
         nettype: Nettype::Vpn4,
         ip: IpAddr::V4(Ipv4Addr::new(10, 0, 0, 0)),
         length: 24,
-        rd: Some(RouteDistinguisher::Type2 { asn: 64500, assigned: 100 }),
-        source_ip: None, source_length: None, maxlen: None, asn: None,
-        mac: None, vlan_id: None, evpn_type: None, evpn_tag: None,
-        evpn_esi: None, router_ip: None,
+        rd: Some(RouteDistinguisher::Type2 {
+            asn: 64500,
+            assigned: 100,
+        }),
+        source_ip: None,
+        source_length: None,
+        maxlen: None,
+        asn: None,
+        mac: None,
+        vlan_id: None,
+        evpn_type: None,
+        evpn_tag: None,
+        evpn_esi: None,
+        router_ip: None,
     };
     assert!(prefix.rd.is_some());
 }

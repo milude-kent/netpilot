@@ -54,10 +54,7 @@ pub enum Expr {
     BgpPathField(BgpPathField),
 
     // function / filter call
-    Call {
-        name: String,
-        args: Vec<Expr>,
-    },
+    Call { name: String, args: Vec<Expr> },
 }
 
 /// A statement (action or control-flow construct).

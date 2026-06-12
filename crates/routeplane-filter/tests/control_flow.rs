@@ -15,9 +15,10 @@ fn for_loop_over_int_set() {
 fn case_statement_with_set_branches() {
     let stmt = Stmt::Case {
         expr: Box::new(Expr::PrefixField(PrefixField::Type)),
-        branches: vec![
-            CaseBranch { set: Some(Expr::Var("NET_IP4".into())), stmt: Box::new(Stmt::Accept { expr: None }) },
-        ],
+        branches: vec![CaseBranch {
+            set: Some(Expr::Var("NET_IP4".into())),
+            stmt: Box::new(Stmt::Accept { expr: None }),
+        }],
         else_branch: Some(Box::new(Stmt::Reject { expr: None })),
     };
     assert!(matches!(stmt, Stmt::Case { .. }));

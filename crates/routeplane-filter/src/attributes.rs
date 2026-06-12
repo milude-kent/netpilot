@@ -52,12 +52,8 @@ fn default_value(attr_type: &FilterType) -> FilterValue {
             data1: 0,
             data2: 0,
         }),
-        FilterType::Bgppath => {
-            FilterValue::Bgppath(crate::value::AsPath { segments: vec![] })
-        }
-        FilterType::Bgpmask => {
-            FilterValue::Bgpmask(crate::value::AsPathMask { patterns: vec![] })
-        }
+        FilterType::Bgppath => FilterValue::Bgppath(crate::value::AsPath { segments: vec![] }),
+        FilterType::Bgpmask => FilterValue::Bgpmask(crate::value::AsPathMask { patterns: vec![] }),
         FilterType::Clist => FilterValue::Clist(Vec::new()),
         FilterType::Eclist => FilterValue::Eclist(Vec::new()),
         FilterType::Lclist => FilterValue::Lclist(Vec::new()),

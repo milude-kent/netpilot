@@ -26,10 +26,7 @@ pub enum FilterValue {
     PairSet(Vec<PairSetRange>),
     EcSet(Vec<EcValue>),
     LcSet(Vec<LcValue>),
-    Enum {
-        type_name: String,
-        variant: String,
-    },
+    Enum { type_name: String, variant: String },
 }
 
 impl FilterValue {
@@ -57,12 +54,10 @@ impl FilterValue {
             FilterValue::PairSet(_) => FilterType::PairSet,
             FilterValue::EcSet(_) => FilterType::EcSet,
             FilterValue::LcSet(_) => FilterType::LcSet,
-            FilterValue::Enum { type_name, .. } => {
-                FilterType::Enum(crate::types::EnumType {
-                    name: type_name.clone(),
-                    values: vec![],
-                })
-            }
+            FilterValue::Enum { type_name, .. } => FilterType::Enum(crate::types::EnumType {
+                name: type_name.clone(),
+                values: vec![],
+            }),
         }
     }
 }
@@ -83,7 +78,11 @@ impl fmt::Display for FilterValue {
             }
             FilterValue::Ip(v) => write!(f, "{v}"),
             FilterValue::Mac(v) => {
-                write!(f, "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", v[0], v[1], v[2], v[3], v[4], v[5])
+                write!(
+                    f,
+                    "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+                    v[0], v[1], v[2], v[3], v[4], v[5]
+                )
             }
             FilterValue::Prefix(v) => write!(f, "{v}"),
             FilterValue::Rd(v) => write!(f, "{v}"),
@@ -174,7 +173,10 @@ impl fmt::Display for FilterValue {
                 }
                 write!(f, "]")
             }
-            FilterValue::Enum { type_name: _, variant } => write!(f, "{variant}"),
+            FilterValue::Enum {
+                type_name: _,
+                variant,
+            } => write!(f, "{variant}"),
         }
     }
 }
@@ -375,14 +377,11 @@ impl AsPath {
     }
 
     pub fn last_nonaggregated(&self) -> Option<u32> {
-        self.segments
-            .iter()
-            .rev()
-            .find_map(|seg| match seg {
-                AsPathSegment::AsSequence(asns) => asns.last().copied(),
-                AsPathSegment::ConfedSequence(asns) => asns.last().copied(),
-                _ => None,
-            })
+        self.segments.iter().rev().find_map(|seg| match seg {
+            AsPathSegment::AsSequence(asns) => asns.last().copied(),
+            AsPathSegment::ConfedSequence(asns) => asns.last().copied(),
+            _ => None,
+        })
     }
 
     pub fn len(&self) -> usize {
@@ -399,7 +398,8 @@ impl AsPath {
                 asns.insert(0, asn);
             }
             _ => {
-                self.segments.insert(0, AsPathSegment::AsSequence(vec![asn]));
+                self.segments
+                    .insert(0, AsPathSegment::AsSequence(vec![asn]));
             }
         }
     }
