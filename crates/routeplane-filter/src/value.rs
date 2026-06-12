@@ -335,8 +335,8 @@ pub fn clist_add(list: &mut Vec<ClistEntry>, entry: ClistEntry) {
     }
 }
 
-pub fn clist_delete(list: &mut Vec<ClistEntry>, entry: ClistEntry) {
-    list.retain(|e| *e != entry);
+pub fn clist_delete(list: &mut Vec<ClistEntry>, entry: &ClistEntry) {
+    list.retain(|e| e != entry);
 }
 
 pub fn clist_filter<F>(list: &mut Vec<ClistEntry>, predicate: F)

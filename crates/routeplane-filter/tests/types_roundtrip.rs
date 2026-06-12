@@ -420,7 +420,7 @@ fn clist_operations() {
     assert_eq!(clist.len(), 3);
 
     // .delete(p)
-    clist_delete(&mut clist, (64500, 100));
+    clist_delete(&mut clist, &(64500, 100));
     assert_eq!(clist.len(), 2);
 
     // .filter(p)
