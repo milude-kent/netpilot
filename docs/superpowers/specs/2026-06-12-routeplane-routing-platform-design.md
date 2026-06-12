@@ -1,16 +1,16 @@
-# RiftCore Routing Platform Design
+# RoutePlane Routing Platform Design
 
 Date: 2026-06-12
 
 ## Goal
 
-Build **RiftCore**, a Rust-based routing platform similar in scope to BIRD2, with a Web management plane, Linux server/cloud host as the first target, and support for a candidate/running configuration workflow with commit, confirmed commit, rollback, audit, and future controller/agent split deployment.
+Build **RoutePlane**, a Rust-based routing platform similar in scope to BIRD2, with a Web management plane, Linux server/cloud host as the first target, and support for a candidate/running configuration workflow with commit, confirmed commit, rollback, audit, and future controller/agent split deployment.
 
 The selected architecture is **Rust microkernel + protocol actors**. The system should run as a single all-in-one deployment first, while preserving boundaries that allow a future controller to manage multiple routing agents.
 
 ## 1. System Boundary
 
-The main process is `routerd`. In the first stage, it runs the routing core, API, Web UI, CLI entry points, protocol actors, policy engine, and Linux kernel adapter in one deployment.
+The main process is `routeplaned`. In the first stage, it runs the routing core, API, Web UI, CLI entry points, protocol actors, policy engine, and Linux kernel adapter in one deployment.
 
 Later, the same architecture can split into:
 
@@ -263,7 +263,7 @@ Use React/Vite/TypeScript or SvelteKit. The UI consumes the REST API and treats 
 First stage:
 
 ```text
-routerd
+routeplaned
   +- config manager
   +- API server
   +- web static server
@@ -296,7 +296,7 @@ agent
 
 ### Recommended Build Order
 
-1. `routerd` core framework, config revision storage, and API skeleton.
+1. `routeplaned` core framework, config revision storage, and API skeleton.
 2. Static, Direct, and Kernel modules to prove the RIB-to-FIB loop.
 3. BGP protocol actor.
 4. Policy VM and DSL parser.

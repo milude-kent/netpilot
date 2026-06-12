@@ -1,10 +1,10 @@
-# RiftCore Milestone 1 Implementation Plan
+# RoutePlane Milestone 1 Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the first working RiftCore foundation: a Rust workspace with `routerd`, structured configuration types, candidate/running commit and rollback logic, a minimal REST API, and tests proving the configuration workflow.
+**Goal:** Build the first working RoutePlane foundation: a Rust workspace with `routeplaned`, structured configuration types, candidate/running commit and rollback logic, a minimal REST API, and tests proving the configuration workflow.
 
-**Architecture:** Start with an all-in-one `routerd` binary and focused crates. `riftcore-config` owns schema, validation, revisions, diffs, commit, and rollback. `routerd` exposes a small API over that service. Protocol actors, RIB, policy VM, and kernel netlink are represented only by clean module boundaries in this milestone.
+**Architecture:** Start with an all-in-one `routeplaned` binary and focused crates. `routeplane-config` owns schema, validation, revisions, diffs, commit, and rollback. `routeplaned` exposes a small API over that service. Protocol actors, RIB, policy VM, and kernel netlink are represented only by clean module boundaries in this milestone.
 
 **Tech Stack:** Rust 1.95, Cargo workspace, `tokio`, `axum`, `serde`, `serde_json`, `thiserror`, `time`, `tempfile`, and `reqwest` for API tests.
 
@@ -14,29 +14,29 @@
 
 - Create: `Cargo.toml`
   - Workspace manifest for the first two crates.
-- Create: `crates/riftcore-config/Cargo.toml`
+- Create: `crates/routeplane-config/Cargo.toml`
   - Library crate manifest for structured configuration and commit logic.
-- Create: `crates/riftcore-config/src/lib.rs`
+- Create: `crates/routeplane-config/src/lib.rs`
   - Public exports for config, store, revision, diff, and validation modules.
-- Create: `crates/riftcore-config/src/schema.rs`
+- Create: `crates/routeplane-config/src/schema.rs`
   - Versioned structured configuration types.
-- Create: `crates/riftcore-config/src/diff.rs`
+- Create: `crates/routeplane-config/src/diff.rs`
   - Lightweight structured diff summary between candidate and running config.
-- Create: `crates/riftcore-config/src/validation.rs`
+- Create: `crates/routeplane-config/src/validation.rs`
   - Semantic validation for router-id, tables, protocols, and dangerous changes.
-- Create: `crates/riftcore-config/src/store.rs`
+- Create: `crates/routeplane-config/src/store.rs`
   - In-memory candidate/running store with revision history and rollback.
-- Create: `crates/riftcore-config/tests/config_store.rs`
+- Create: `crates/routeplane-config/tests/config_store.rs`
   - Integration tests for candidate edit, commit, diff, validation, and rollback.
-- Create: `crates/routerd/Cargo.toml`
+- Create: `crates/routeplaned/Cargo.toml`
   - Binary crate manifest for the daemon and API.
-- Create: `crates/routerd/src/main.rs`
+- Create: `crates/routeplaned/src/main.rs`
   - Process entry point.
-- Create: `crates/routerd/src/api.rs`
+- Create: `crates/routeplaned/src/api.rs`
   - Axum routes for health, config, diff, commit, rollback, and revisions.
-- Create: `crates/routerd/src/state.rs`
+- Create: `crates/routeplaned/src/state.rs`
   - Shared application state wrapper around the config store.
-- Create: `crates/routerd/tests/api_config.rs`
+- Create: `crates/routeplaned/tests/api_config.rs`
   - API integration tests.
 - Create: `README.md`
   - Project name, scope, and first-run commands.
@@ -53,8 +53,8 @@
 ```toml
 [workspace]
 members = [
-    "crates/riftcore-config",
-    "crates/routerd",
+    "crates/routeplane-config",
+    "crates/routeplaned",
 ]
 resolver = "2"
 
@@ -77,22 +77,22 @@ tower = "0.5"
 - [ ] **Step 2: Create the README**
 
 ```markdown
-# RiftCore
+# RoutePlane
 
-RiftCore is a Rust routing platform inspired by BIRD2. The first milestone builds the daemon foundation, structured configuration model, candidate/running commit workflow, rollback support, and a small REST API.
+RoutePlane is a Rust routing platform inspired by BIRD2. The first milestone builds the daemon foundation, structured configuration model, candidate/running commit workflow, rollback support, and a small REST API.
 
 The long-term architecture is a Rust microkernel with protocol actors for BGP, OSPF, RIP, Babel, Static, Direct, Kernel, BFD, RPKI, MRT, and Pipe.
 
 ## First Milestone
 
-- `riftcore-config`: structured config schema, validation, diff, revision history, commit, and rollback.
-- `routerd`: all-in-one daemon with a REST API for health and configuration workflow.
+- `routeplane-config`: structured config schema, validation, diff, revision history, commit, and rollback.
+- `routeplaned`: all-in-one daemon with a REST API for health and configuration workflow.
 
 ## Development
 
 ```powershell
 cargo test
-cargo run -p routerd
+cargo run -p routeplaned
 ```
 ```
 
@@ -106,27 +106,27 @@ Expected: Cargo reports no Rust packages yet or formatting succeeds after crate 
 
 ```powershell
 git add Cargo.toml README.md docs/superpowers/specs/2026-06-12-rust-routing-platform-design.md
-git commit -m "chore: name project RiftCore"
+git commit -m "chore: name project RoutePlane"
 ```
 
 ## Task 2: Configuration Schema
 
 **Files:**
-- Create: `crates/riftcore-config/Cargo.toml`
-- Create: `crates/riftcore-config/src/lib.rs`
-- Create: `crates/riftcore-config/src/schema.rs`
-- Create: `crates/riftcore-config/tests/config_store.rs`
+- Create: `crates/routeplane-config/Cargo.toml`
+- Create: `crates/routeplane-config/src/lib.rs`
+- Create: `crates/routeplane-config/src/schema.rs`
+- Create: `crates/routeplane-config/tests/config_store.rs`
 
 - [ ] **Step 1: Write failing schema tests**
 
 ```rust
-use riftcore_config::{
-    AddressFamily, ProtocolConfig, RiftConfig, RouterIdentity, StaticRoute, TableConfig,
+use routeplane_config::{
+    AddressFamily, ProtocolConfig, RoutePlaneConfig, RouterIdentity, StaticRoute, TableConfig,
 };
 
 #[test]
 fn default_config_has_main_table_and_schema_version() {
-    let config = RiftConfig::default();
+    let config = RoutePlaneConfig::default();
 
     assert_eq!(config.schema_version, 1);
     assert_eq!(config.tables.len(), 1);
@@ -135,7 +135,7 @@ fn default_config_has_main_table_and_schema_version() {
 
 #[test]
 fn static_route_config_round_trips_as_json() {
-    let config = RiftConfig {
+    let config = RoutePlaneConfig {
         identity: RouterIdentity {
             router_id: "192.0.2.1".to_string(),
             local_asn: Some(64512),
@@ -154,11 +154,11 @@ fn static_route_config_round_trips_as_json() {
                 address_family: AddressFamily::Ipv4,
             }],
         }],
-        ..RiftConfig::default()
+        ..RoutePlaneConfig::default()
     };
 
     let encoded = serde_json::to_string(&config).expect("config serializes");
-    let decoded: RiftConfig = serde_json::from_str(&encoded).expect("config deserializes");
+    let decoded: RoutePlaneConfig = serde_json::from_str(&encoded).expect("config deserializes");
 
     assert_eq!(decoded.identity.router_id, "192.0.2.1");
     assert_eq!(decoded.protocols.len(), 1);
@@ -167,7 +167,7 @@ fn static_route_config_round_trips_as_json() {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cargo test -p riftcore-config schema`
+Run: `cargo test -p routeplane-config schema`
 
 Expected: FAIL because the crate and types do not exist yet.
 
@@ -175,7 +175,7 @@ Expected: FAIL because the crate and types do not exist yet.
 
 ```toml
 [package]
-name = "riftcore-config"
+name = "routeplane-config"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
@@ -196,7 +196,7 @@ pub mod store;
 pub mod validation;
 
 pub use schema::{
-    AddressFamily, BgpNeighbor, ProtocolConfig, RiftConfig, RouterIdentity, StaticRoute,
+    AddressFamily, BgpNeighbor, ProtocolConfig, RoutePlaneConfig, RouterIdentity, StaticRoute,
     TableConfig,
 };
 pub use store::{CommitRequest, ConfigStore, Revision, RollbackRequest};
@@ -210,14 +210,14 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct RiftConfig {
+pub struct RoutePlaneConfig {
     pub schema_version: u32,
     pub identity: RouterIdentity,
     pub tables: Vec<TableConfig>,
     pub protocols: Vec<ProtocolConfig>,
 }
 
-impl Default for RiftConfig {
+impl Default for RoutePlaneConfig {
     fn default() -> Self {
         Self {
             schema_version: 1,
@@ -289,7 +289,7 @@ pub enum AddressFamily {
 
 - [ ] **Step 6: Add empty module files so exports compile**
 
-Create `crates/riftcore-config/src/diff.rs`:
+Create `crates/routeplane-config/src/diff.rs`:
 
 ```rust
 use serde::{Deserialize, Serialize};
@@ -301,7 +301,7 @@ pub struct ConfigDiff {
 }
 ```
 
-Create `crates/riftcore-config/src/validation.rs`:
+Create `crates/routeplane-config/src/validation.rs`:
 
 ```rust
 use thiserror::Error;
@@ -318,10 +318,10 @@ pub enum ValidationError {
 }
 ```
 
-Create `crates/riftcore-config/src/store.rs`:
+Create `crates/routeplane-config/src/store.rs`:
 
 ```rust
-use crate::schema::RiftConfig;
+use crate::schema::RoutePlaneConfig;
 
 #[derive(Clone, Debug)]
 pub struct CommitRequest {
@@ -339,55 +339,55 @@ pub struct RollbackRequest {
 #[derive(Clone, Debug)]
 pub struct Revision {
     pub id: u64,
-    pub config: RiftConfig,
+    pub config: RoutePlaneConfig,
     pub author: String,
     pub note: String,
 }
 
 #[derive(Clone, Debug)]
 pub struct ConfigStore {
-    running: RiftConfig,
-    candidate: RiftConfig,
+    running: RoutePlaneConfig,
+    candidate: RoutePlaneConfig,
     revisions: Vec<Revision>,
 }
 ```
 
 - [ ] **Step 7: Run tests to verify schema passes**
 
-Run: `cargo test -p riftcore-config`
+Run: `cargo test -p routeplane-config`
 
 Expected: PASS for schema tests. Warnings about unused fields in `ConfigStore` are acceptable until Task 4.
 
 - [ ] **Step 8: Commit**
 
 ```powershell
-git add crates/riftcore-config
-git commit -m "feat: add RiftCore config schema"
+git add crates/routeplane-config
+git commit -m "feat: add RoutePlane config schema"
 ```
 
 ## Task 3: Validation and Diff
 
 **Files:**
-- Modify: `crates/riftcore-config/src/diff.rs`
-- Modify: `crates/riftcore-config/src/validation.rs`
-- Modify: `crates/riftcore-config/tests/config_store.rs`
+- Modify: `crates/routeplane-config/src/diff.rs`
+- Modify: `crates/routeplane-config/src/validation.rs`
+- Modify: `crates/routeplane-config/tests/config_store.rs`
 
 - [ ] **Step 1: Add failing validation and diff tests**
 
 ```rust
-use riftcore_config::{
-    diff::ConfigDiff, validation::validate_config, ProtocolConfig, RiftConfig, StaticRoute,
+use routeplane_config::{
+    diff::ConfigDiff, validation::validate_config, ProtocolConfig, RoutePlaneConfig, StaticRoute,
 };
 
 #[test]
 fn validation_rejects_protocol_referencing_missing_table() {
-    let config = RiftConfig {
+    let config = RoutePlaneConfig {
         protocols: vec![ProtocolConfig::Static {
             name: "bad-static".to_string(),
             table: "missing".to_string(),
             routes: Vec::<StaticRoute>::new(),
         }],
-        ..RiftConfig::default()
+        ..RoutePlaneConfig::default()
     };
 
     let error = validate_config(&config).expect_err("missing table should fail");
@@ -397,7 +397,7 @@ fn validation_rejects_protocol_referencing_missing_table() {
 
 #[test]
 fn validation_warns_when_router_id_is_empty() {
-    let config = RiftConfig::default();
+    let config = RoutePlaneConfig::default();
     let report = validate_config(&config).expect("default config is valid");
 
     assert!(report
@@ -408,14 +408,14 @@ fn validation_warns_when_router_id_is_empty() {
 
 #[test]
 fn diff_reports_changed_protocol_count() {
-    let running = RiftConfig::default();
-    let candidate = RiftConfig {
+    let running = RoutePlaneConfig::default();
+    let candidate = RoutePlaneConfig {
         protocols: vec![ProtocolConfig::Static {
             name: "static-default".to_string(),
             table: "master".to_string(),
             routes: Vec::new(),
         }],
-        ..RiftConfig::default()
+        ..RoutePlaneConfig::default()
     };
 
     let diff = ConfigDiff::between(&running, &candidate);
@@ -427,14 +427,14 @@ fn diff_reports_changed_protocol_count() {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cargo test -p riftcore-config validation diff`
+Run: `cargo test -p routeplane-config validation diff`
 
 Expected: FAIL because `validate_config` and `ConfigDiff::between` do not exist.
 
 - [ ] **Step 3: Implement diff**
 
 ```rust
-use crate::schema::RiftConfig;
+use crate::schema::RoutePlaneConfig;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -444,7 +444,7 @@ pub struct ConfigDiff {
 }
 
 impl ConfigDiff {
-    pub fn between(running: &RiftConfig, candidate: &RiftConfig) -> Self {
+    pub fn between(running: &RoutePlaneConfig, candidate: &RoutePlaneConfig) -> Self {
         let mut summary = Vec::new();
 
         if running.identity != candidate.identity {
@@ -482,7 +482,7 @@ impl ConfigDiff {
 - [ ] **Step 4: Implement validation**
 
 ```rust
-use crate::schema::{ProtocolConfig, RiftConfig};
+use crate::schema::{ProtocolConfig, RoutePlaneConfig};
 use std::collections::HashSet;
 use thiserror::Error;
 
@@ -497,7 +497,7 @@ pub enum ValidationError {
     Message(String),
 }
 
-pub fn validate_config(config: &RiftConfig) -> Result<ValidationReport, ValidationError> {
+pub fn validate_config(config: &RoutePlaneConfig) -> Result<ValidationReport, ValidationError> {
     let mut warnings = Vec::new();
 
     if config.schema_version != 1 {
@@ -536,39 +536,39 @@ pub fn validate_config(config: &RiftConfig) -> Result<ValidationReport, Validati
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `cargo test -p riftcore-config`
+Run: `cargo test -p routeplane-config`
 
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
 ```powershell
-git add crates/riftcore-config
-git commit -m "feat: validate and diff RiftCore config"
+git add crates/routeplane-config
+git commit -m "feat: validate and diff RoutePlane config"
 ```
 
 ## Task 4: Candidate, Commit, Revision, and Rollback Store
 
 **Files:**
-- Modify: `crates/riftcore-config/src/store.rs`
-- Modify: `crates/riftcore-config/src/lib.rs`
-- Modify: `crates/riftcore-config/tests/config_store.rs`
+- Modify: `crates/routeplane-config/src/store.rs`
+- Modify: `crates/routeplane-config/src/lib.rs`
+- Modify: `crates/routeplane-config/tests/config_store.rs`
 
 - [ ] **Step 1: Add failing store workflow tests**
 
 ```rust
-use riftcore_config::{CommitRequest, ConfigStore, ProtocolConfig, RiftConfig, RollbackRequest};
+use routeplane_config::{CommitRequest, ConfigStore, ProtocolConfig, RoutePlaneConfig, RollbackRequest};
 
 #[test]
 fn store_commits_candidate_to_running_and_records_revision() {
-    let mut store = ConfigStore::new(RiftConfig::default());
-    let candidate = RiftConfig {
+    let mut store = ConfigStore::new(RoutePlaneConfig::default());
+    let candidate = RoutePlaneConfig {
         protocols: vec![ProtocolConfig::Static {
             name: "static-default".to_string(),
             table: "master".to_string(),
             routes: Vec::new(),
         }],
-        ..RiftConfig::default()
+        ..RoutePlaneConfig::default()
     };
 
     store.replace_candidate(candidate.clone()).expect("candidate is valid");
@@ -589,7 +589,7 @@ fn store_commits_candidate_to_running_and_records_revision() {
 
 #[test]
 fn store_rolls_back_to_previous_revision() {
-    let mut store = ConfigStore::new(RiftConfig::default());
+    let mut store = ConfigStore::new(RoutePlaneConfig::default());
     let first = store
         .commit(CommitRequest {
             author: "operator".to_string(),
@@ -597,13 +597,13 @@ fn store_rolls_back_to_previous_revision() {
         })
         .expect("initial commit succeeds");
 
-    let changed = RiftConfig {
+    let changed = RoutePlaneConfig {
         protocols: vec![ProtocolConfig::Static {
             name: "static-default".to_string(),
             table: "master".to_string(),
             routes: Vec::new(),
         }],
-        ..RiftConfig::default()
+        ..RoutePlaneConfig::default()
     };
 
     store.replace_candidate(changed).expect("candidate is valid");
@@ -623,13 +623,13 @@ fn store_rolls_back_to_previous_revision() {
         .expect("rollback succeeds");
 
     assert_eq!(rollback.id, 3);
-    assert_eq!(store.running(), &RiftConfig::default());
+    assert_eq!(store.running(), &RoutePlaneConfig::default());
 }
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cargo test -p riftcore-config store`
+Run: `cargo test -p routeplane-config store`
 
 Expected: FAIL because store methods are not implemented.
 
@@ -638,7 +638,7 @@ Expected: FAIL because store methods are not implemented.
 ```rust
 use crate::{
     diff::ConfigDiff,
-    schema::RiftConfig,
+    schema::RoutePlaneConfig,
     validation::{validate_config, ValidationError},
 };
 use time::OffsetDateTime;
@@ -659,7 +659,7 @@ pub struct RollbackRequest {
 #[derive(Clone, Debug)]
 pub struct Revision {
     pub id: u64,
-    pub config: RiftConfig,
+    pub config: RoutePlaneConfig,
     pub author: String,
     pub note: String,
     pub created_at: OffsetDateTime,
@@ -667,14 +667,14 @@ pub struct Revision {
 
 #[derive(Clone, Debug)]
 pub struct ConfigStore {
-    running: RiftConfig,
-    candidate: RiftConfig,
+    running: RoutePlaneConfig,
+    candidate: RoutePlaneConfig,
     revisions: Vec<Revision>,
     next_revision_id: u64,
 }
 
 impl ConfigStore {
-    pub fn new(initial: RiftConfig) -> Self {
+    pub fn new(initial: RoutePlaneConfig) -> Self {
         Self {
             running: initial.clone(),
             candidate: initial,
@@ -683,11 +683,11 @@ impl ConfigStore {
         }
     }
 
-    pub fn running(&self) -> &RiftConfig {
+    pub fn running(&self) -> &RoutePlaneConfig {
         &self.running
     }
 
-    pub fn candidate(&self) -> &RiftConfig {
+    pub fn candidate(&self) -> &RoutePlaneConfig {
         &self.candidate
     }
 
@@ -695,7 +695,7 @@ impl ConfigStore {
         &self.revisions
     }
 
-    pub fn replace_candidate(&mut self, candidate: RiftConfig) -> Result<(), ValidationError> {
+    pub fn replace_candidate(&mut self, candidate: RoutePlaneConfig) -> Result<(), ValidationError> {
         validate_config(&candidate)?;
         self.candidate = candidate;
         Ok(())
@@ -734,7 +734,7 @@ impl ConfigStore {
         Ok(revision)
     }
 
-    fn create_revision(&mut self, author: String, note: String, config: RiftConfig) -> Revision {
+    fn create_revision(&mut self, author: String, note: String, config: RoutePlaneConfig) -> Revision {
         let revision = Revision {
             id: self.next_revision_id,
             config,
@@ -750,25 +750,25 @@ impl ConfigStore {
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cargo test -p riftcore-config`
+Run: `cargo test -p routeplane-config`
 
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add crates/riftcore-config
+git add crates/routeplane-config
 git commit -m "feat: add config commit and rollback store"
 ```
 
-## Task 5: Routerd API Skeleton
+## Task 5: routeplaned API Skeleton
 
 **Files:**
-- Create: `crates/routerd/Cargo.toml`
-- Create: `crates/routerd/src/main.rs`
-- Create: `crates/routerd/src/api.rs`
-- Create: `crates/routerd/src/state.rs`
-- Create: `crates/routerd/tests/api_config.rs`
+- Create: `crates/routeplaned/Cargo.toml`
+- Create: `crates/routeplaned/src/main.rs`
+- Create: `crates/routeplaned/src/api.rs`
+- Create: `crates/routeplaned/src/state.rs`
+- Create: `crates/routeplaned/tests/api_config.rs`
 
 - [ ] **Step 1: Add failing API tests**
 
@@ -777,8 +777,8 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use routerd::{api::build_router, state::AppState};
-use riftcore_config::{ProtocolConfig, RiftConfig};
+use routeplaned::{api::build_router, state::AppState};
+use routeplane_config::{ProtocolConfig, RoutePlaneConfig};
 use tower::ServiceExt;
 
 #[tokio::test]
@@ -795,13 +795,13 @@ async fn health_endpoint_returns_ok() {
 #[tokio::test]
 async fn config_candidate_commit_flow_works_over_api() {
     let app = build_router(AppState::default());
-    let candidate = RiftConfig {
+    let candidate = RoutePlaneConfig {
         protocols: vec![ProtocolConfig::Static {
             name: "static-default".to_string(),
             table: "master".to_string(),
             routes: Vec::new(),
         }],
-        ..RiftConfig::default()
+        ..RoutePlaneConfig::default()
     };
 
     let response = app
@@ -838,22 +838,22 @@ async fn config_candidate_commit_flow_works_over_api() {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cargo test -p routerd`
+Run: `cargo test -p routeplaned`
 
-Expected: FAIL because `routerd` crate does not exist.
+Expected: FAIL because `routeplaned` crate does not exist.
 
-- [ ] **Step 3: Add routerd manifest**
+- [ ] **Step 3: Add routeplaned manifest**
 
 ```toml
 [package]
-name = "routerd"
+name = "routeplaned"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
 axum.workspace = true
-riftcore-config = { path = "../riftcore-config" }
+routeplane-config = { path = "../routeplane-config" }
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
@@ -865,7 +865,7 @@ tower.workspace = true
 - [ ] **Step 4: Add app state**
 
 ```rust
-use riftcore_config::{ConfigStore, RiftConfig};
+use routeplane_config::{ConfigStore, RoutePlaneConfig};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -877,7 +877,7 @@ pub struct AppState {
 impl Default for AppState {
     fn default() -> Self {
         Self {
-            config_store: Arc::new(RwLock::new(ConfigStore::new(RiftConfig::default()))),
+            config_store: Arc::new(RwLock::new(ConfigStore::new(RoutePlaneConfig::default()))),
         }
     }
 }
@@ -893,7 +893,7 @@ use axum::{
     routing::{get, post, put},
     Json, Router,
 };
-use riftcore_config::{CommitRequest, RiftConfig, RollbackRequest};
+use routeplane_config::{CommitRequest, RoutePlaneConfig, RollbackRequest};
 use serde::Deserialize;
 
 pub fn build_router(state: AppState) -> Router {
@@ -911,19 +911,19 @@ async fn health() -> &'static str {
     "ok"
 }
 
-async fn get_running_config(State(state): State<AppState>) -> Json<RiftConfig> {
+async fn get_running_config(State(state): State<AppState>) -> Json<RoutePlaneConfig> {
     let store = state.config_store.read().await;
     Json(store.running().clone())
 }
 
-async fn get_candidate_config(State(state): State<AppState>) -> Json<RiftConfig> {
+async fn get_candidate_config(State(state): State<AppState>) -> Json<RoutePlaneConfig> {
     let store = state.config_store.read().await;
     Json(store.candidate().clone())
 }
 
 async fn put_candidate_config(
     State(state): State<AppState>,
-    Json(candidate): Json<RiftConfig>,
+    Json(candidate): Json<RoutePlaneConfig>,
 ) -> Result<StatusCode, (StatusCode, String)> {
     let mut store = state.config_store.write().await;
     store
@@ -932,7 +932,7 @@ async fn put_candidate_config(
     Ok(StatusCode::NO_CONTENT)
 }
 
-async fn get_config_diff(State(state): State<AppState>) -> Json<riftcore_config::diff::ConfigDiff> {
+async fn get_config_diff(State(state): State<AppState>) -> Json<routeplane_config::diff::ConfigDiff> {
     let store = state.config_store.read().await;
     Json(store.diff())
 }
@@ -940,7 +940,7 @@ async fn get_config_diff(State(state): State<AppState>) -> Json<riftcore_config:
 async fn commit_config(
     State(state): State<AppState>,
     Json(request): Json<ApiCommitRequest>,
-) -> Result<Json<riftcore_config::Revision>, (StatusCode, String)> {
+) -> Result<Json<routeplane_config::Revision>, (StatusCode, String)> {
     let mut store = state.config_store.write().await;
     let revision = store
         .commit(CommitRequest {
@@ -954,7 +954,7 @@ async fn commit_config(
 async fn rollback_config(
     State(state): State<AppState>,
     Json(request): Json<RollbackRequest>,
-) -> Result<Json<riftcore_config::Revision>, (StatusCode, String)> {
+) -> Result<Json<routeplane_config::Revision>, (StatusCode, String)> {
     let mut store = state.config_store.write().await;
     let revision = store
         .rollback(request)
@@ -971,17 +971,17 @@ struct ApiCommitRequest {
 
 - [ ] **Step 6: Add lib exports and main**
 
-Create `crates/routerd/src/lib.rs`:
+Create `crates/routeplaned/src/lib.rs`:
 
 ```rust
 pub mod api;
 pub mod state;
 ```
 
-Create `crates/routerd/src/main.rs`:
+Create `crates/routeplaned/src/main.rs`:
 
 ```rust
-use routerd::{api::build_router, state::AppState};
+use routeplaned::{api::build_router, state::AppState};
 use tokio::net::TcpListener;
 
 #[tokio::main]
@@ -995,7 +995,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 - [ ] **Step 7: Derive serialization for revision request/response**
 
-Update `crates/riftcore-config/src/store.rs` so `CommitRequest`, `RollbackRequest`, and `Revision` derive serde traits:
+Update `crates/routeplane-config/src/store.rs` so `CommitRequest`, `RollbackRequest`, and `Revision` derive serde traits:
 
 ```rust
 use serde::{Deserialize, Serialize};
@@ -1016,7 +1016,7 @@ pub struct RollbackRequest {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Revision {
     pub id: u64,
-    pub config: RiftConfig,
+    pub config: RoutePlaneConfig,
     pub author: String,
     pub note: String,
     pub created_at: OffsetDateTime,
@@ -1025,14 +1025,14 @@ pub struct Revision {
 
 - [ ] **Step 8: Run API tests**
 
-Run: `cargo test -p routerd`
+Run: `cargo test -p routeplaned`
 
 Expected: PASS.
 
 - [ ] **Step 9: Commit**
 
 ```powershell
-git add crates/routerd crates/riftcore-config
+git add crates/routeplaned crates/routeplane-config
 git commit -m "feat: expose config workflow API"
 ```
 
@@ -1049,7 +1049,7 @@ git commit -m "feat: expose config workflow API"
 ```powershell
 cargo fmt --check
 cargo test
-cargo run -p routerd
+cargo run -p routeplaned
 ```
 
 The API listens on `127.0.0.1:8080` in the first milestone.
@@ -1075,7 +1075,7 @@ Expected: PASS.
 
 - [ ] **Step 5: Run daemon smoke check**
 
-Run: `cargo run -p routerd`
+Run: `cargo run -p routeplaned`
 
 Expected: The process starts and binds `127.0.0.1:8080`. Stop it with `Ctrl+C` after confirming startup. If port `8080` is already used, change the bind address in a later task; do not broaden scope in this milestone.
 
@@ -1083,7 +1083,7 @@ Expected: The process starts and binds `127.0.0.1:8080`. Stop it with `Ctrl+C` a
 
 ```powershell
 git add README.md Cargo.toml crates
-git commit -m "test: verify RiftCore milestone 1 baseline"
+git commit -m "test: verify RoutePlane milestone 1 baseline"
 ```
 
 ## Self-Review
@@ -1091,7 +1091,7 @@ git commit -m "test: verify RiftCore milestone 1 baseline"
 Spec coverage for this milestone:
 
 - Project name: covered by Task 1.
-- Rust workspace and `routerd`: covered by Tasks 1 and 5.
+- Rust workspace and `routeplaned`: covered by Tasks 1 and 5.
 - Candidate/running workflow: covered by Task 4.
 - Commit and rollback: covered by Task 4 and API tests in Task 5.
 - Structured config schema: covered by Task 2.
