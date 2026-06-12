@@ -46,7 +46,7 @@
 **Files:**
 - Create: `Cargo.toml`
 - Create: `README.md`
-- Modify: `docs/superpowers/specs/2026-06-12-rust-routing-platform-design.md`
+- Modify: `docs/superpowers/specs/2026-06-12-routeplane-routing-platform-design.md`
 
 - [ ] **Step 1: Create the workspace manifest**
 
@@ -71,7 +71,7 @@ tempfile = "3"
 thiserror = "2"
 time = { version = "0.3", features = ["formatting", "macros", "serde"] }
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync"] }
-tower = "0.5"
+tower = { version = "0.5", features = ["util"] }
 ```
 
 - [ ] **Step 2: Create the README**
@@ -105,7 +105,7 @@ Expected: Cargo reports no Rust packages yet or formatting succeeds after crate 
 - [ ] **Step 4: Commit**
 
 ```powershell
-git add Cargo.toml README.md docs/superpowers/specs/2026-06-12-rust-routing-platform-design.md
+git add Cargo.toml README.md docs/superpowers/specs/2026-06-12-routeplane-routing-platform-design.md
 git commit -m "chore: name project RoutePlane"
 ```
 
@@ -427,7 +427,7 @@ fn diff_reports_changed_protocol_count() {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cargo test -p routeplane-config validation diff`
+Run: `cargo test -p routeplane-config`
 
 Expected: FAIL because `validate_config` and `ConfigDiff::between` do not exist.
 
