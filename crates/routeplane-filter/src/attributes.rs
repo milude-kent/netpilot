@@ -127,3 +127,158 @@ impl Default for AttributeRegistry {
         Self::new()
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct CustomIntAttribute {
+    name: String,
+    value: u32,
+}
+impl CustomIntAttribute {
+    pub fn new(name: &str, default: u32) -> Self {
+        Self {
+            name: name.into(),
+            value: default,
+        }
+    }
+}
+impl RouteAttribute for CustomIntAttribute {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn attr_type(&self) -> FilterType {
+        FilterType::Int
+    }
+    fn read(&self) -> FilterValue {
+        FilterValue::Int(self.value)
+    }
+    fn write(&mut self, v: FilterValue) -> Result<(), String> {
+        match v {
+            FilterValue::Int(n) => {
+                self.value = n;
+                Ok(())
+            }
+            _ => Err("type mismatch".into()),
+        }
+    }
+    fn is_read_only(&self) -> bool {
+        false
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct CustomStringAttribute {
+    name: String,
+    value: String,
+}
+impl CustomStringAttribute {
+    pub fn new(name: &str, default: String) -> Self {
+        Self {
+            name: name.into(),
+            value: default,
+        }
+    }
+}
+impl RouteAttribute for CustomStringAttribute {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn attr_type(&self) -> FilterType {
+        FilterType::String
+    }
+    fn read(&self) -> FilterValue {
+        FilterValue::String(self.value.clone())
+    }
+    fn write(&mut self, v: FilterValue) -> Result<(), String> {
+        match v {
+            FilterValue::String(s) => {
+                self.value = s;
+                Ok(())
+            }
+            _ => Err("type mismatch".into()),
+        }
+    }
+    fn is_read_only(&self) -> bool {
+        false
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ReadOnlyAttribute {
+    name: String,
+    value: FilterValue,
+}
+impl ReadOnlyAttribute {
+    pub fn new(name: &str, value: FilterValue) -> Self {
+        Self {
+            name: name.into(),
+            value,
+        }
+    }
+}
+impl RouteAttribute for ReadOnlyAttribute {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn attr_type(&self) -> FilterType {
+        self.value.type_of()
+    }
+    fn read(&self) -> FilterValue {
+        self.value.clone()
+    }
+    fn write(&mut self, _v: FilterValue) -> Result<(), String> {
+        Err("read-only".into())
+    }
+    fn is_read_only(&self) -> bool {
+        true
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct EnumAttribute {
+    name: String,
+    variants: Vec<String>,
+    current: usize,
+}
+impl EnumAttribute {
+    pub fn new(name: &str, variants: Vec<&str>, default_idx: usize) -> Self {
+        Self {
+            name: name.into(),
+            variants: variants.iter().map(|s| s.to_string()).collect(),
+            current: default_idx,
+        }
+    }
+}
+impl RouteAttribute for EnumAttribute {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn attr_type(&self) -> FilterType {
+        FilterType::Enum(crate::types::EnumType {
+            name: self.name.clone(),
+            values: self.variants.clone(),
+        })
+    }
+    fn read(&self) -> FilterValue {
+        FilterValue::Enum {
+            type_name: self.name.clone(),
+            variant: self.variants[self.current].clone(),
+        }
+    }
+    fn write(&mut self, v: FilterValue) -> Result<(), String> {
+        match v {
+            FilterValue::Enum { variant, .. } => {
+                match self.variants.iter().position(|s| s == &variant) {
+                    Some(idx) => {
+                        self.current = idx;
+                        Ok(())
+                    }
+                    None => Err(format!("invalid variant: {variant}")),
+                }
+            }
+            _ => Err("type mismatch".into()),
+        }
+    }
+    fn is_read_only(&self) -> bool {
+        false
+    }
+}

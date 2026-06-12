@@ -139,3 +139,49 @@ pub enum BgpPathField {
     FirstHop,
     NextHop,
 }
+
+impl FilterFunction {
+    pub fn validate_types(&self) -> Result<(), String> {
+        if let Some(ret) = &self.return_type {
+            if !is_valid_type_name(ret) {
+                return Err(format!("unknown return type: {ret}"));
+            }
+        }
+        for (_, type_opt) in &self.params {
+            if let Some(t) = type_opt {
+                if !is_valid_type_name(t) {
+                    return Err(format!("unknown parameter type: {t}"));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+fn is_valid_type_name(name: &str) -> bool {
+    matches!(
+        name,
+        "bool"
+            | "int"
+            | "pair"
+            | "quad"
+            | "string"
+            | "bytestring"
+            | "ip"
+            | "mac"
+            | "prefix"
+            | "rd"
+            | "ec"
+            | "lc"
+            | "bgppath"
+            | "bgpmask"
+            | "clist"
+            | "eclist"
+            | "lclist"
+            | "int set"
+            | "prefix set"
+            | "pair set"
+            | "ec set"
+            | "lc set"
+    )
+}
