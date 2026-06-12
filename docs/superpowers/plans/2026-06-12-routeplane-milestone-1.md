@@ -54,7 +54,6 @@
 [workspace]
 members = [
     "crates/routeplane-config",
-    "crates/routeplaned",
 ]
 resolver = "2"
 
@@ -764,6 +763,7 @@ git commit -m "feat: add config commit and rollback store"
 ## Task 5: routeplaned API Skeleton
 
 **Files:**
+- Modify: `Cargo.toml`
 - Create: `crates/routeplaned/Cargo.toml`
 - Create: `crates/routeplaned/src/main.rs`
 - Create: `crates/routeplaned/src/api.rs`
@@ -843,6 +843,19 @@ Run: `cargo test -p routeplaned`
 Expected: FAIL because `routeplaned` crate does not exist.
 
 - [ ] **Step 3: Add routeplaned manifest**
+
+Update the workspace manifest to include the daemon crate:
+
+```toml
+[workspace]
+members = [
+    "crates/routeplane-config",
+    "crates/routeplaned",
+]
+resolver = "2"
+```
+
+Then add the crate manifest:
 
 ```toml
 [package]
