@@ -1,6 +1,7 @@
 use routeplane_config::{
-    AddressFamily, CommitRequest, ConfigStore, ProtocolConfig, RollbackRequest, RoutePlaneConfig,
-    RouterIdentity, StaticRoute, TableConfig, diff::ConfigDiff, validation::validate_config,
+    AddressFamily, CommitRequest, ConfigStore, ProtocolConfig, RollbackRequest,
+    RoutePlaneConfig, RouterIdentity, StaticNexthopType, StaticRoute, TableConfig,
+    diff::ConfigDiff, validation::validate_config,
 };
 
 #[test]
@@ -21,6 +22,7 @@ fn static_route_config_round_trips_as_json() {
         },
         tables: vec![TableConfig {
             name: "edge".to_string(),
+            nettype: None,
             kernel_table: Some(100),
         }],
         protocols: vec![ProtocolConfig::Static {
@@ -31,6 +33,9 @@ fn static_route_config_round_trips_as_json() {
                 next_hop: Some("192.0.2.254".to_string()),
                 blackhole: false,
                 address_family: AddressFamily::Ipv4,
+                nexthop_type: Some(StaticNexthopType::Router),
+                mpls_label: None,
+                igp_metric: None,
             }],
         }],
         ..RoutePlaneConfig::default()

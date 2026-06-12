@@ -312,6 +312,7 @@ dependencies = [
 name = "routeplane-config"
 version = "0.1.0"
 dependencies = [
+ "routeplane-filter",
  "serde",
  "serde_json",
  "thiserror",
@@ -323,8 +324,6 @@ name = "routeplane-filter"
 version = "0.1.0"
 dependencies = [
  "hex",
- "serde",
- "thiserror",
 ]
 
 [[package]]

@@ -4,8 +4,8 @@ pub mod store;
 pub mod validation;
 
 pub use schema::{
-    AddressFamily, BgpNeighbor, ProtocolConfig, RoutePlaneConfig, RouterIdentity, StaticRoute,
-    TableConfig,
+    AddressFamily, BgpNeighbor, NettypeDef, ProtocolConfig, RoutePlaneConfig, RouterIdentity,
+    StaticNexthopType, StaticRoute, TableConfig,
 };
 pub use store::{CommitRequest, ConfigStore, Revision, RollbackRequest};
 pub use validation::{ValidationError, ValidationReport};

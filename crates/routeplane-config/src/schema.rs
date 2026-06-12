@@ -1,3 +1,4 @@
+use routeplane_filter::nettype::Nettype;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -16,6 +17,7 @@ impl Default for RoutePlaneConfig {
             identity: RouterIdentity::default(),
             tables: vec![TableConfig {
                 name: "master".to_string(),
+                nettype: None,
                 kernel_table: Some(254),
             }],
             protocols: Vec::new(),
@@ -34,6 +36,7 @@ pub struct RouterIdentity {
 #[serde(rename_all = "kebab-case")]
 pub struct TableConfig {
     pub name: String,
+    pub nettype: Option<NettypeDef>,
     pub kernel_table: Option<u32>,
 }
 
@@ -55,11 +58,23 @@ pub enum ProtocolConfig {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
+pub enum StaticNexthopType {
+    Router,
+    Blackhole,
+    Unreachable,
+    Prohibit,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct StaticRoute {
     pub prefix: String,
     pub next_hop: Option<String>,
     pub blackhole: bool,
     pub address_family: AddressFamily,
+    pub nexthop_type: Option<StaticNexthopType>,
+    pub mpls_label: Option<u32>,
+    pub igp_metric: Option<u32>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -76,4 +91,44 @@ pub struct BgpNeighbor {
 pub enum AddressFamily {
     Ipv4,
     Ipv6,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum NettypeDef {
+    Ip4,
+    Ip6,
+    Ip6Sadr,
+    Vpn4,
+    Vpn6,
+    Roa4,
+    Roa6,
+    Aspa,
+    Flow4,
+    Flow6,
+    Eth,
+    Mpls,
+    Evpn,
+    Neighbor,
+}
+
+impl From<NettypeDef> for Nettype {
+    fn from(def: NettypeDef) -> Self {
+        match def {
+            NettypeDef::Ip4 => Nettype::Ip4,
+            NettypeDef::Ip6 => Nettype::Ip6,
+            NettypeDef::Ip6Sadr => Nettype::Ip6Sadr,
+            NettypeDef::Vpn4 => Nettype::Vpn4,
+            NettypeDef::Vpn6 => Nettype::Vpn6,
+            NettypeDef::Roa4 => Nettype::Roa4,
+            NettypeDef::Roa6 => Nettype::Roa6,
+            NettypeDef::Aspa => Nettype::Aspa,
+            NettypeDef::Flow4 => Nettype::Flow4,
+            NettypeDef::Flow6 => Nettype::Flow6,
+            NettypeDef::Eth => Nettype::Eth,
+            NettypeDef::Mpls => Nettype::Mpls,
+            NettypeDef::Evpn => Nettype::Evpn,
+            NettypeDef::Neighbor => Nettype::Neighbor,
+        }
+    }
 }
