@@ -1,6 +1,6 @@
 use routeplane_config::{
-    diff::ConfigDiff, validation::validate_config, AddressFamily, ProtocolConfig,
-    RoutePlaneConfig, RouterIdentity, StaticRoute, TableConfig,
+    diff::ConfigDiff, validation::validate_config, AddressFamily, CommitRequest, ConfigStore,
+    ProtocolConfig, RollbackRequest, RoutePlaneConfig, RouterIdentity, StaticRoute, TableConfig,
 };
 
 #[test]
@@ -86,4 +86,71 @@ fn diff_reports_changed_protocol_count() {
 
     assert!(diff.changed);
     assert!(diff.summary.contains(&"protocol count: 0 -> 1".to_string()));
+}
+
+#[test]
+fn store_commits_candidate_to_running_and_records_revision() {
+    let mut store = ConfigStore::new(RoutePlaneConfig::default());
+    let candidate = RoutePlaneConfig {
+        protocols: vec![ProtocolConfig::Static {
+            name: "static-default".to_string(),
+            table: "master".to_string(),
+            routes: Vec::new(),
+        }],
+        ..RoutePlaneConfig::default()
+    };
+
+    store.replace_candidate(candidate.clone()).expect("candidate is valid");
+    let diff = store.diff();
+    assert!(diff.changed);
+
+    let revision = store
+        .commit(CommitRequest {
+            author: "operator".to_string(),
+            note: "add static protocol".to_string(),
+        })
+        .expect("commit succeeds");
+
+    assert_eq!(revision.id, 1);
+    assert_eq!(store.running(), &candidate);
+    assert_eq!(store.revisions().len(), 1);
+}
+
+#[test]
+fn store_rolls_back_to_previous_revision() {
+    let mut store = ConfigStore::new(RoutePlaneConfig::default());
+    let first = store
+        .commit(CommitRequest {
+            author: "operator".to_string(),
+            note: "initial".to_string(),
+        })
+        .expect("initial commit succeeds");
+
+    let changed = RoutePlaneConfig {
+        protocols: vec![ProtocolConfig::Static {
+            name: "static-default".to_string(),
+            table: "master".to_string(),
+            routes: Vec::new(),
+        }],
+        ..RoutePlaneConfig::default()
+    };
+
+    store.replace_candidate(changed).expect("candidate is valid");
+    store
+        .commit(CommitRequest {
+            author: "operator".to_string(),
+            note: "change".to_string(),
+        })
+        .expect("second commit succeeds");
+
+    let rollback = store
+        .rollback(RollbackRequest {
+            revision_id: first.id,
+            author: "operator".to_string(),
+            note: "rollback".to_string(),
+        })
+        .expect("rollback succeeds");
+
+    assert_eq!(rollback.id, 3);
+    assert_eq!(store.running(), &RoutePlaneConfig::default());
 }
