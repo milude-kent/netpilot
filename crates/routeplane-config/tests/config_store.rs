@@ -1,5 +1,6 @@
 use routeplane_config::{
-    AddressFamily, ProtocolConfig, RoutePlaneConfig, RouterIdentity, StaticRoute, TableConfig,
+    diff::ConfigDiff, validation::validate_config, AddressFamily, ProtocolConfig,
+    RoutePlaneConfig, RouterIdentity, StaticRoute, TableConfig,
 };
 
 #[test]
@@ -40,4 +41,49 @@ fn static_route_config_round_trips_as_json() {
 
     assert_eq!(decoded.identity.router_id, "192.0.2.1");
     assert_eq!(decoded.protocols.len(), 1);
+}
+
+#[test]
+fn validation_rejects_protocol_referencing_missing_table() {
+    let config = RoutePlaneConfig {
+        protocols: vec![ProtocolConfig::Static {
+            name: "bad-static".to_string(),
+            table: "missing".to_string(),
+            routes: Vec::<StaticRoute>::new(),
+        }],
+        ..RoutePlaneConfig::default()
+    };
+
+    let error = validate_config(&config).expect_err("missing table should fail");
+
+    assert!(error.to_string().contains("missing table"));
+}
+
+#[test]
+fn validation_warns_when_router_id_is_empty() {
+    let config = RoutePlaneConfig::default();
+    let report = validate_config(&config).expect("default config is valid");
+
+    assert!(report
+        .warnings
+        .iter()
+        .any(|warning| warning.contains("router-id")));
+}
+
+#[test]
+fn diff_reports_changed_protocol_count() {
+    let running = RoutePlaneConfig::default();
+    let candidate = RoutePlaneConfig {
+        protocols: vec![ProtocolConfig::Static {
+            name: "static-default".to_string(),
+            table: "master".to_string(),
+            routes: Vec::new(),
+        }],
+        ..RoutePlaneConfig::default()
+    };
+
+    let diff = ConfigDiff::between(&running, &candidate);
+
+    assert!(diff.changed);
+    assert!(diff.summary.contains(&"protocol count: 0 -> 1".to_string()));
 }
