@@ -3,6 +3,7 @@ members = [
     "crates/netpilot-config",
     "crates/netpilot-filter",
     "crates/netpilot-grpc",
+    "crates/netpilot-kernel",
     "crates/netpilot-protocol",
     "crates/netpilotd",
 ]
