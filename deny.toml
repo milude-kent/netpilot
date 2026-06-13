@@ -1,0 +1,79 @@
+# cargo-deny configuration for NetPilot.
+#
+# Run with: cargo deny check
+
+[graph]
+all-features = false
+no-default-features = false
+
+[output]
+feature-depth = 1
+
+# ────────────────────────────────────────────────────────────────────────
+# Advisories — RustSec security advisories database.
+# ────────────────────────────────────────────────────────────────────────
+[advisories]
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+# Fail on any vulnerability or unmaintained crate; warn on yanked/notices.
+yanked = "warn"
+ignore = [
+    # Add specific advisories to ignore here with justification, e.g.:
+    # "RUSTSEC-XXXX-YYYY",
+]
+
+# ────────────────────────────────────────────────────────────────────────
+# Licenses — only permissive licenses allowed. Anything else is denied.
+# ────────────────────────────────────────────────────────────────────────
+[licenses]
+confidence-threshold = 0.93
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-DFS-2016",
+    "Unicode-3.0",
+    "Zlib",
+    "MPL-2.0",
+    "CC0-1.0",
+    "OpenSSL",
+    "0BSD",
+]
+exceptions = [
+    # Per-crate exceptions, e.g.:
+    # { allow = ["GPL-3.0"], crate = "some-tool" },
+]
+
+[[licenses.clarify]]
+crate = "ring"
+expression = "MIT AND ISC AND OpenSSL"
+license-files = [
+    { path = "LICENSE", hash = 0xbd0eed23 },
+]
+
+# ────────────────────────────────────────────────────────────────────────
+# Bans — block specific crates / versions. Empty by default.
+# ────────────────────────────────────────────────────────────────────────
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+highlight = "all"
+allow = []
+deny = [
+    # Add banned crates here, e.g.:
+    # { crate = "openssl-sys", reason = "use rustls" },
+]
+skip = []
+skip-tree = []
+
+# ────────────────────────────────────────────────────────────────────────
+# Sources — only allow crates.io + git registries from this list.
+# ────────────────────────────────────────────────────────────────────────
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
