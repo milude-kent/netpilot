@@ -4,6 +4,7 @@ members = [
     "crates/netpilot-filter",
     "crates/netpilot-grpc",
     "crates/netpilot-kernel",
+    "crates/netpilot-rib",
     "crates/netpilot-protocol",
     "crates/netpilot-proto-eigrp",
     "crates/netpilot-proto-isis",
