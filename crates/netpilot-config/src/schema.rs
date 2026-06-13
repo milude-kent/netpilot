@@ -23,6 +23,9 @@ pub struct RoutePlaneConfig {
     pub timeformat_protocol: Option<String>,
     pub timeformat_base: Option<String>,
     pub timeformat_log: Option<String>,
+    pub mpls_domains: Option<Vec<MplsDomain>>,
+    pub mpls_tables: Option<Vec<MplsTableConfig>>,
+    pub srv6_locators: Option<Vec<Srv6LocatorConfig>>,
 }
 
 impl Default for RoutePlaneConfig {
@@ -57,6 +60,9 @@ impl Default for RoutePlaneConfig {
             timeformat_protocol: None,
             timeformat_base: None,
             timeformat_log: None,
+            mpls_domains: None,
+            mpls_tables: None,
+            srv6_locators: None,
         }
     }
 }
@@ -98,6 +104,7 @@ pub enum ProtocolConfig {
         tx_class: Option<u8>,
         tx_priority: Option<u8>,
         description: Option<String>,
+        mpls_channel: Option<MplsChannelConfig>,
     },
     Bgp {
         name: String,
@@ -123,6 +130,7 @@ pub enum ProtocolConfig {
         tx_class: Option<u8>,
         tx_priority: Option<u8>,
         description: Option<String>,
+        mpls_channel: Option<MplsChannelConfig>,
     },
     Ospf {
         name: String,
@@ -144,6 +152,7 @@ pub enum ProtocolConfig {
         tx_class: Option<u8>,
         tx_priority: Option<u8>,
         description: Option<String>,
+        mpls_channel: Option<MplsChannelConfig>,
     },
 }
 
@@ -302,6 +311,84 @@ pub struct TemplateRef {
 pub struct CliSocketConfig {
     pub path: String,
     pub restrict: Option<bool>,
+}
+
+// ── MPLS Domain ──────────────────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct MplsDomain {
+    pub name: String,
+    pub label_ranges: Vec<MplsLabelRange>,
+    pub label_policy: Option<MplsLabelPolicy>,
+    pub max_label_stack_depth: Option<u8>,
+    pub sr_enabled: Option<bool>,
+    pub sr_global_block: Option<MplsLabelRange>,
+    pub static_bindings: Option<Vec<MplsStaticBinding>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct MplsLabelRange {
+    pub low: u32,
+    pub high: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum MplsLabelPolicy {
+    Static,
+    PerPrefix,
+    Aggregate,
+    Vrf,
+}
+
+// ── MPLS Static Binding ──────────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct MplsStaticBinding {
+    pub prefix: String,
+    pub label: u32,
+}
+
+// ── MPLS Table ───────────────────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct MplsTableConfig {
+    pub name: String,
+    pub domain: String,
+    pub gc_threshold: Option<u32>,
+    pub gc_period_secs: Option<u32>,
+    pub sorted: Option<bool>,
+    pub min_settle_time_secs: Option<u32>,
+    pub max_settle_time_secs: Option<u32>,
+}
+
+// ── MPLS Channel ─────────────────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct MplsChannelConfig {
+    pub table: String,
+    pub import_limit: Option<u32>,
+    pub import_limit_action: Option<LimitAction>,
+    pub export_limit: Option<u32>,
+    pub export_limit_action: Option<LimitAction>,
+    pub import_keep_filtered: Option<bool>,
+}
+
+// ── SRv6 Locator (schema-only seed) ──────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct Srv6LocatorConfig {
+    pub name: String,
+    pub prefix: String,
+    pub block_len: Option<u8>,
+    pub node_len: Option<u8>,
+    pub function_len: Option<u8>,
 }
 
 impl From<NettypeDef> for Nettype {
