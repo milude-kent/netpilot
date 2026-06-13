@@ -4,6 +4,7 @@ pub mod builtins;
 pub mod nettype;
 pub mod types;
 pub mod value;
+pub mod vm;
 
 pub use ast::*;
 pub use attributes::{
@@ -14,3 +15,4 @@ pub use builtins::{defined, from_hex, print, printn, unset};
 pub use nettype::Nettype;
 pub use types::FilterType;
 pub use value::FilterValue;
+pub use vm::{FilterContext, FilterVm};
