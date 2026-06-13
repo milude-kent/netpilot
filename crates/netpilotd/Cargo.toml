@@ -9,6 +9,8 @@ axum.workspace = true
 netpilot-config = { path = "../netpilot-config" }
 serde.workspace = true
 serde_json.workspace = true
+thiserror.workspace = true
+time.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]
