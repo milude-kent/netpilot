@@ -65,36 +65,44 @@ through a shared RIB (Routing Information Base) and event bus.
 
 ## Current Status (2026-06-13)
 
-**205 tests passing, 0 failures. 22 crates. 50+ commits.**
+**276 tests passing, 0 failures, 0 ignored. 22 crates. Production-hardened P0 complete.**
 
 ### What Works End-to-End
 - REST API config CRUD (GET/PUT/POST candidate, commit, rollback, diff)
-- gRPC/gNMI management interface (Capabilities, Get, Set, Subscribe)
+- gRPC/gNMI management interface (Capabilities, Get, Set, Subscribe with real event streaming)
 - React Web UI dashboard with real-time SSE events
-- BGP TCP sessions on port 179 (OPEN/KEEPALIVE/UPDATE encode/decode)
+- BGP TCP sessions on port 179 with **RFC 4271-compliant OPEN/KEEPALIVE/UPDATE/NOTIFICATION encode/decode** (full capabilities, extended-length attributes, AS_PATH, IPv6 NLRI shape)
 - RIB with best-route selection, ECMP, and recursive next-hop resolution
-- Kernel FIB installation via netlink (Linux)
-- Protocol actor framework (9 protocol actors)
+- **Kernel FIB installation via netlink (Linux)** — real `Oif` resolution from interface name to ifindex, IPv4 + IPv6, ECMP, MPLS-label stack support
+- Protocol actor framework with 9 protocol actors and supervisor that recovers from lagged channels + panics
 - BIRD2 config parser (lexer + parser for static/BGP/OSPF blocks)
 - MPLS label pool allocation/deallocation with range management
 - Segment Routing prefix-SID registry with SRGB index resolution
 - IS-IS Dijkstra SPF, EIGRP DUAL algorithm, OSPF SPF
-- HMAC-based protocol authentication
-- CI/CD pipeline (GitHub Actions, macOS + Linux)
+- **Authentication & authorization** — REST + gRPC bearer token (HMAC-SHA256 over expiry), optional mTLS for gRPC, allowlisted `/health` + `/metrics`, SSE auth via `?token=` query param
+- **Real HMAC-MD5/SHA1/SHA256/SHA384/SHA512 + Blake2{s,b} MAC** for protocol authentication (KeyedMd5/Sha1 are now proper HMAC, not vulnerable H(key‖data)); constant-time comparison via `subtle::ConstantTimeEq`; key buffers zeroized on drop
+- **Confirmed-commit auto-rollback** — `CommitScheduler` spawns a tokio task that auto-undoes a pending commit if `/api/config/confirm` is not called within the timeout window
+- **RPKI RTR client** (RFC 6810/8210) — ingests ROAs + ASPAs over TCP from a configured cache, supports Reset and Serial queries, periodic refresh
+- **Prometheus metrics endpoint** at `/metrics` (text 0.0.4 exposition format) with counters for events, FIB ops, supervisor restarts, BGP message I/O
+- **Structured JSON logging** via `tracing-subscriber` (controlled by `RUST_LOG`)
+- **Linux `drop_privileges`** via `capctl` — retains `CAP_NET_ADMIN`/`CAP_NET_RAW`/`CAP_NET_BIND_SERVICE`/`CAP_DAC_OVERRIDE`, drops `CAP_SYS_ADMIN`/`CAP_SYS_MODULE`/`CAP_SETUID`/etc.
+- **CI/CD pipeline** (GitHub Actions) — fmt + clippy (hard gate, no `|| true`) + nextest + cargo-deny + llvm-cov + Linux smoke test + Windows build + release artifacts on tag
 
-### P0 Fixes Applied (12 fixes)
-1. main.rs now spawns protocol actors from running config
-2. Supervisor event_tx wired to all 9 protocol actors
-3. BGP OPEN decode byte offset corrected (hold_time, bgp_identifier)
-4. BGP persistent session loop with KEEPALIVE + reconnect
-5. BGP UPDATE message decode support added
-6. Kernel route messages now set real prefix/gateway/metric
-7. RIB-to-Kernel FIB sync wired in event processor
-8. IS-IS packet encode/decode functions added
-9. IS-IS LoopbackTransport + runtime injectable transport
-10. IS-IS hold timer decrement + adjacency expiry detection
-11. EIGRP EigrpTransport trait + LoopbackTransport
-12. OSPF real Dijkstra SPF replacing empty stub
+### Production-Hardening P0 Highlights
+(See `docs/superpowers/plans/2026-...-netpilot-prod-hardening-p0.md` and `/Users/youchen/.claude/plans/iridescent-splashing-fountain.md` for the full plan.)
+
+- **B1 auth**: real HMAC + Blake2 + ConstantTimeEq + Zeroizing — 28 tests including RFC 4231/2202/7693 vectors
+- **B2 drop_privileges**: real capctl-based capability drop + uid/gid setresuid; integration test re-execs and asserts `/proc/self/status`
+- **B3 BGP UPDATE**: full RFC 4271 encode/decode with attribute round-trip tests + in-process TCP loopback test
+- **B4 Kernel FIB**: real IPv4+IPv6+Oif+ECMP+metric; netns-isolated integration tests
+- **C1 auth middleware**: REST + gRPC Bearer token + optional mTLS; 9 auth-flow tests
+- **C2 confirmed-commit scheduler**: auto-rollback via tokio task; 3 timing tests
+- **C3 RPKI RTR client**: hand-rolled RFC 6810/8210 client + mock RTR integration test
+- **C4 supervisor**: explicit Lagged/Closed handling; `spawn_supervised` panic recovery; 9 resilience tests
+- **C5 SSE/Subscribe/metrics**: real event-driven gNMI Subscribe, Prometheus `/metrics`, SSE Lagged warning
+- **C6 tracing**: JSON output via `tracing-subscriber`; all `eprintln!` migrated
+- **D1-D7 tests**: 4 in-process integration tests, 2 new commit-flow tests, 3 criterion benches
+- **E CI/CD**: clippy `-D warnings` hard gate, Linux smoke job, cargo-deny supply-chain, Codecov coverage, GHA release artifacts
 
 ## Configuration
 
