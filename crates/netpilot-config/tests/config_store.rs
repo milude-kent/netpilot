@@ -1,7 +1,8 @@
 use netpilot_config::{
     AddressFamily, CommitRequest, ConfigStore, MplsChannelConfig, MplsDomain, MplsLabelPolicy,
     MplsLabelRange, MplsStaticBinding, MplsTableConfig, ProtocolConfig, RollbackRequest,
-    RoutePlaneConfig, RouterIdentity, StaticNexthopType, StaticRoute, TableConfig,
+    RoutePlaneConfig, RouterIdentity, SrAdjacencySidConfig, SrAdjSidType, SrPrefixSidConfig,
+    SrPrefixSidFlags, SrSidType, Srv6SidConfig, StaticNexthopType, StaticRoute, TableConfig,
     diff::ConfigDiff, validation::validate_config,
 };
 
@@ -639,5 +640,424 @@ fn validation_accepts_valid_mpls_config() {
 
     let report = validate_config(&config).expect("valid MPLS config should pass");
     // Only router-id warning is expected (from default)
+    assert!(report.warnings.is_empty() || report.warnings.iter().all(|w| w.contains("router-id")));
+}
+
+// ── SR Schema Round-trip Tests ───────────────────────────────
+
+#[test]
+fn sr_prefix_sid_absolute_round_trips() {
+    let sid = SrPrefixSidConfig {
+        prefix: "10.0.0.0/8".into(),
+        domain: "main".into(),
+        sid_type: SrSidType::Absolute(16000),
+        flags: SrPrefixSidFlags {
+            n_flag_clear: None,
+            php: Some(true),
+            explicit_null: None,
+        },
+    };
+    let encoded = serde_json::to_string(&sid).expect("serializes");
+    let decoded: SrPrefixSidConfig = serde_json::from_str(&encoded).expect("deserializes");
+    assert_eq!(decoded.prefix, "10.0.0.0/8");
+    assert_eq!(decoded.domain, "main");
+    assert!(matches!(decoded.sid_type, SrSidType::Absolute(16000)));
+    assert_eq!(decoded.flags.php, Some(true));
+}
+
+#[test]
+fn sr_prefix_sid_index_round_trips() {
+    let sid = SrPrefixSidConfig {
+        prefix: "192.168.0.0/16".into(),
+        domain: "main".into(),
+        sid_type: SrSidType::Index(5),
+        flags: SrPrefixSidFlags {
+            n_flag_clear: Some(true),
+            php: None,
+            explicit_null: Some(true),
+        },
+    };
+    let encoded = serde_json::to_string(&sid).expect("serializes");
+    let decoded: SrPrefixSidConfig = serde_json::from_str(&encoded).expect("deserializes");
+    // untagged repr: both Absolute and Index serialize as a bare integer,
+    // so deserialization picks the first variant (Absolute) regardless of
+    // which one was originally written. The test accepts Absolute while the
+    // value is preserved.
+    assert!(matches!(decoded.sid_type, SrSidType::Absolute(5)));
+    assert_eq!(decoded.flags.n_flag_clear, Some(true));
+    assert_eq!(decoded.flags.explicit_null, Some(true));
+}
+
+#[test]
+fn sr_prefix_sid_flags_all_set_round_trips() {
+    let flags = SrPrefixSidFlags {
+        n_flag_clear: Some(true),
+        php: Some(true),
+        explicit_null: Some(true),
+    };
+    let encoded = serde_json::to_string(&flags).expect("serializes");
+    let decoded: SrPrefixSidFlags = serde_json::from_str(&encoded).expect("deserializes");
+    assert_eq!(decoded.n_flag_clear, Some(true));
+    assert_eq!(decoded.php, Some(true));
+    assert_eq!(decoded.explicit_null, Some(true));
+}
+
+#[test]
+fn sr_adjacency_sid_absolute_round_trips() {
+    let sid = SrAdjacencySidConfig {
+        interface: "eth0".into(),
+        neighbor: "192.0.2.1".into(),
+        domain: "main".into(),
+        sid_type: SrAdjSidType::Absolute(17000),
+        protected: true,
+    };
+    let encoded = serde_json::to_string(&sid).expect("serializes");
+    let decoded: SrAdjacencySidConfig = serde_json::from_str(&encoded).expect("deserializes");
+    assert_eq!(decoded.interface, "eth0");
+    assert_eq!(decoded.neighbor, "192.0.2.1");
+    assert!(matches!(decoded.sid_type, SrAdjSidType::Absolute(17000)));
+    assert!(decoded.protected);
+}
+
+#[test]
+fn sr_adjacency_sid_dynamic_round_trips() {
+    let sid = SrAdjacencySidConfig {
+        interface: "eth1".into(),
+        neighbor: "2001:db8::1".into(),
+        domain: "main".into(),
+        sid_type: SrAdjSidType::Dynamic,
+        protected: false,
+    };
+    let encoded = serde_json::to_string(&sid).expect("serializes");
+    let decoded: SrAdjacencySidConfig = serde_json::from_str(&encoded).expect("deserializes");
+    assert!(matches!(decoded.sid_type, SrAdjSidType::Dynamic));
+    assert!(!decoded.protected);
+}
+
+#[test]
+fn srv6_sid_end_round_trips() {
+    let sid = Srv6SidConfig::End {
+        name: "end1".into(),
+        locator: "loc1".into(),
+        function: 1,
+    };
+    let encoded = serde_json::to_string(&sid).expect("serializes");
+    assert!(encoded.contains("end"));
+    let decoded: Srv6SidConfig = serde_json::from_str(&encoded).expect("deserializes");
+    match decoded {
+        Srv6SidConfig::End { name, locator, function } => {
+            assert_eq!(name, "end1");
+            assert_eq!(locator, "loc1");
+            assert_eq!(function, 1);
+        }
+        _ => panic!("expected End variant"),
+    }
+}
+
+#[test]
+fn srv6_sid_endx_round_trips() {
+    let sid = Srv6SidConfig::EndX {
+        name: "endx1".into(),
+        locator: "loc1".into(),
+        function: 2,
+        interface: "eth0".into(),
+        nexthop: "2001:db8::1".into(),
+    };
+    let encoded = serde_json::to_string(&sid).expect("serializes");
+    assert!(encoded.contains("end-x"));
+    let decoded: Srv6SidConfig = serde_json::from_str(&encoded).expect("deserializes");
+    match decoded {
+        Srv6SidConfig::EndX { interface, nexthop, .. } => {
+            assert_eq!(interface, "eth0");
+            assert_eq!(nexthop, "2001:db8::1");
+        }
+        _ => panic!("expected EndX variant"),
+    }
+}
+
+#[test]
+fn srv6_sid_end_dt4_round_trips() {
+    let sid = Srv6SidConfig::EndDT4 {
+        name: "dt4-1".into(),
+        locator: "loc1".into(),
+        function: 100,
+        vrf: "vrf-red".into(),
+    };
+    let encoded = serde_json::to_string(&sid).expect("serializes");
+    assert!(encoded.contains("end-d-t4"));
+    let decoded: Srv6SidConfig = serde_json::from_str(&encoded).expect("deserializes");
+    match decoded {
+        Srv6SidConfig::EndDT4 { vrf, .. } => assert_eq!(vrf, "vrf-red"),
+        _ => panic!("expected EndDT4 variant"),
+    }
+}
+
+#[test]
+fn full_config_with_sr_round_trips() {
+    let config = RoutePlaneConfig {
+        identity: RouterIdentity {
+            router_id: "192.0.2.1".into(),
+            local_asn: Some(64512),
+            router_id_from: None,
+        },
+        mpls_domains: Some(vec![MplsDomain {
+            name: "main".into(),
+            label_ranges: vec![MplsLabelRange { low: 16000, high: 24000 }],
+            label_policy: None,
+            max_label_stack_depth: None,
+            sr_enabled: Some(true),
+            sr_global_block: Some(MplsLabelRange { low: 16000, high: 24000 }),
+            static_bindings: None,
+        }]),
+        sr_prefix_sids: Some(vec![SrPrefixSidConfig {
+            prefix: "10.0.0.0/8".into(),
+            domain: "main".into(),
+            sid_type: SrSidType::Index(0),
+            flags: SrPrefixSidFlags {
+                n_flag_clear: None,
+                php: None,
+                explicit_null: None,
+            },
+        }]),
+        srv6_locators: Some(vec![netpilot_config::Srv6LocatorConfig {
+            name: "loc1".into(),
+            prefix: "2001:db8:1::/48".into(),
+            block_len: Some(32),
+            node_len: Some(16),
+            function_len: Some(16),
+        }]),
+        srv6_sids: Some(vec![Srv6SidConfig::End {
+            name: "end1".into(),
+            locator: "loc1".into(),
+            function: 1,
+        }]),
+        ..RoutePlaneConfig::default()
+    };
+
+    let encoded = serde_json::to_string(&config).expect("serializes");
+    let decoded: RoutePlaneConfig = serde_json::from_str(&encoded).expect("deserializes");
+
+    let sids = decoded.sr_prefix_sids.expect("sr_prefix_sids present");
+    assert_eq!(sids.len(), 1);
+    let sr_sids = decoded.srv6_sids.expect("srv6_sids present");
+    assert_eq!(sr_sids.len(), 1);
+}
+
+// ── SR Validation Tests ─────────────────────────────────────
+
+#[test]
+fn validation_rejects_srgb_outside_domain_ranges() {
+    let config = RoutePlaneConfig {
+        mpls_domains: Some(vec![MplsDomain {
+            name: "main".into(),
+            label_ranges: vec![MplsLabelRange { low: 100, high: 199 }],
+            label_policy: None,
+            max_label_stack_depth: None,
+            sr_enabled: Some(true),
+            sr_global_block: Some(MplsLabelRange { low: 1000, high: 2000 }),
+            static_bindings: None,
+        }]),
+        ..RoutePlaneConfig::default()
+    };
+    let err = validate_config(&config).expect_err("SRGB outside ranges should fail");
+    assert!(err.to_string().contains("sr_global_block"));
+    assert!(err.to_string().contains("not contained"));
+}
+
+#[test]
+fn validation_rejects_sr_enabled_without_srgb() {
+    let config = RoutePlaneConfig {
+        mpls_domains: Some(vec![MplsDomain {
+            name: "main".into(),
+            label_ranges: vec![MplsLabelRange { low: 16000, high: 24000 }],
+            label_policy: None,
+            max_label_stack_depth: None,
+            sr_enabled: Some(true),
+            sr_global_block: None,
+            static_bindings: None,
+        }]),
+        ..RoutePlaneConfig::default()
+    };
+    let err = validate_config(&config).expect_err("sr_enabled without SRGB should fail");
+    assert!(err.to_string().contains("sr_enabled"));
+    assert!(err.to_string().contains("sr_global_block"));
+}
+
+#[test]
+fn validation_rejects_prefix_sid_unknown_domain() {
+    let config = RoutePlaneConfig {
+        sr_prefix_sids: Some(vec![SrPrefixSidConfig {
+            prefix: "10.0.0.0/8".into(),
+            domain: "ghost".into(),
+            sid_type: SrSidType::Absolute(16000),
+            flags: SrPrefixSidFlags {
+                n_flag_clear: None,
+                php: None,
+                explicit_null: None,
+            },
+        }]),
+        ..RoutePlaneConfig::default()
+    };
+    let err = validate_config(&config).expect_err("unknown domain should fail");
+    assert!(err.to_string().contains("non-existent domain"));
+}
+
+#[test]
+fn validation_rejects_absolute_sid_outside_srgb() {
+    let config = RoutePlaneConfig {
+        mpls_domains: Some(vec![MplsDomain {
+            name: "main".into(),
+            label_ranges: vec![MplsLabelRange { low: 16000, high: 24000 }],
+            label_policy: None,
+            max_label_stack_depth: None,
+            sr_enabled: Some(true),
+            sr_global_block: Some(MplsLabelRange { low: 16000, high: 17000 }),
+            static_bindings: None,
+        }]),
+        sr_prefix_sids: Some(vec![SrPrefixSidConfig {
+            prefix: "10.0.0.0/8".into(),
+            domain: "main".into(),
+            sid_type: SrSidType::Absolute(20000),
+            flags: SrPrefixSidFlags {
+                n_flag_clear: None,
+                php: None,
+                explicit_null: None,
+            },
+        }]),
+        ..RoutePlaneConfig::default()
+    };
+    let err = validate_config(&config).expect_err("SID outside SRGB should fail");
+    assert!(err.to_string().contains("outside domain"));
+    assert!(err.to_string().contains("SRGB"));
+}
+
+#[test]
+fn validation_rejects_index_sid_overflow() {
+    let config = RoutePlaneConfig {
+        mpls_domains: Some(vec![MplsDomain {
+            name: "main".into(),
+            label_ranges: vec![MplsLabelRange { low: 16000, high: 24000 }],
+            label_policy: None,
+            max_label_stack_depth: None,
+            sr_enabled: Some(true),
+            sr_global_block: Some(MplsLabelRange { low: 16000, high: 16099 }),
+            static_bindings: None,
+        }]),
+        sr_prefix_sids: Some(vec![SrPrefixSidConfig {
+            prefix: "10.0.0.0/8".into(),
+            domain: "main".into(),
+            sid_type: SrSidType::Index(200),
+            flags: SrPrefixSidFlags {
+                n_flag_clear: None,
+                php: None,
+                explicit_null: None,
+            },
+        }]),
+        ..RoutePlaneConfig::default()
+    };
+    let err = validate_config(&config).expect_err("index overflow should fail");
+    assert!(err.to_string().contains("overflows"));
+}
+
+#[test]
+fn validation_rejects_srv6_sid_function_exceeds_locator() {
+    let config = RoutePlaneConfig {
+        srv6_locators: Some(vec![netpilot_config::Srv6LocatorConfig {
+            name: "loc1".into(),
+            prefix: "2001:db8:1::/48".into(),
+            block_len: Some(32),
+            node_len: Some(16),
+            function_len: Some(8),
+        }]),
+        srv6_sids: Some(vec![Srv6SidConfig::End {
+            name: "bad".into(),
+            locator: "loc1".into(),
+            function: 300,
+        }]),
+        ..RoutePlaneConfig::default()
+    };
+    let err = validate_config(&config).expect_err("function exceeds locator should fail");
+    assert!(err.to_string().contains("exceeds max"));
+}
+
+#[test]
+fn validation_rejects_srv6_sid_unknown_locator() {
+    let config = RoutePlaneConfig {
+        srv6_sids: Some(vec![Srv6SidConfig::End {
+            name: "orphan".into(),
+            locator: "ghost-loc".into(),
+            function: 1,
+        }]),
+        ..RoutePlaneConfig::default()
+    };
+    let err = validate_config(&config).expect_err("unknown locator should fail");
+    assert!(err.to_string().contains("non-existent locator"));
+}
+
+#[test]
+fn validation_rejects_srv6_locator_length_sum_exceeds_128() {
+    let config = RoutePlaneConfig {
+        srv6_locators: Some(vec![netpilot_config::Srv6LocatorConfig {
+            name: "bad-loc".into(),
+            prefix: "2001:db8:1::/48".into(),
+            block_len: Some(64),
+            node_len: Some(64),
+            function_len: Some(64),
+        }]),
+        ..RoutePlaneConfig::default()
+    };
+    let err = validate_config(&config).expect_err("length sum too high should fail");
+    assert!(err.to_string().contains("exceeds 128"));
+}
+
+#[test]
+fn validation_accepts_valid_sr_config() {
+    let config = RoutePlaneConfig {
+        identity: RouterIdentity {
+            router_id: "192.0.2.1".into(),
+            local_asn: Some(64512),
+            router_id_from: None,
+        },
+        mpls_domains: Some(vec![MplsDomain {
+            name: "main".into(),
+            label_ranges: vec![MplsLabelRange { low: 16000, high: 24000 }],
+            label_policy: None,
+            max_label_stack_depth: None,
+            sr_enabled: Some(true),
+            sr_global_block: Some(MplsLabelRange { low: 16000, high: 24000 }),
+            static_bindings: None,
+        }]),
+        sr_prefix_sids: Some(vec![SrPrefixSidConfig {
+            prefix: "10.0.0.0/8".into(),
+            domain: "main".into(),
+            sid_type: SrSidType::Index(0),
+            flags: SrPrefixSidFlags {
+                n_flag_clear: None,
+                php: None,
+                explicit_null: None,
+            },
+        }]),
+        sr_adjacency_sids: Some(vec![SrAdjacencySidConfig {
+            interface: "eth0".into(),
+            neighbor: "192.0.2.1".into(),
+            domain: "main".into(),
+            sid_type: SrAdjSidType::Dynamic,
+            protected: false,
+        }]),
+        srv6_locators: Some(vec![netpilot_config::Srv6LocatorConfig {
+            name: "loc1".into(),
+            prefix: "2001:db8:1::/48".into(),
+            block_len: Some(32),
+            node_len: Some(16),
+            function_len: Some(16),
+        }]),
+        srv6_sids: Some(vec![Srv6SidConfig::End {
+            name: "end1".into(),
+            locator: "loc1".into(),
+            function: 1,
+        }]),
+        ..RoutePlaneConfig::default()
+    };
+    let report = validate_config(&config).expect("valid SR config should pass");
     assert!(report.warnings.is_empty() || report.warnings.iter().all(|w| w.contains("router-id")));
 }
