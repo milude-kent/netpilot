@@ -1,8 +1,11 @@
-use netpilotd::cli::{parse_command, CliCommand};
+use netpilotd::cli::{CliCommand, parse_command};
 
 #[test]
 fn parse_show_status() {
-    assert!(matches!(parse_command("show status"), CliCommand::ShowStatus));
+    assert!(matches!(
+        parse_command("show status"),
+        CliCommand::ShowStatus
+    ));
 }
 
 #[test]
@@ -25,7 +28,10 @@ fn parse_help() {
 
 #[test]
 fn parse_unknown() {
-    assert!(matches!(parse_command("garbage cmd"), CliCommand::Unknown(_)));
+    assert!(matches!(
+        parse_command("garbage cmd"),
+        CliCommand::Unknown(_)
+    ));
 }
 
 #[test]
@@ -38,12 +44,18 @@ fn parse_echo() {
 
 #[test]
 fn parse_configure_soft() {
-    assert!(matches!(parse_command("configure soft"), CliCommand::Configure { soft: true, .. }));
+    assert!(matches!(
+        parse_command("configure soft"),
+        CliCommand::Configure { soft: true, .. }
+    ));
 }
 
 #[test]
 fn parse_show_route_filtered() {
-    assert!(matches!(parse_command("show route filtered"), CliCommand::ShowRoute { filtered: true, .. }));
+    assert!(matches!(
+        parse_command("show route filtered"),
+        CliCommand::ShowRoute { filtered: true, .. }
+    ));
 }
 
 #[test]

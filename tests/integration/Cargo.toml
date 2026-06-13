@@ -9,5 +9,16 @@ name = "test_full_flow"
 path = "test_full_flow.rs"
 
 [dependencies]
-reqwest = { version = "0.12", features = ["blocking", "json"] }
+# Drive the netpilotd REST control plane in-process via axum's
+# `oneshot` (from `tower::ServiceExt`). No daemon subprocess is
+# spawned, so we depend directly on the `netpilotd` crate plus the
+# `axum` / `tower` / `http-body-util` plumbing used to build
+# `Request<Body>` values and read bodies back.
+netpilotd = { path = "../../crates/netpilotd" }
+netpilot-config = { path = "../../crates/netpilot-config" }
+axum = "0.8"
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+serde = "1"
 serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

@@ -14,11 +14,17 @@ fn sid_registry_from_config_with_srgb_resolves_index_correctly() {
         },
         mpls_domains: Some(vec![MplsDomain {
             name: "main".into(),
-            label_ranges: vec![MplsLabelRange { low: 16000, high: 24000 }],
+            label_ranges: vec![MplsLabelRange {
+                low: 16000,
+                high: 24000,
+            }],
             label_policy: None,
             max_label_stack_depth: None,
             sr_enabled: Some(true),
-            sr_global_block: Some(MplsLabelRange { low: 16000, high: 24000 }),
+            sr_global_block: Some(MplsLabelRange {
+                low: 16000,
+                high: 24000,
+            }),
             static_bindings: None,
         }]),
         sr_prefix_sids: Some(vec![

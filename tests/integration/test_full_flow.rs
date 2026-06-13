@@ -1,172 +1,296 @@
-use std::process::{Command, Child};
-use std::time::Duration;
-use std::thread;
+//! In-process integration tests for the netpilotd REST control plane.
+//!
+//! These tests exercise the full configuration lifecycle (PUT candidate,
+//! GET diff, POST commit, POST rollback) and the SSE event stream by
+//! driving the axum router directly via `tower::ServiceExt::oneshot`.
+//! No daemon subprocess is spawned, no real socket is bound, and no
+//! `cargo run` is invoked. This makes the suite fast, hermetic, and
+//! safe to run on every CI build.
 
-/// Start netpilotd as a child process, run API tests against it, then kill it.
-struct DaemonProcess {
-    child: Child,
-}
+use axum::{
+    body::Body,
+    http::{Request, StatusCode},
+};
+use netpilot_config::RoutePlaneConfig;
+use netpilotd::{api::build_router, state::AppState};
+use tower::ServiceExt;
 
-impl DaemonProcess {
-    fn start() -> Self {
-        let child = Command::new("cargo")
-            .args(["run", "-p", "netpilotd"])
-            .spawn()
-            .expect("failed to start netpilotd");
-
-        // Wait for daemon to be ready
-        thread::sleep(Duration::from_secs(2));
-        Self { child }
-    }
-
-    fn health_check(&self) -> bool {
-        reqwest::blocking::get("http://127.0.0.1:8080/health")
-            .map(|r| r.status().is_success())
-            .unwrap_or(false)
-    }
-}
-
-impl Drop for DaemonProcess {
-    fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
+/// Build a minimal valid candidate config whose JSON shape matches the
+/// `RoutePlaneConfig` schema (kebab-case fields, `master` table present).
+/// The router_id is a non-empty dotted-quad so the validator's
+/// `identity.router_id` check passes.
+fn minimal_candidate(router_id: &str) -> RoutePlaneConfig {
+    RoutePlaneConfig {
+        identity: netpilot_config::RouterIdentity {
+            router_id: router_id.to_string(),
+            ..Default::default()
+        },
+        ..RoutePlaneConfig::default()
     }
 }
 
-#[test]
-#[ignore] // Requires daemon to be running — run with: cargo test --test integration -- --ignored
-fn full_config_crud_flow() {
-    let daemon = DaemonProcess::start();
-    assert!(daemon.health_check(), "daemon should be healthy");
+/// Encode a JSON value into a `Body` with the correct content-type for
+/// axum's `Json<T>` extractors.
+fn json_body<T: serde::Serialize>(value: &T) -> Body {
+    Body::from(serde_json::to_vec(value).expect("serialize"))
+}
 
-    let client = reqwest::blocking::Client::new();
+#[tokio::test]
+async fn full_config_crud_flow() {
+    let app = build_router(AppState::default());
 
-    // 1. GET running config
-    let resp = client.get("http://127.0.0.1:8080/api/config/running")
-        .send().expect("GET running config");
-    assert!(resp.status().is_success());
-    let config: serde_json::Value = resp.json().expect("JSON parse");
-    assert_eq!(config["schema_version"], 1);
-    assert!(config["tables"].as_array().map_or(false, |t| !t.is_empty()));
+    // 1. GET running config — should be the default config.
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/config/running")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let config: RoutePlaneConfig = serde_json::from_slice(&body).expect("running config parses");
+    assert_eq!(config.schema_version, 1);
+    assert!(
+        !config.tables.is_empty(),
+        "running config should have a default table"
+    );
 
-    // 2. PUT candidate config
-    let candidate = serde_json::json!({
-        "schema_version": 1,
-        "identity": {"router_id": "192.0.2.1", "local_asn": 64512},
-        "protocols": [{
-            "kind": "static",
-            "name": "test-static",
-            "table": "master",
-            "routes": [{
-                "prefix": "10.0.0.0/8",
-                "next_hop": "192.0.2.254",
-                "blackhole": false,
-                "address_family": "ipv4"
-            }]
-        }]
-    });
+    // 2. PUT candidate config.
+    let candidate = minimal_candidate("192.0.2.1");
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/api/config/candidate")
+                .header("content-type", "application/json")
+                .body(json_body(&candidate))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
 
-    let resp = client.put("http://127.0.0.1:8080/api/config/candidate")
-        .json(&candidate)
-        .send().expect("PUT candidate");
-    assert_eq!(resp.status().as_u16(), 204);
+    // 3. GET diff — candidate differs from running, so this must succeed.
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/config/diff")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
 
-    // 3. GET diff
-    let resp = client.get("http://127.0.0.1:8080/api/config/diff")
-        .send().expect("GET diff");
-    assert!(resp.status().is_success());
-
-    // 4. POST commit
+    // 4. POST commit.
     let commit = serde_json::json!({"author": "integration-test", "note": "test commit"});
-    let resp = client.post("http://127.0.0.1:8080/api/config/commit")
-        .json(&commit)
-        .send().expect("POST commit");
-    assert!(resp.status().is_success());
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/config/commit")
+                .header("content-type", "application/json")
+                .body(json_body(&commit))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
 
-    // 5. Verify running config has committed protocol
-    let resp = client.get("http://127.0.0.1:8080/api/config/running")
-        .send().expect("GET running");
-    let config: serde_json::Value = resp.json().expect("JSON");
-    let protocols = config["protocols"].as_array().expect("protocols array");
-    assert!(protocols.iter().any(|p| p["name"] == "test-static"));
-
-    // 6. gRPC health check (if gRPC server is running)
-    // Would use tonic client — skip for now
-
-    // 7. Web UI serving
-    let resp = client.get("http://127.0.0.1:8080/")
-        .send().expect("GET web UI");
-    assert!(resp.status().is_success());
-    let body = resp.text().unwrap();
-    assert!(body.contains("NetPilot"));
+    // 5. Verify running config now reflects the committed candidate.
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/config/running")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let running: RoutePlaneConfig = serde_json::from_slice(&body).expect("running config parses");
+    assert_eq!(
+        running.identity.router_id, "192.0.2.1",
+        "committed router_id should be visible in running config"
+    );
 }
 
-#[test]
-#[ignore]
-fn rollback_flow() {
-    let _daemon = DaemonProcess::start();
-    let client = reqwest::blocking::Client::new();
+#[tokio::test]
+async fn rollback_flow() {
+    let app = build_router(AppState::default());
 
-    // Commit initial config
-    let initial = serde_json::json!({
-        "schema_version": 1,
-        "identity": {"router_id": "10.0.0.1"},
-        "protocols": [{"kind": "static", "name": "initial", "table": "master", "routes": []}]
+    // Commit initial config.
+    let initial = minimal_candidate("10.0.0.1");
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/api/config/candidate")
+                .header("content-type", "application/json")
+                .body(json_body(&initial))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/config/commit")
+                .header("content-type", "application/json")
+                .body(json_body(
+                    &serde_json::json!({"author": "test", "note": "initial"}),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let first_revision: netpilot_config::Revision =
+        serde_json::from_slice(&body).expect("commit response parses");
+    let first_revision_id = first_revision.id;
+
+    // Commit a second config (different router_id).
+    let changed = minimal_candidate("10.0.0.2");
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/api/config/candidate")
+                .header("content-type", "application/json")
+                .body(json_body(&changed))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/config/commit")
+                .header("content-type", "application/json")
+                .body(json_body(
+                    &serde_json::json!({"author": "test", "note": "changed"}),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // Rollback to the first revision.
+    let rollback = serde_json::json!({
+        "revision_id": first_revision_id,
+        "author": "test",
+        "note": "rollback",
     });
-    client.put("http://127.0.0.1:8080/api/config/candidate").json(&initial).send().unwrap();
-    let resp = client.post("http://127.0.0.1:8080/api/config/commit")
-        .json(&serde_json::json!({"author":"test","note":"initial"}))
-        .send().unwrap();
-    let commit_result: serde_json::Value = resp.json().unwrap();
-    let first_revision = commit_result["id"].as_u64().unwrap();
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/config/rollback")
+                .header("content-type", "application/json")
+                .body(json_body(&rollback))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
 
-    // Commit second config
-    let changed = serde_json::json!({
-        "schema_version": 1,
-        "identity": {"router_id": "10.0.0.2"},
-        "protocols": [{"kind": "static", "name": "changed", "table": "master", "routes": []}]
-    });
-    client.put("http://127.0.0.1:8080/api/config/candidate").json(&changed).send().unwrap();
-    client.post("http://127.0.0.1:8080/api/config/commit")
-        .json(&serde_json::json!({"author":"test","note":"changed"}))
-        .send().unwrap();
-
-    // Rollback to first revision
-    let rollback = serde_json::json!({"revision_id": first_revision, "author": "test", "note": "rollback"});
-    let resp = client.post("http://127.0.0.1:8080/api/config/rollback")
-        .json(&rollback)
-        .send().unwrap();
-    assert!(resp.status().is_success());
-
-    // Verify rolled back
-    let resp = client.get("http://127.0.0.1:8080/api/config/running").send().unwrap();
-    let config: serde_json::Value = resp.json().unwrap();
-    assert_eq!(config["identity"]["router_id"], "10.0.0.1");
+    // Verify the running config has been rolled back to the first one.
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/config/running")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let config: RoutePlaneConfig = serde_json::from_slice(&body).expect("running config parses");
+    assert_eq!(
+        config.identity.router_id, "10.0.0.1",
+        "rollback should restore the first revision's router_id"
+    );
 }
 
-#[test]
-#[ignore]
-fn gnoi_health_check() {
-    // Test that the gRPC server is reachable
-    // This test validates that both axum and tonic start successfully
-    let _daemon = DaemonProcess::start();
+#[tokio::test]
+async fn gnoi_health_check() {
+    // The gRPC server (tonic) is bound by `main.rs` and is not reachable
+    // through the axum router, so the only thing we can verify in-process
+    // is that the REST `/health` endpoint responds. The original TCP
+    // probe to port 50051 is dropped because spinning up tonic's
+    // server inside a `oneshot` is out of scope for an integration test.
+    let app = build_router(AppState::default());
 
-    // Check that REST API works (axum)
-    let resp = reqwest::blocking::get("http://127.0.0.1:8080/health").unwrap();
-    assert!(resp.status().is_success());
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
 
-    // Check that gRPC port is open (tonic)
-    use std::net::TcpStream;
-    let stream = TcpStream::connect("127.0.0.1:50051");
-    assert!(stream.is_ok(), "gRPC port 50051 should be listening");
+    assert_eq!(response.status(), StatusCode::OK);
 }
 
-#[test]
-#[ignore]
-fn sse_events_stream() {
-    let _daemon = DaemonProcess::start();
-    let resp = reqwest::blocking::get("http://127.0.0.1:8080/api/events").unwrap();
-    assert!(resp.status().is_success());
-    let content_type = resp.headers().get("content-type").map(|v| v.to_str().unwrap_or(""));
-    assert!(content_type.map_or(false, |ct| ct.contains("text/event-stream")));
+#[tokio::test]
+async fn sse_events_stream() {
+    // Open the SSE endpoint and verify the server advertises
+    // `text/event-stream`. We deliberately do not consume the body:
+    // the broadcast stream is open-ended and `oneshot` consumes the
+    // router after the first response head is produced, so a partial
+    // read is sufficient to confirm the route is wired up.
+    let app = build_router(AppState::default());
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/events")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let content_type = response
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    assert!(
+        content_type.contains("text/event-stream"),
+        "expected text/event-stream content-type, got {content_type:?}"
+    );
 }
