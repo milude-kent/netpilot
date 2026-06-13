@@ -16,7 +16,6 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
   RUST_BACKTRACE: short
-  PROTOC_VERSION: "29.3"
 
 jobs:
   # ────────────────────────────────────────────────────────────────────────
@@ -29,10 +28,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install protoc
-        run: |
-          curl -sL "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip" -o /tmp/protoc.zip
-          unzip -o /tmp/protoc.zip -d /usr/local
-          chmod +x /usr/local/bin/protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -53,7 +51,7 @@ jobs:
   # ────────────────────────────────────────────────────────────────────────
   # Test — Linux + macOS. Uses cargo-nextest. No --ignored by default; the
   # Linux-only #[ignore] tests (drop_privs, fib_integration) are exercised
-  # by the linux-root job below.
+  # by a separate root job (future work).
   # ────────────────────────────────────────────────────────────────────────
   test:
     name: Test (${{ matrix.os }})
@@ -65,19 +63,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install protoc (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          curl -sL "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip" -o /tmp/protoc.zip
-          unzip -o /tmp/protoc.zip -d /usr/local
-          chmod +x /usr/local/bin/protoc
-
-      - name: Install protoc (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          curl -sL "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-osx-universal_binary.zip" -o /tmp/protoc.zip
-          unzip -o /tmp/protoc.zip -d /usr/local
-          chmod +x /usr/local/bin/protoc
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -111,10 +100,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install protoc
-        run: |
-          curl -sL "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip" -o /tmp/protoc.zip
-          unzip -o /tmp/protoc.zip -d /usr/local
-          chmod +x /usr/local/bin/protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -129,7 +117,7 @@ jobs:
 
       - name: Run smoke test
         run: |
-          ./target/release/netpilotd &
+          ./target/release/netpilotd > /tmp/netpilotd.log 2>&1 &
           DAEMON_PID=$!
           # Give it a moment to bind ports.
           sleep 3
@@ -139,6 +127,8 @@ jobs:
           set -e
           kill $DAEMON_PID || true
           wait $DAEMON_PID 2>/dev/null || true
+          echo '--- daemon log tail ---'
+          tail -40 /tmp/netpilotd.log || true
           exit $STATUS
 
   # ────────────────────────────────────────────────────────────────────────
@@ -151,10 +141,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install protoc
-        run: |
-          curl -sL "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip" -o /tmp/protoc.zip
-          unzip -o /tmp/protoc.zip -d /usr/local
-          chmod +x /usr/local/bin/protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -176,10 +165,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install protoc
-        run: |
-          curl -sL "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip" -o /tmp/protoc.zip
-          unzip -o /tmp/protoc.zip -d /usr/local
-          chmod +x /usr/local/bin/protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -217,7 +205,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install protoc
-        run: choco install protoc --version=29.3 -y
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -246,10 +236,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install protoc
-        run: |
-          curl -sL "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip" -o /tmp/protoc.zip
-          unzip -o /tmp/protoc.zip -d /usr/local
-          chmod +x /usr/local/bin/protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
