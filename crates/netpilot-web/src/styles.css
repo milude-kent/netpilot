@@ -1,0 +1,374 @@
+/* ===== NetPilot Web UI — Industrial Command Center Theme ===== */
+
+/* --- Google Fonts (JetBrains Mono) --- */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+/* --- CSS Custom Properties --- */
+:root {
+  /* Background shades */
+  --bg-primary: #0a0e14;
+  --bg-card: #12171f;
+  --bg-input: #0d1117;
+  --bg-hover: #1a2332;
+
+  /* Text colors */
+  --text-primary: #c8d6e5;
+  --text-secondary: #8b9bb4;
+  --text-muted: #5c6b7d;
+
+  /* Accent colors */
+  --accent-green: #00ff88;
+  --accent-red: #ff4444;
+  --accent-amber: #ffb800;
+  --accent-blue: #00b4d8;
+  --accent-purple: #7c3aed;
+
+  /* Borders */
+  --border: #1e2a3a;
+  --border-light: #2a3a4a;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+}
+
+/* --- Reset & Base --- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --- Scrollbar --- */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-light);
+}
+
+/* --- App Shell --- */
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Header --- */
+.header {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.logo {
+  font-size: 22px;
+  color: var(--accent-green);
+  line-height: 1;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+}
+
+.subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding-left: var(--space-sm);
+  border-left: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.header-nav {
+  display: flex;
+  gap: 4px;
+}
+
+.nav-btn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 6px 14px;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.15s ease;
+  letter-spacing: 0.5px;
+}
+
+.nav-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+  border-color: var(--border);
+}
+
+.nav-btn.active {
+  color: var(--accent-green);
+  border-color: var(--accent-green);
+  background: rgba(0, 255, 136, 0.05);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+/* --- Status Indicators --- */
+.status-up {
+  color: var(--accent-green);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-down {
+  color: var(--accent-red);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-warning {
+  color: var(--accent-amber);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* --- Main Content --- */
+.main {
+  flex: 1;
+  padding: var(--space-md);
+}
+
+/* --- Dashboard Grid --- */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Card --- */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 16px;
+}
+
+.card-wide {
+  grid-column: span 2;
+}
+
+@media (max-width: 900px) {
+  .card-wide {
+    grid-column: span 1;
+  }
+}
+
+.card-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-blue);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* --- Stat Rows --- */
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid #1a2433;
+}
+
+.stat-row:last-child {
+  border-bottom: none;
+}
+
+.stat-label {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.stat-value {
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.stat-small {
+  font-size: 11px;
+  padding: 3px 0;
+}
+
+/* --- Data Table --- */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+.data-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid #1a2433;
+  color: var(--text-primary);
+}
+
+.data-table tr:hover td {
+  background: var(--bg-hover);
+}
+
+.text-muted {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* --- Loading --- */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.loading::after {
+  content: '';
+  width: 12px;
+  height: 12px;
+  margin-left: 10px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent-green);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* --- Configuration Panel --- */
+.config-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.config-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 12px 16px;
+}
+
+.config-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.config-viewer {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 16px;
+  color: var(--text-secondary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  margin: 0;
+}
+
+.config-editor {
+  width: 100%;
+  min-height: calc(100vh - 240px);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  border: none;
+  outline: none;
+  resize: vertical;
+  padding: 8px;
+  border-radius: 2px;
+}
+
+.message-bar {
+  background: rgba(0, 180, 216, 0.1);
+  border: 1px solid var(--accent-blue);
+  border-radius: 2px;
+  padding: 8px 12px;
+  color: var(--accent-blue);
+  font-size: 12px;
+}
+
+/* --- Utility --- */
+.text-muted {
+  color: var(--text-muted);
+}
