@@ -6,12 +6,17 @@ license.workspace = true
 
 [dependencies]
 netpilot-config = { path = "../netpilot-config" }
+netpilot-protocol = { path = "../netpilot-protocol" }
+netpilot-auth = { path = "../netpilot-auth" }
 prost = "0.13"
 prost-types = "0.13"
 serde_json.workspace = true
+time.workspace = true
 tokio.workspace = true
 tokio-stream = "0.1"
-tonic = "0.12"
+tonic = { version = "0.12", features = ["tls"] }
+tracing.workspace = true
+futures.workspace = true
 
 [build-dependencies]
 tonic-build = "0.12"

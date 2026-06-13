@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 axum.workspace = true
+netpilot-auth = { path = "../netpilot-auth" }
 netpilot-channel = { path = "../netpilot-channel" }
 netpilot-config = { path = "../netpilot-config" }
 netpilot-grpc = { path = "../netpilot-grpc" }
@@ -14,6 +15,10 @@ netpilot-proto-bgp = { path = "../netpilot-proto-bgp" }
 netpilot-proto-eigrp = { path = "../netpilot-proto-eigrp" }
 netpilot-proto-isis = { path = "../netpilot-proto-isis" }
 netpilot-proto-ospf = { path = "../netpilot-proto-ospf" }
+netpilot-proto-ldp = { path = "../netpilot-proto-ldp" }
+netpilot-proto-pim = { path = "../netpilot-proto-pim" }
+netpilot-proto-rip = { path = "../netpilot-proto-rip" }
+netpilot-proto-rpki = { path = "../netpilot-proto-rpki" }
 netpilot-protocol = { path = "../netpilot-protocol" }
 netpilot-rib = { path = "../netpilot-rib" }
 serde.workspace = true
@@ -24,6 +29,20 @@ tokio.workspace = true
 tonic = "0.12"
 tokio-stream = { version = "0.1", features = ["sync"] }
 tower-http.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+metrics.workspace = true
+metrics-exporter-prometheus.workspace = true
+rustls.workspace = true
+tokio-rustls.workspace = true
+rustls-pemfile.workspace = true
+futures.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+capctl.workspace = true
+nix.workspace = true
 
 [dev-dependencies]
 tower.workspace = true
+tempfile.workspace = true
+

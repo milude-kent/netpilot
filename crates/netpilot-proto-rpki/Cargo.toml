@@ -8,4 +8,6 @@ license.workspace = true
 netpilot-protocol = { path = "../netpilot-protocol" }
 netpilot-config = { path = "../netpilot-config" }
 async-trait = "0.1"
+thiserror.workspace = true
 tokio.workspace = true
+tracing.workspace = true
