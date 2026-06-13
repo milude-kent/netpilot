@@ -2,6 +2,7 @@ use crate::mpls::MplsLabelState;
 use crate::sr::SidRegistry;
 use netpilot_config::{ConfigStore, RoutePlaneConfig};
 use netpilot_protocol::ProtocolSupervisor;
+use netpilot_rib::RibCore;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -11,6 +12,7 @@ pub struct AppState {
     pub mpls_labels: Arc<RwLock<MplsLabelState>>,
     pub sid_registry: Arc<RwLock<SidRegistry>>,
     pub supervisor: Arc<RwLock<ProtocolSupervisor>>,
+    pub rib: Arc<RwLock<RibCore>>,
 }
 
 impl Default for AppState {
@@ -25,6 +27,7 @@ impl Default for AppState {
             mpls_labels: Arc::new(RwLock::new(mpls_labels)),
             sid_registry: Arc::new(RwLock::new(sid_registry)),
             supervisor: Arc::new(RwLock::new(ProtocolSupervisor::new())),
+            rib: Arc::new(RwLock::new(RibCore::new())),
         }
     }
 }

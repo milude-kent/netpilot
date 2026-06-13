@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/netpilot-channel",
     "crates/netpilot-config",
     "crates/netpilot-filter",
     "crates/netpilot-grpc",
