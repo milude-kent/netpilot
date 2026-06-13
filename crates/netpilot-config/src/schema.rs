@@ -184,6 +184,25 @@ pub enum ProtocolConfig {
         description: Option<String>,
         mpls_channel: Option<MplsChannelConfig>,
     },
+    Eigrp {
+        name: String,
+        table: String,
+        autonomous_system: u32,
+        router_id: String,
+        interfaces: Vec<EigrpInterfaceConfig>,
+        k_values: Option<KValues>,
+        maximum_paths: Option<u32>,
+        variance: Option<u32>,
+        limits: Option<ChannelLimits>,
+        import_keep_filtered: Option<bool>,
+        rpki_reload: Option<bool>,
+        passwords: Option<Vec<AuthPassword>>,
+        password: Option<String>,
+        tx_class: Option<u8>,
+        tx_priority: Option<u8>,
+        description: Option<String>,
+        mpls_channel: Option<MplsChannelConfig>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -214,6 +233,28 @@ pub enum CircuitType {
     Level1,
     Level2,
     Level12,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct KValues {
+    pub k1: Option<u8>,
+    pub k2: Option<u8>,
+    pub k3: Option<u8>,
+    pub k4: Option<u8>,
+    pub k5: Option<u8>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct EigrpInterfaceConfig {
+    pub interface: String,
+    pub hello_interval_secs: Option<u32>,
+    pub hold_time_secs: Option<u32>,
+    pub bandwidth_kbps: Option<u32>,
+    pub delay_tens_of_microseconds: Option<u32>,
+    pub passive: Option<bool>,
+    pub split_horizon: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

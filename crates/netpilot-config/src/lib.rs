@@ -5,7 +5,7 @@ pub mod validation;
 
 pub use schema::{
     AddressFamily, AuthAlgorithm, AuthPassword, BgpNeighbor, ChannelLimits, CircuitType,
-    CliSocketConfig, ConstantDef, GrMode, IsisInterfaceConfig, IsisLevel, LimitAction,
+    CliSocketConfig, ConstantDef, EigrpInterfaceConfig, GrMode, IsisInterfaceConfig, IsisLevel, KValues, LimitAction,
     LinkBandwidth, MplsChannelConfig, MplsDomain, MplsLabelPolicy, MplsLabelRange,
     MplsStaticBinding, MplsTableConfig, NettypeDef, OspfAreaConfig, ProtocolConfig,
     RoutePlaneConfig, RouterIdentity, SrAdjacencySidConfig, SrAdjSidType, SrPrefixSidConfig,
