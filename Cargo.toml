@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "tests/integration",
     "crates/netpilot-auth",
     "crates/netpilot-channel",
     "crates/netpilot-config",
