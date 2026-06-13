@@ -10,8 +10,8 @@ pub use schema::{
     IsisInterfaceConfig, IsisLevel, KValues, LdpInterfaceConfig, LimitAction, LinkBandwidth,
     MplsChannelConfig, MplsDomain, MplsLabelPolicy, MplsLabelRange, MplsStaticBinding,
     MplsTableConfig, NetconfConfig, NettypeDef, OspfAreaConfig, PbrAction, PbrConfig,
-    PbrRule, PimInterfaceConfig, ProtocolConfig, RoutePlaneConfig, RouterIdentity, SbfdConfig,
-    SnmpConfig, SrAdjacencySidConfig, SrAdjSidType, SrPrefixSidConfig, SrPrefixSidFlags,
+    PbrRule, PimInterfaceConfig, RipInterfaceConfig, ProtocolConfig, RoutePlaneConfig, RouterIdentity,
+    SbfdConfig, SnmpConfig, SrAdjacencySidConfig, SrAdjSidType, SrPrefixSidConfig, SrPrefixSidFlags,
     SrSidType, Srv6LocatorConfig, Srv6SidConfig, StaticNexthopType, StaticRoute, TableConfig,
     TemplateRef, VncConfig, VrrpConfig, YangModelConfig,
 };

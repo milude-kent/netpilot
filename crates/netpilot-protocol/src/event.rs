@@ -1,4 +1,7 @@
-#[derive(Clone, Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum ProtocolEvent {
     RouteAnnounce {
         table: String,
@@ -26,7 +29,8 @@ pub enum ProtocolEvent {
     },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ProtocolState {
     Down,
     Start,
@@ -34,7 +38,7 @@ pub enum ProtocolState {
     Error,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProtocolStatus {
     pub name: String,
     pub state: ProtocolState,
@@ -55,7 +59,7 @@ impl ProtocolStatus {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProtocolStats {
     pub routes_imported: u64,
     pub routes_exported: u64,
@@ -64,7 +68,7 @@ pub struct ProtocolStats {
     pub updates_sent: u64,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RouteAttributes {
     pub local_pref: Option<u32>,
     pub metric: Option<u32>,

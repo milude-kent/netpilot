@@ -744,6 +744,7 @@ name = "netpilot-channel"
 version = "0.1.0"
 dependencies = [
  "netpilot-config",
+ "netpilot-filter",
  "netpilot-rib",
  "thiserror 2.0.18",
 ]
@@ -805,6 +806,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "netpilot-proto-bgp"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "netpilot-config",
+ "netpilot-io",
+ "netpilot-protocol",
+ "thiserror 2.0.18",
+ "time",
+ "tokio",
+]
+
+[[package]]
 name = "netpilot-proto-eigrp"
 version = "0.1.0"
 dependencies = [
@@ -833,11 +847,55 @@ dependencies = [
 ]
 
 [[package]]
+name = "netpilot-proto-ldp"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "netpilot-config",
+ "netpilot-protocol",
+ "tokio",
+]
+
+[[package]]
+name = "netpilot-proto-ospf"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "netpilot-config",
+ "netpilot-io",
+ "netpilot-protocol",
+ "thiserror 2.0.18",
+ "time",
+ "tokio",
+]
+
+[[package]]
+name = "netpilot-proto-pim"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "netpilot-config",
+ "netpilot-protocol",
+ "tokio",
+]
+
+[[package]]
+name = "netpilot-proto-rip"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "netpilot-config",
+ "netpilot-protocol",
+ "tokio",
+]
+
+[[package]]
 name = "netpilot-protocol"
 version = "0.1.0"
 dependencies = [
  "async-trait",
  "netpilot-config",
+ "serde",
  "thiserror 2.0.18",
  "tokio",
 ]
@@ -869,6 +927,7 @@ dependencies = [
  "thiserror 2.0.18",
  "time",
  "tokio",
+ "tokio-stream",
  "tonic",
  "tower 0.5.3",
  "tower-http",
@@ -1399,6 +1458,7 @@ dependencies = [
  "futures-core",
  "pin-project-lite",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]

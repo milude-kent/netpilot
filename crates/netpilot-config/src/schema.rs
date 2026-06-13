@@ -242,6 +242,16 @@ pub enum ProtocolConfig {
         description: Option<String>,
         mpls_channel: Option<MplsChannelConfig>,
     },
+    Rip {
+        name: String,
+        table: String,
+        router_id: String,
+        interfaces: Vec<RipInterfaceConfig>,
+        limits: Option<ChannelLimits>,
+        import_keep_filtered: Option<bool>,
+        description: Option<String>,
+        mpls_channel: Option<MplsChannelConfig>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -764,6 +774,18 @@ pub struct PimInterfaceConfig {
     pub hello_interval_secs: Option<u32>,
     pub dr_priority: Option<u32>,
     pub bfd_enabled: Option<bool>,
+}
+
+// ── RIP (#317) ──────────────────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct RipInterfaceConfig {
+    pub interface: String,
+    pub metric: Option<u32>,
+    pub passive: Option<bool>,
+    pub split_horizon: Option<bool>,
+    pub poison_reverse: Option<bool>,
 }
 
 // ── PBR (#306) ──────────────────────────────────────────────

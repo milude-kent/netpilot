@@ -44,6 +44,7 @@ pub fn validate_config(config: &RoutePlaneConfig) -> Result<ValidationReport, Va
             ProtocolConfig::Eigrp { table, .. } => Some(table),
             ProtocolConfig::Ldp { .. } => None, // LDP has no table field
             ProtocolConfig::Pim { table, .. } => Some(table),
+            ProtocolConfig::Rip { table, .. } => Some(table),
         };
 
         if let Some(table) = table {
@@ -258,6 +259,7 @@ fn validate_mpls(config: &RoutePlaneConfig) -> Result<Vec<String>, ValidationErr
             ProtocolConfig::Eigrp { mpls_channel, .. } => mpls_channel,
             ProtocolConfig::Ldp { mpls_channel, .. } => mpls_channel,
             ProtocolConfig::Pim { mpls_channel, .. } => mpls_channel,
+            ProtocolConfig::Rip { mpls_channel, .. } => mpls_channel,
         };
         if let Some(channel) = mpls_channel {
             if !table_names.contains(channel.table.as_str()) {

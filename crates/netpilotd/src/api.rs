@@ -3,10 +3,14 @@ use axum::{
     Json, Router,
     extract::State,
     http::StatusCode,
+    response::sse::{Event, Sse},
     routing::{get, post},
 };
 use netpilot_config::{CommitRequest, RollbackRequest, RoutePlaneConfig};
 use serde::Deserialize;
+use std::convert::Infallible;
+use tokio_stream::StreamExt;
+use tokio_stream::wrappers::BroadcastStream;
 use tower_http::services::ServeDir;
 
 pub fn build_router(state: AppState) -> Router {
@@ -23,6 +27,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/config/confirm", post(confirm_config))
         .route("/api/config/undo", post(undo_config))
         .route("/api/config/rollback", post(rollback_config))
+        .route("/api/events", get(sse_handler))
         .with_state(state)
         .fallback_service(ServeDir::new("crates/netpilot-web/dist"))
 }
@@ -132,4 +137,20 @@ async fn undo_config(
         .undo()
         .map_err(|error| (StatusCode::BAD_REQUEST, error.to_string()))?;
     Ok(Json(revision))
+}
+
+async fn sse_handler(
+    State(state): State<AppState>,
+) -> Sse<impl tokio_stream::Stream<Item = Result<Event, Infallible>>> {
+    let rx = state.supervisor.read().await.subscribe();
+    let stream = BroadcastStream::new(rx);
+    Sse::new(stream.map(|result| {
+        match result {
+            Ok(event) => {
+                let json = serde_json::to_string(&event).unwrap_or_default();
+                Ok(Event::default().data(json))
+            }
+            Err(_) => Ok(Event::default().data("{}")),
+        }
+    }))
 }

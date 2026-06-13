@@ -17,6 +17,7 @@ thiserror.workspace = true
 time.workspace = true
 tokio.workspace = true
 tonic = "0.12"
+tokio-stream = { version = "0.1", features = ["sync"] }
 tower-http.workspace = true
 
 [dev-dependencies]

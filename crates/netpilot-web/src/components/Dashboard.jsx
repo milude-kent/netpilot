@@ -1,4 +1,26 @@
+import { useState, useEffect } from 'react';
+
+const API = 'http://127.0.0.1:8080';
+
 export default function Dashboard({ config }) {
+  const [events, setEvents] = useState([]);
+
+  useEffect(() => {
+    const eventSource = new EventSource(`${API}/api/events`);
+    eventSource.onmessage = (e) => {
+      try {
+        const event = JSON.parse(e.data);
+        setEvents(prev => [event, ...prev].slice(0, 50));
+      } catch (_) {
+        // ignore unparseable events
+      }
+    };
+    eventSource.onerror = () => {
+      // EventSource will automatically reconnect
+    };
+    return () => eventSource.close();
+  }, []);
+
   if (!config) return null;
 
   const protocols = config.protocols || [];
@@ -42,7 +64,7 @@ export default function Dashboard({ config }) {
                 <td>{p.name || '—'}</td>
                 <td>{p.kind || '—'}</td>
                 <td>{p.table || '—'}</td>
-                <td><span className="status-up">● Active</span></td>
+                <td><span className="status-up">{'●'} Active</span></td>
               </tr>
             ))}
             {protocols.length === 0 && (
@@ -101,13 +123,55 @@ export default function Dashboard({ config }) {
         {prefixSids.length === 0 && <div className="text-muted">No prefix SIDs configured</div>}
       </div>
 
-      {/* Recent Activity — placeholder for RIB events */}
+      {/* RIB Activity — live SSE events */}
       <div className="card">
-        <h3 className="card-title">RIB Activity</h3>
-        <div className="text-muted" style={{padding: '20px 0', textAlign: 'center'}}>
-          RIB event log will appear here<br/>
-          <small>Subscribe to ProtocolSupervisor events</small>
-        </div>
+        <h3 className="card-title">RIB Activity ({events.length})</h3>
+        {events.length > 0 ? (
+          <div style={{ maxHeight: '240px', overflowY: 'auto', fontSize: '12px', fontFamily: 'monospace' }}>
+            {events.map((ev, i) => {
+              const msg = ev.message || '';
+              const type = ev.type || '';
+              const protoName = ev.protocol_name || '';
+              const newState = ev.new_state || '';
+              const prefix = ev.prefix || '';
+              const nextHop = ev.next_hop || '';
+              if (type === 'state_change') {
+                return <div key={i} style={{ padding: '2px 0', borderBottom: '1px solid #eee' }}>
+                  <span style={{ color: '#2563eb' }}>[{protoName}]</span>{' '}
+                  <span style={{ color: newState === 'up' ? '#16a34a' : newState === 'start' ? '#ca8a04' : '#dc2626' }}>{newState}</span>{' '}
+                  {msg}
+                </div>;
+              }
+              if (type === 'route_announce') {
+                return <div key={i} style={{ padding: '2px 0', borderBottom: '1px solid #eee' }}>
+                  <span style={{ color: '#7c3aed' }}>+</span>{' '}
+                  {prefix} {'→'} {nextHop}
+                </div>;
+              }
+              if (type === 'route_withdraw') {
+                return <div key={i} style={{ padding: '2px 0', borderBottom: '1px solid #eee' }}>
+                  <span style={{ color: '#dc2626' }}>{'−'}</span>{' '}
+                  {prefix}
+                </div>;
+              }
+              if (type === 'error') {
+                return <div key={i} style={{ padding: '2px 0', borderBottom: '1px solid #eee' }}>
+                  <span style={{ color: '#dc2626' }}>!</span>{' '}
+                  <span style={{ color: '#2563eb' }}>[{protoName}]</span>{' '}
+                  {msg}
+                </div>;
+              }
+              return <div key={i} style={{ padding: '2px 0', borderBottom: '1px solid #eee', color: '#666' }}>
+                {JSON.stringify(ev)}
+              </div>;
+            })}
+          </div>
+        ) : (
+          <div className="text-muted" style={{ padding: '20px 0', textAlign: 'center' }}>
+            Waiting for routing events...<br />
+            <small>Subscribed to ProtocolSupervisor SSE stream</small>
+          </div>
+        )}
       </div>
     </div>
   );

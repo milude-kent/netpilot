@@ -12,6 +12,9 @@ members = [
     "crates/netpilot-proto-isis",
     "crates/netpilot-proto-ospf",
     "crates/netpilot-proto-bgp",
+    "crates/netpilot-proto-ldp",
+    "crates/netpilot-proto-pim",
+    "crates/netpilot-proto-rip",
     "crates/netpilot-io",
     "crates/netpilotd",
 ]
