@@ -1,3 +1,3 @@
 pub mod channel;
 
-pub use channel::{ProtocolChannel, ChannelStats};
+pub use channel::{ChannelStats, ProtocolChannel};

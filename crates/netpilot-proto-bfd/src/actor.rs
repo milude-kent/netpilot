@@ -4,7 +4,7 @@ use netpilot_protocol::event::{ProtocolEvent, ProtocolState};
 use netpilot_protocol::{ProtocolActor, ProtocolError, ProtocolMsg};
 use tokio::select;
 use tokio::sync::mpsc;
-use tokio::time::{interval, Duration, MissedTickBehavior};
+use tokio::time::{Duration, MissedTickBehavior, interval};
 
 pub struct BfdActor {
     name: String,
@@ -29,6 +29,12 @@ pub enum BfdSessionState {
     Down,
     Init,
     Up,
+}
+
+impl Default for BfdActor {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl BfdActor {

@@ -31,7 +31,7 @@ fn golden_bgppath_prepend_adds_to_front() {
 
 #[test]
 fn golden_bgppath_empty_is_true_for_no_asns() {
-    assert!(AsPath { segments: vec![] }.empty());
+    assert!(AsPath { segments: vec![] }.is_empty());
 }
 
 // --- bgpmask golden tests ---

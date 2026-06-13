@@ -3,14 +3,14 @@ use crate::tlv::IsisTlv;
 /// Common IS-IS header (8 bytes). All PDU types share this.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IsisHeader {
-    pub protocol_id: u8,          // 0x83 for IS-IS
-    pub header_length: u8,        // length of fixed header
-    pub version: u8,              // 1
-    pub system_id_length: u8,     // 0 (indicates 6-byte system IDs)
-    pub pdu_type: PduType,        // encoded in the type field
-    pub version2: u8,             // 1
+    pub protocol_id: u8,      // 0x83 for IS-IS
+    pub header_length: u8,    // length of fixed header
+    pub version: u8,          // 1
+    pub system_id_length: u8, // 0 (indicates 6-byte system IDs)
+    pub pdu_type: PduType,    // encoded in the type field
+    pub version2: u8,         // 1
     pub reserved: u8,
-    pub max_area_addresses: u8,   // typically 3
+    pub max_area_addresses: u8, // typically 3
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -80,13 +80,13 @@ pub enum IsisPacketBody {
 /// IS-IS Hello (IIH) packet — LAN variant.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IihPacket {
-    pub circuit_type: u8,           // 1=L1, 2=L2, 3=L1L2
-    pub source_id: String,          // 6-byte system ID
+    pub circuit_type: u8,  // 1=L1, 2=L2, 3=L1L2
+    pub source_id: String, // 6-byte system ID
     pub holding_time_secs: u16,
     pub pdu_length: u16,
-    pub priority: u8,               // DIS priority (0-127)
-    pub lan_id: Option<String>,     // DIS system ID + pseudonode
-    pub neighbors: Vec<String>,     // system IDs of neighbors seen
+    pub priority: u8,           // DIS priority (0-127)
+    pub lan_id: Option<String>, // DIS system ID + pseudonode
+    pub neighbors: Vec<String>, // system IDs of neighbors seen
     pub tlvs: Vec<IsisTlv>,
 }
 
@@ -104,18 +104,25 @@ pub struct LspPacket {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LspId {
-    pub system_id: String,       // 6-byte system ID
-    pub pseudonode_id: u8,       // 0 = real node, 1-255 = pseudonode
-    pub fragment: u32,           // fragment number
+    pub system_id: String, // 6-byte system ID
+    pub pseudonode_id: u8, // 0 = real node, 1-255 = pseudonode
+    pub fragment: u32,     // fragment number
 }
 
 impl LspId {
     pub fn new(system_id: &str, pseudonode_id: u8, fragment: u32) -> Self {
-        Self { system_id: system_id.to_string(), pseudonode_id, fragment }
+        Self {
+            system_id: system_id.to_string(),
+            pseudonode_id,
+            fragment,
+        }
     }
 
     pub fn display(&self) -> String {
-        format!("{}.{:02x}-{:02x}", self.system_id, self.pseudonode_id, self.fragment)
+        format!(
+            "{}.{:02x}-{:02x}",
+            self.system_id, self.pseudonode_id, self.fragment
+        )
     }
 }
 
@@ -157,6 +164,12 @@ pub struct PsnpPacket {
 
 impl IsisPacket {
     /// Encode this packet to wire format bytes.
+    ///
+    /// The buffer is built incrementally with computed values (8-byte
+    /// common header followed by an arbitrary TLV chain). Clippy's
+    /// `vec_init_then_push` lint suggests a `vec![..]` literal, which
+    /// doesn't fit the per-field push-then-extend pattern used here.
+    #[allow(clippy::vec_init_then_push)]
     pub fn encode(&self) -> Vec<u8> {
         let mut buf = Vec::new();
 
@@ -217,8 +230,8 @@ impl IsisPacket {
             return Err("packet too short for ISIS header".into());
         }
 
-        let pdu_type = PduType::from_u8(data[4])
-            .ok_or_else(|| format!("unknown PDU type: {}", data[4]))?;
+        let pdu_type =
+            PduType::from_u8(data[4]).ok_or_else(|| format!("unknown PDU type: {}", data[4]))?;
 
         let header = IsisHeader {
             protocol_id: data[0],
@@ -280,11 +293,7 @@ fn system_id_to_bytes(id: &str) -> Vec<u8> {
     id.split('.')
         .flat_map(|s| {
             let bytes = hex::decode(s).unwrap_or_default();
-            if bytes.len() == 2 {
-                bytes
-            } else {
-                vec![0, 0]
-            }
+            if bytes.len() == 2 { bytes } else { vec![0, 0] }
         })
         .collect()
 }
@@ -294,12 +303,6 @@ fn bytes_to_system_id(bytes: &[u8]) -> String {
         .iter()
         .take(6)
         .enumerate()
-        .map(|(i, b)| {
-            format!(
-                "{}{:02x}",
-                if i % 2 == 0 && i > 0 { "." } else { "" },
-                b
-            )
-        })
+        .map(|(i, b)| format!("{}{:02x}", if i % 2 == 0 && i > 0 { "." } else { "" }, b))
         .collect::<String>()
 }

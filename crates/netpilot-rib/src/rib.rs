@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use crate::nexthop::NextHopResolver;
 use crate::route::{RouteEntry, RouteKey};
 use crate::table::RouteTable;
-use crate::nexthop::NextHopResolver;
 use netpilot_protocol::event::ProtocolEvent;
+use std::collections::HashMap;
 
 /// Core RIB — all routing tables, receiving protocol events.
 #[derive(Clone, Debug, Default)]
@@ -14,19 +14,28 @@ pub struct RibCore {
 impl RibCore {
     pub fn new() -> Self {
         let mut core = Self::default();
-        core.tables.insert("master".into(), RouteTable::new("master"));
+        core.tables
+            .insert("master".into(), RouteTable::new("master"));
         core
     }
 
     /// Get or create a table.
     pub fn table(&mut self, name: &str) -> &mut RouteTable {
-        self.tables.entry(name.to_string()).or_insert_with(|| RouteTable::new(name))
+        self.tables
+            .entry(name.to_string())
+            .or_insert_with(|| RouteTable::new(name))
     }
 
     /// Process a protocol event (subscribe to ProtocolSupervisor broadcast).
     pub fn process_event(&mut self, event: &ProtocolEvent) {
         match event {
-            ProtocolEvent::RouteAnnounce { table, prefix, next_hop, preference, attributes } => {
+            ProtocolEvent::RouteAnnounce {
+                table,
+                prefix,
+                next_hop,
+                preference,
+                attributes,
+            } => {
                 let key = RouteKey::prefix(prefix);
                 let entry = RouteEntry::new(key, table, "protocol", *preference)
                     .with_next_hop(crate::route::NextHop::new(next_hop))
@@ -51,7 +60,10 @@ impl RibCore {
 
     /// Get all selected routes from a table.
     pub fn all_routes(&self, table: &str) -> Vec<&RouteEntry> {
-        self.tables.get(table).map(|t| t.all_selected().collect()).unwrap_or_default()
+        self.tables
+            .get(table)
+            .map(|t| t.all_selected().collect())
+            .unwrap_or_default()
     }
 
     /// Dump all selected routes as JSON string.

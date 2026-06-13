@@ -3,5 +3,7 @@ pub mod interface;
 pub mod route;
 
 pub use error::KernelError;
-pub use interface::{InterfaceEvent, InterfaceInfo, InterfaceWatcher, IfaceAddress, InterfaceFlags, AddressScope};
+pub use interface::{
+    AddressScope, IfaceAddress, InterfaceEvent, InterfaceFlags, InterfaceInfo, InterfaceWatcher,
+};
 pub use route::{KernelRoute, KernelRouteClient, RouteProtocol};

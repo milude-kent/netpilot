@@ -17,12 +17,14 @@ pub struct LspEntry {
 
 #[derive(Clone, Debug, Default)]
 pub struct LspDatabase {
-    lsps: HashMap<String, LspEntry>,  // keyed by LspId::display()
+    lsps: HashMap<String, LspEntry>, // keyed by LspId::display()
 }
 
 impl LspDatabase {
     pub fn new() -> Self {
-        Self { lsps: HashMap::new() }
+        Self {
+            lsps: HashMap::new(),
+        }
     }
 
     pub fn insert(&mut self, entry: LspEntry) {
@@ -39,17 +41,20 @@ impl LspDatabase {
     }
 
     pub fn contains_newer(&self, id: &LspId, seq: u32) -> bool {
-        self.get(id).map_or(false, |e| e.sequence_number >= seq)
+        self.get(id).is_some_and(|e| e.sequence_number >= seq)
     }
 
     /// Generate a self-LSP from local adjacency state.
     pub fn generate_self_lsp(&self, system_id: &str, adjacencies: &[Adjacency]) -> LspPacket {
         let up_adjs: Vec<&Adjacency> = adjacencies.iter().filter(|a| a.is_up()).collect();
-        let neighbors: Vec<ExtendedNeighbor> = up_adjs.iter().map(|a| ExtendedNeighbor {
-            system_id: a.neighbor_system_id.clone(),
-            metric: 10,
-            pseudonode_id: 0,
-        }).collect();
+        let neighbors: Vec<ExtendedNeighbor> = up_adjs
+            .iter()
+            .map(|a| ExtendedNeighbor {
+                system_id: a.neighbor_system_id.clone(),
+                metric: 10,
+                pseudonode_id: 0,
+            })
+            .collect();
 
         let tlvs = vec![
             IsisTlv::Hostname(system_id.to_string()),
@@ -57,7 +62,9 @@ impl LspDatabase {
             IsisTlv::ExtendedIsReachability(neighbors),
         ];
 
-        let existing = self.lsps.values()
+        let existing = self
+            .lsps
+            .values()
             .find(|e| e.lsp_id.system_id == system_id && e.lsp_id.pseudonode_id == 0);
 
         LspPacket {

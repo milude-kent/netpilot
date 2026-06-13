@@ -5,17 +5,22 @@ use crate::route::RouteEntry;
 /// 2. Lower metric wins
 /// 3. ECMP if all criteria equal
 pub fn select_best(candidates: &[RouteEntry]) -> Option<&RouteEntry> {
-    candidates.iter()
+    candidates
+        .iter()
         .filter(|e| e.state == crate::route::RouteState::Active)
         .max_by(|a, b| {
-            b.preference.cmp(&a.preference)
-                .then_with(|| b.metric.unwrap_or(u32::MAX).cmp(&a.metric.unwrap_or(u32::MAX)))
+            b.preference.cmp(&a.preference).then_with(|| {
+                b.metric
+                    .unwrap_or(u32::MAX)
+                    .cmp(&a.metric.unwrap_or(u32::MAX))
+            })
         })
 }
 
 /// Find all ECMP paths (equal to best in preference and metric).
 pub fn find_ecmp<'a>(candidates: &'a [RouteEntry], best: &RouteEntry) -> Vec<&'a RouteEntry> {
-    candidates.iter()
+    candidates
+        .iter()
         .filter(|e| e.state == crate::route::RouteState::Active)
         .filter(|e| e.preference == best.preference && e.metric == best.metric)
         .collect()
@@ -38,8 +43,10 @@ mod tests {
 
     #[test]
     fn selects_lower_metric_when_same_preference() {
-        let a = RouteEntry::new(RouteKey::prefix("10.0.0.0/8"), "master", "bgp", 100).with_metric(50);
-        let b = RouteEntry::new(RouteKey::prefix("10.0.0.0/8"), "master", "isis", 100).with_metric(10);
+        let a =
+            RouteEntry::new(RouteKey::prefix("10.0.0.0/8"), "master", "bgp", 100).with_metric(50);
+        let b =
+            RouteEntry::new(RouteKey::prefix("10.0.0.0/8"), "master", "isis", 100).with_metric(10);
         let routes = vec![a, b];
         let best = select_best(&routes).unwrap();
         assert_eq!(best.source_protocol, "isis");
@@ -48,8 +55,10 @@ mod tests {
 
     #[test]
     fn ecmp_finds_equal_paths() {
-        let a = RouteEntry::new(RouteKey::prefix("10.0.0.0/8"), "master", "bgp", 100).with_metric(10);
-        let b = RouteEntry::new(RouteKey::prefix("10.0.0.0/8"), "master", "isis", 100).with_metric(10);
+        let a =
+            RouteEntry::new(RouteKey::prefix("10.0.0.0/8"), "master", "bgp", 100).with_metric(10);
+        let b =
+            RouteEntry::new(RouteKey::prefix("10.0.0.0/8"), "master", "isis", 100).with_metric(10);
         let routes = vec![a, b];
         let best = select_best(&routes).unwrap();
         let ecmp = find_ecmp(&routes, best);

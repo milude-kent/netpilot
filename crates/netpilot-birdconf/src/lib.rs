@@ -1,8 +1,8 @@
 pub mod lexer;
 pub mod parser;
 
-pub use lexer::{tokenize, Token};
-pub use parser::{parse_bird_config, ParseError, Parser};
+pub use lexer::{Token, tokenize};
+pub use parser::{ParseError, Parser, parse_bird_config};
 
 #[cfg(test)]
 mod tests {
@@ -72,9 +72,11 @@ mod tests {
     fn lexer_simple_tokens() {
         let tokens = tokenize("router id 192.0.2.1;");
         assert!(tokens.iter().any(|t| matches!(t, Token::RouterId)));
-        assert!(tokens
-            .iter()
-            .any(|t| matches!(t, Token::IpAddr(a) if a == "192.0.2.1")));
+        assert!(
+            tokens
+                .iter()
+                .any(|t| matches!(t, Token::IpAddr(a) if a == "192.0.2.1"))
+        );
         assert_eq!(tokens.last(), Some(&Token::Eof));
     }
 }

@@ -58,10 +58,10 @@ pub struct IpExternalRoute {
 /// With defaults K1=1,K3=1: 256 * (BW + delay)
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct EigrpMetric {
-    pub bandwidth: u32,   // scaled: 10^7 / min_bandwidth_kbps
-    pub delay: u32,        // scaled: sum_delay_tens_of_microseconds / 10
-    pub reliability: u8,   // 255 = 100%
-    pub load: u8,          // 255 = 100%
+    pub bandwidth: u32,  // scaled: 10^7 / min_bandwidth_kbps
+    pub delay: u32,      // scaled: sum_delay_tens_of_microseconds / 10
+    pub reliability: u8, // 255 = 100%
+    pub load: u8,        // 255 = 100%
     pub mtu: u32,
     pub hop_count: u8,
 }
@@ -73,6 +73,10 @@ impl EigrpMetric {
     }
 
     pub fn infinity() -> Self {
-        Self { bandwidth: u32::MAX, delay: u32::MAX, ..Default::default() }
+        Self {
+            bandwidth: u32::MAX,
+            delay: u32::MAX,
+            ..Default::default()
+        }
     }
 }

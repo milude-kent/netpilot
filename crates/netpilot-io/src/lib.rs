@@ -1,5 +1,5 @@
 pub mod bgp;
 pub mod transport;
 
-pub use bgp::{BgpSession, BgpSessionState, BgpMessage};
-pub use transport::{OspfTransport, IsisTransport, RawSocket, TransportError};
+pub use bgp::{BgpMessage, BgpSession, BgpSessionState};
+pub use transport::{IsisTransport, OspfTransport, RawSocket, TransportError};

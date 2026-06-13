@@ -25,16 +25,22 @@ pub struct EigrpConfig {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct KValues {
-    pub k1: Option<u8>,  // bandwidth (default 1)
-    pub k2: Option<u8>,  // load (default 0)
-    pub k3: Option<u8>,  // delay (default 1)
-    pub k4: Option<u8>,  // reliability (default 0)
-    pub k5: Option<u8>,  // MTU (default 0)
+    pub k1: Option<u8>, // bandwidth (default 1)
+    pub k2: Option<u8>, // load (default 0)
+    pub k3: Option<u8>, // delay (default 1)
+    pub k4: Option<u8>, // reliability (default 0)
+    pub k5: Option<u8>, // MTU (default 0)
 }
 
 impl Default for KValues {
     fn default() -> Self {
-        Self { k1: Some(1), k2: Some(0), k3: Some(1), k4: Some(0), k5: Some(0) }
+        Self {
+            k1: Some(1),
+            k2: Some(0),
+            k3: Some(1),
+            k4: Some(0),
+            k5: Some(0),
+        }
     }
 }
 

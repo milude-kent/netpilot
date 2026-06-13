@@ -143,9 +143,7 @@ impl Parser {
                         let _val = self.parse_value()?;
                         // Store global option — skipped for now
                     } else {
-                        return Err(ParseError::Message(format!(
-                            "unexpected identifier: {key}"
-                        )));
+                        return Err(ParseError::Message(format!("unexpected identifier: {key}")));
                     }
                 }
                 _ => {
@@ -407,11 +405,11 @@ impl Parser {
                         if matches!(self.peek(), Token::LBrace) {
                             self.advance();
                             while !matches!(self.peek(), Token::RBrace | Token::Eof) {
-                                if matches!(self.peek(), Token::Stub) {
-                                    self.advance();
-                                } else {
-                                    self.advance();
-                                }
+                                // Both Token::Stub and any other token currently
+                                // result in a single advance(); the explicit Stub
+                                // arm is a placeholder for future stub-specific
+                                // handling.
+                                self.advance();
                                 self.skip_semicolons();
                             }
                             self.advance();

@@ -1,11 +1,11 @@
-use std::collections::HashMap;
 use async_trait::async_trait;
 use netpilot_config::ProtocolConfig;
-use netpilot_protocol::{ProtocolActor, ProtocolMsg};
 use netpilot_protocol::actor::ProtocolError;
 use netpilot_protocol::event::{ProtocolEvent, ProtocolState, ProtocolStats, RouteAttributes};
-use tokio::sync::mpsc;
+use netpilot_protocol::{ProtocolActor, ProtocolMsg};
+use std::collections::HashMap;
 use tokio::select;
+use tokio::sync::mpsc;
 
 use crate::adjacency::Adjacency;
 use crate::config::{IsisConfig, IsisLevel};
@@ -59,7 +59,14 @@ impl IsisActor {
     async fn handle_msg(&mut self, msg: ProtocolMsg) -> Result<(), ProtocolError> {
         match msg {
             ProtocolMsg::Reload { config, scope } => {
-                if let ProtocolConfig::Isis { interfaces, levels, area_addresses, system_id, .. } = config {
+                if let ProtocolConfig::Isis {
+                    interfaces,
+                    levels,
+                    area_addresses,
+                    system_id,
+                    ..
+                } = config
+                {
                     self.config.interfaces = interfaces.into_iter().map(Into::into).collect();
                     self.config.levels = levels.into_iter().map(Into::into).collect();
                     self.config.area_addresses = area_addresses;
@@ -109,7 +116,10 @@ impl IsisActor {
                     new_state: ProtocolState::Down,
                     message: "protocol shutting down".into(),
                 });
-                Err(ProtocolError::Stopped(self.name.clone(), "shutdown requested".into()))
+                Err(ProtocolError::Stopped(
+                    self.name.clone(),
+                    "shutdown requested".into(),
+                ))
             }
             ProtocolMsg::StatusQuery { reply } => {
                 let status = netpilot_protocol::event::ProtocolStatus {
@@ -132,7 +142,13 @@ impl IsisActor {
                 let neighbor_id = &iih.source_id;
                 let key = format!("{}/{}", iface, neighbor_id);
                 let adj = self.adjacencies.entry(key).or_insert_with(|| {
-                    Adjacency::new(neighbor_id, iface, IsisLevel::Level2, &self.config.system_id, 30)
+                    Adjacency::new(
+                        neighbor_id,
+                        iface,
+                        IsisLevel::Level2,
+                        &self.config.system_id,
+                        30,
+                    )
                 });
                 let old_state = adj.state.clone();
                 let new_state = adj.process_hello(iih);
@@ -140,7 +156,10 @@ impl IsisActor {
                     self.emit(ProtocolEvent::StateChange {
                         protocol_name: self.name.clone(),
                         new_state: self.state.clone(),
-                        message: format!("adjacency {}/{} {:?} -> {:?}", iface, neighbor_id, old_state, new_state),
+                        message: format!(
+                            "adjacency {}/{} {:?} -> {:?}",
+                            iface, neighbor_id, old_state, new_state
+                        ),
                     });
                 }
                 self.stats.updates_received += 1;
@@ -180,7 +199,9 @@ impl IsisActor {
             pdu_length: 100,
             priority: 64,
             lan_id: None,
-            neighbors: self.adjacencies.values()
+            neighbors: self
+                .adjacencies
+                .values()
                 .filter(|a| a.is_up())
                 .map(|a| a.neighbor_system_id.clone())
                 .collect(),
@@ -245,7 +266,16 @@ impl ProtocolActor for IsisActor {
         self.state = ProtocolState::Start;
 
         // Extract IsisConfig from ProtocolConfig
-        if let ProtocolConfig::Isis { table, area_addresses, system_id, levels, interfaces, sr_enabled, .. } = &config {
+        if let ProtocolConfig::Isis {
+            table,
+            area_addresses,
+            system_id,
+            levels,
+            interfaces,
+            sr_enabled,
+            ..
+        } = &config
+        {
             self.config.table = table.clone();
             self.config.area_addresses = area_addresses.clone();
             self.config.system_id = system_id.clone();

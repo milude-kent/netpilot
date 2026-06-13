@@ -1,5 +1,5 @@
+use crate::lsdb::{LsaType, Lsdb};
 use std::collections::{BinaryHeap, HashMap};
-use crate::lsdb::{Lsdb, LsaType};
 
 /// A route computed by the OSPF SPF algorithm.
 #[derive(Clone, Debug)]
@@ -36,7 +36,10 @@ pub fn compute_ospf_spf(lsdb: &Lsdb, root: &str) -> Vec<OspfRoute> {
 
     distances.insert(root.to_string(), 0);
     parent.insert(root.to_string(), None);
-    heap.push(HeapEntry { router_id: root.to_string(), cost: 0 });
+    heap.push(HeapEntry {
+        router_id: root.to_string(),
+        cost: 0,
+    });
 
     // Build adjacency graph from Router LSAs
     // In a full implementation: parse LSA body for point-to-point/transit links
@@ -49,7 +52,10 @@ pub fn compute_ospf_spf(lsdb: &Lsdb, root: &str) -> Vec<OspfRoute> {
             if !distances.contains_key(&lsa.advertising_router) {
                 distances.insert(lsa.advertising_router.clone(), cost);
                 parent.insert(lsa.advertising_router.clone(), Some(root.to_string()));
-                heap.push(HeapEntry { router_id: lsa.advertising_router.clone(), cost });
+                heap.push(HeapEntry {
+                    router_id: lsa.advertising_router.clone(),
+                    cost,
+                });
             }
         }
     }
@@ -69,25 +75,31 @@ pub fn compute_ospf_spf(lsdb: &Lsdb, root: &str) -> Vec<OspfRoute> {
     // Extract routes
     let mut routes = Vec::new();
     for (_id, lsa) in lsdb.iter() {
-        if lsa.lsa_type == LsaType::Network || lsa.lsa_type == LsaType::Router {
-            if let Some(&dist) = distances.get(&lsa.advertising_router) {
-                routes.push(OspfRoute {
-                    prefix: lsa.link_state_id.clone(),
-                    next_hop: resolve_ospf_next_hop(&parent, &lsa.advertising_router, root),
-                    cost: dist + lsa.metric.unwrap_or(0),
-                    area: lsa.area.clone().unwrap_or_default(),
-                });
-            }
+        if (lsa.lsa_type == LsaType::Network || lsa.lsa_type == LsaType::Router)
+            && let Some(&dist) = distances.get(&lsa.advertising_router)
+        {
+            routes.push(OspfRoute {
+                prefix: lsa.link_state_id.clone(),
+                next_hop: resolve_ospf_next_hop(&parent, &lsa.advertising_router, root),
+                cost: dist + lsa.metric.unwrap_or(0),
+                area: lsa.area.clone().unwrap_or_default(),
+            });
         }
     }
 
     routes
 }
 
-fn resolve_ospf_next_hop(parent: &HashMap<String, Option<String>>, dest: &str, root: &str) -> String {
+fn resolve_ospf_next_hop(
+    parent: &HashMap<String, Option<String>>,
+    dest: &str,
+    root: &str,
+) -> String {
     let mut current = dest.to_string();
     while let Some(Some(p)) = parent.get(&current) {
-        if p == root { return current; }
+        if p == root {
+            return current;
+        }
         current = p.clone();
     }
     dest.to_string()

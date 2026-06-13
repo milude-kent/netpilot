@@ -1,10 +1,10 @@
-use std::collections::HashMap;
-use netpilot_config::ProtocolConfig;
-use tokio::sync::{broadcast, mpsc};
-use tokio::task::JoinHandle;
 use crate::actor::ProtocolActor;
 use crate::event::ProtocolEvent;
 use crate::handle::ProtocolHandle;
+use netpilot_config::ProtocolConfig;
+use std::collections::HashMap;
+use tokio::sync::{broadcast, mpsc};
+use tokio::task::JoinHandle;
 
 const EVENT_CHANNEL_SIZE: usize = 256;
 
@@ -80,6 +80,14 @@ impl ProtocolSupervisor {
         self.event_tx.subscribe()
     }
 
+    /// Get a clonable handle to the broadcast sender that actors publish
+    /// events on. Used by external subsystems (e.g. gRPC Subscribe in
+    /// `Stream` mode) that need to attach their own subscriber without
+    /// going through the supervisor's `RwLock`.
+    pub fn event_sender(&self) -> broadcast::Sender<ProtocolEvent> {
+        self.event_tx.clone()
+    }
+
     /// Get a handle by protocol name.
     pub fn get(&self, name: &str) -> Option<&ProtocolHandle> {
         self.handles.get(name)
@@ -92,7 +100,7 @@ impl ProtocolSupervisor {
 
     /// Send shutdown to all protocols and wait for tasks to finish.
     pub async fn shutdown_all(self) {
-        for (_, handle) in &self.handles {
+        for handle in self.handles.values() {
             let _ = handle.shutdown().await;
         }
         for task in self.tasks {

@@ -1,6 +1,6 @@
-use std::collections::{BinaryHeap, HashMap};
 use crate::lsp::LspDatabase;
 use crate::tlv::IsisTlv;
+use std::collections::{BinaryHeap, HashMap};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SpfResult {
@@ -31,7 +31,7 @@ struct HeapEntry {
 
 impl Ord for HeapEntry {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        other.distance.cmp(&self.distance)  // reverse for min-heap
+        other.distance.cmp(&self.distance) // reverse for min-heap
     }
 }
 impl PartialOrd for HeapEntry {
@@ -49,7 +49,10 @@ pub fn compute_spf(lsp_db: &LspDatabase, root: &str) -> SpfResult {
 
     distances.insert(root.to_string(), 0);
     parent.insert(root.to_string(), None);
-    heap.push(HeapEntry { system_id: root.to_string(), distance: 0 });
+    heap.push(HeapEntry {
+        system_id: root.to_string(),
+        distance: 0,
+    });
 
     // Collect all edges from the LSP database
     let mut edges: HashMap<String, Vec<(String, u32)>> = HashMap::new();
@@ -59,7 +62,10 @@ pub fn compute_spf(lsp_db: &LspDatabase, root: &str) -> SpfResult {
             if let IsisTlv::ExtendedIsReachability(neighbors) = tlv {
                 for n in neighbors {
                     let dst = n.system_id.clone();
-                    edges.entry(src.clone()).or_default().push((dst.clone(), n.metric));
+                    edges
+                        .entry(src.clone())
+                        .or_default()
+                        .push((dst.clone(), n.metric));
                     edges.entry(dst).or_default().push((src.clone(), n.metric));
                 }
             }
@@ -67,7 +73,11 @@ pub fn compute_spf(lsp_db: &LspDatabase, root: &str) -> SpfResult {
     }
 
     // Dijkstra algorithm
-    while let Some(HeapEntry { system_id, distance }) = heap.pop() {
+    while let Some(HeapEntry {
+        system_id,
+        distance,
+    }) = heap.pop()
+    {
         if distance > *distances.get(&system_id).unwrap_or(&u32::MAX) {
             continue;
         }
@@ -77,19 +87,25 @@ pub fn compute_spf(lsp_db: &LspDatabase, root: &str) -> SpfResult {
                 if new_dist < *distances.get(neighbor).unwrap_or(&u32::MAX) {
                     distances.insert(neighbor.clone(), new_dist);
                     parent.insert(neighbor.clone(), Some(system_id.clone()));
-                    heap.push(HeapEntry { system_id: neighbor.clone(), distance: new_dist });
+                    heap.push(HeapEntry {
+                        system_id: neighbor.clone(),
+                        distance: new_dist,
+                    });
                 }
             }
         }
     }
 
     // Build nodes list
-    let nodes: Vec<SpfNode> = distances.iter().map(|(id, d)| SpfNode {
-        system_id: id.clone(),
-        pseudonode: false,
-        distance: *d,
-        parent: parent.get(id).and_then(|p| p.clone()),
-    }).collect();
+    let nodes: Vec<SpfNode> = distances
+        .iter()
+        .map(|(id, d)| SpfNode {
+            system_id: id.clone(),
+            pseudonode: false,
+            distance: *d,
+            parent: parent.get(id).and_then(|p| p.clone()),
+        })
+        .collect();
 
     // Extract routes from node LSPs (IP reachability TLVs)
     let mut routes = Vec::new();
@@ -143,12 +159,24 @@ mod tests {
     use time::OffsetDateTime;
 
     fn make_entry(system_id: &str, neighbors: Vec<(&str, u32)>, prefixes: Vec<&str>) -> LspEntry {
-        let extended: Vec<ExtendedNeighbor> = neighbors.iter().map(|(id, m)| ExtendedNeighbor {
-            system_id: id.to_string(), metric: *m, pseudonode_id: 0,
-        }).collect();
-        let ip_reach: Vec<IpReachEntry> = prefixes.iter().map(|p| IpReachEntry {
-            prefix: p.to_string(), metric: 0, up_down: false, sub_tlv: false, prefix_len: 24,
-        }).collect();
+        let extended: Vec<ExtendedNeighbor> = neighbors
+            .iter()
+            .map(|(id, m)| ExtendedNeighbor {
+                system_id: id.to_string(),
+                metric: *m,
+                pseudonode_id: 0,
+            })
+            .collect();
+        let ip_reach: Vec<IpReachEntry> = prefixes
+            .iter()
+            .map(|p| IpReachEntry {
+                prefix: p.to_string(),
+                metric: 0,
+                up_down: false,
+                sub_tlv: false,
+                prefix_len: 24,
+            })
+            .collect();
 
         let mut tlvs = vec![IsisTlv::ExtendedIsReachability(extended)];
         if !ip_reach.is_empty() {
@@ -157,8 +185,12 @@ mod tests {
         let now = OffsetDateTime::now_utc();
         LspEntry {
             lsp_id: LspId::new(system_id, 0, 0),
-            sequence_number: 1, remaining_lifetime_secs: 1200, checksum: 0,
-            tlvs, received_at: now, expires_at: now + time::Duration::seconds(1200),
+            sequence_number: 1,
+            remaining_lifetime_secs: 1200,
+            checksum: 0,
+            tlvs,
+            received_at: now,
+            expires_at: now + time::Duration::seconds(1200),
         }
     }
 
@@ -175,8 +207,16 @@ mod tests {
     #[test]
     fn spf_triangle_topology() {
         let mut db = LspDatabase::new();
-        db.insert(make_entry("A", vec![("B", 10), ("C", 20)], vec!["10.0.0.0/24"]));
-        db.insert(make_entry("B", vec![("A", 10), ("C", 10)], vec!["10.0.1.0/24"]));
+        db.insert(make_entry(
+            "A",
+            vec![("B", 10), ("C", 20)],
+            vec!["10.0.0.0/24"],
+        ));
+        db.insert(make_entry(
+            "B",
+            vec![("A", 10), ("C", 10)],
+            vec!["10.0.1.0/24"],
+        ));
         db.insert(make_entry("C", vec![("A", 20), ("B", 10)], vec![]));
         let result = compute_spf(&db, "A");
         let b = result.nodes.iter().find(|n| n.system_id == "B").unwrap();

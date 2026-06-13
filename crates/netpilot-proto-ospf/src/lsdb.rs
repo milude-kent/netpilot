@@ -40,6 +40,10 @@ impl Lsdb {
         self.lsas.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.lsas.is_empty()
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = (&String, &LsaEntry)> {
         self.lsas.iter()
     }

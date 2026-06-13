@@ -1,12 +1,12 @@
 use async_trait::async_trait;
-use std::collections::HashMap;
 use netpilot_config::ProtocolConfig;
-use netpilot_protocol::{ProtocolActor, ProtocolMsg};
 use netpilot_protocol::actor::ProtocolError;
 use netpilot_protocol::event::{ProtocolEvent, ProtocolState, ProtocolStats, RouteAttributes};
-use tokio::sync::mpsc;
+use netpilot_protocol::{ProtocolActor, ProtocolMsg};
+use std::collections::HashMap;
 use tokio::select;
-use tokio::time::{interval, Duration, MissedTickBehavior};
+use tokio::sync::mpsc;
+use tokio::time::{Duration, MissedTickBehavior, interval};
 
 pub struct LdpActor {
     name: String,
@@ -15,6 +15,12 @@ pub struct LdpActor {
     stats: ProtocolStats,
     event_tx: Option<tokio::sync::broadcast::Sender<ProtocolEvent>>,
     pub label_bindings: HashMap<String, u32>, // prefix -> label
+}
+
+impl Default for LdpActor {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl LdpActor {
@@ -57,7 +63,10 @@ impl LdpActor {
 
     /// Periodic label distribution: send label mappings to peers.
     pub fn distribute_labels(&self) -> Vec<(&str, u32)> {
-        self.label_bindings.iter().map(|(p, l)| (p.as_str(), *l)).collect()
+        self.label_bindings
+            .iter()
+            .map(|(p, l)| (p.as_str(), *l))
+            .collect()
     }
 }
 

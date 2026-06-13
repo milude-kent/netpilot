@@ -18,6 +18,12 @@ pub struct BgpActor {
     handles: Vec<tokio::task::JoinHandle<()>>,
 }
 
+impl Default for BgpActor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BgpActor {
     pub fn new() -> Self {
         Self {
@@ -65,13 +71,7 @@ impl ProtocolActor for BgpActor {
             self.local_asn = *local_asn;
             self.neighbors = neighbors
                 .iter()
-                .map(|n| {
-                    (
-                        n.remote_address.clone(),
-                        n.remote_asn,
-                        n.name.clone(),
-                    )
-                })
+                .map(|n| (n.remote_address.clone(), n.remote_asn, n.name.clone()))
                 .collect();
         }
 
@@ -147,7 +147,10 @@ impl ProtocolActor for BgpActor {
                             if let Some(ref tx) = tx {
                                 let _ = tx.send(ProtocolEvent::Error {
                                     protocol_name: name.clone(),
-                                    message: format!("BGP peer {} failed: {}, retry in {}s", neighbor_name, e, retry_delay),
+                                    message: format!(
+                                        "BGP peer {} failed: {}, retry in {}s",
+                                        neighbor_name, e, retry_delay
+                                    ),
                                 });
                             }
                         }

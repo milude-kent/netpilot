@@ -1,8 +1,8 @@
+use crate::event::{ProtocolEvent, ProtocolStatus};
 use async_trait::async_trait;
 use netpilot_config::ProtocolConfig;
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
-use crate::event::{ProtocolEvent, ProtocolStatus};
 
 #[async_trait]
 pub trait ProtocolActor: Send + 'static {
@@ -18,14 +18,24 @@ pub trait ProtocolActor: Send + 'static {
 }
 
 #[derive(Debug)]
+// Variants carry full protocol configuration on Reload so the message
+// crosses the actor boundary without back-references to a shared store.
+// ProtocolMsg only travels through mpsc::Sender, so the per-variant size
+// delta does not propagate to a hot stack path.
+#[allow(clippy::large_enum_variant)]
 pub enum ProtocolMsg {
-    Reload { config: ProtocolConfig, scope: ReloadScope },
+    Reload {
+        config: ProtocolConfig,
+        scope: ReloadScope,
+    },
     Enable,
     Disable,
     Restart,
     GracefulRestart,
     Shutdown,
-    StatusQuery { reply: oneshot::Sender<ProtocolStatus> },
+    StatusQuery {
+        reply: oneshot::Sender<ProtocolStatus>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

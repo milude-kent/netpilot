@@ -23,7 +23,13 @@ pub struct Adjacency {
 }
 
 impl Adjacency {
-    pub fn new(neighbor_system_id: &str, interface: &str, level: IsisLevel, local_system_id: &str, holding_time_secs: u32) -> Self {
+    pub fn new(
+        neighbor_system_id: &str,
+        interface: &str,
+        level: IsisLevel,
+        local_system_id: &str,
+        holding_time_secs: u32,
+    ) -> Self {
         Self {
             neighbor_system_id: neighbor_system_id.to_string(),
             interface: interface.to_string(),
@@ -105,7 +111,13 @@ mod tests {
 
     #[test]
     fn adjacency_down_to_init_on_hello() {
-        let mut adj = Adjacency::new("1920.0000.0002", "eth0", IsisLevel::Level2, "1920.0000.0001", 30);
+        let mut adj = Adjacency::new(
+            "1920.0000.0002",
+            "eth0",
+            IsisLevel::Level2,
+            "1920.0000.0001",
+            30,
+        );
         assert_eq!(adj.state, AdjacencyState::Down);
         let state = adj.process_hello(&make_iih(false));
         assert_eq!(state, AdjacencyState::Init);
@@ -113,7 +125,13 @@ mod tests {
 
     #[test]
     fn adjacency_init_to_up_when_seen() {
-        let mut adj = Adjacency::new("1920.0000.0002", "eth0", IsisLevel::Level2, "1920.0000.0001", 30);
+        let mut adj = Adjacency::new(
+            "1920.0000.0002",
+            "eth0",
+            IsisLevel::Level2,
+            "1920.0000.0001",
+            30,
+        );
         adj.process_hello(&make_iih(false)); // Down → Init
         let state = adj.process_hello(&make_iih(true)); // Init → Up
         assert_eq!(state, AdjacencyState::Up);
@@ -121,9 +139,15 @@ mod tests {
 
     #[test]
     fn adjacency_expires_on_holding_timer() {
-        let mut adj = Adjacency::new("1920.0000.0002", "eth0", IsisLevel::Level2, "1920.0000.0001", 1);
+        let mut adj = Adjacency::new(
+            "1920.0000.0002",
+            "eth0",
+            IsisLevel::Level2,
+            "1920.0000.0001",
+            1,
+        );
         adj.process_hello(&make_iih(false)); // Down → Init
-        adj.process_hello(&make_iih(true));  // Init → Up
+        adj.process_hello(&make_iih(true)); // Init → Up
         assert_eq!(adj.state, AdjacencyState::Up);
         // Override timer to 1 — IIH packets refresh it to 30
         adj.holding_timer_remaining_secs = 1;

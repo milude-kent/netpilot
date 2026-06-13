@@ -1,5 +1,5 @@
-use async_trait::async_trait;
 use crate::packet::EigrpPacket;
+use async_trait::async_trait;
 
 #[derive(Debug, thiserror::Error)]
 pub enum TransportError {
@@ -22,7 +22,13 @@ pub struct LoopbackTransport {
 impl LoopbackTransport {
     pub fn new_pair() -> (Self, tokio::sync::mpsc::Sender<(String, EigrpPacket)>) {
         let (tx, rx) = tokio::sync::mpsc::channel(64);
-        (Self { queue: rx, sender: tx.clone() }, tx)
+        (
+            Self {
+                queue: rx,
+                sender: tx.clone(),
+            },
+            tx,
+        )
     }
 }
 
@@ -33,6 +39,9 @@ impl EigrpTransport for LoopbackTransport {
         Ok(())
     }
     async fn recv(&mut self) -> Result<(String, EigrpPacket), TransportError> {
-        self.queue.recv().await.ok_or(TransportError::Socket("channel closed".into()))
+        self.queue
+            .recv()
+            .await
+            .ok_or(TransportError::Socket("channel closed".into()))
     }
 }

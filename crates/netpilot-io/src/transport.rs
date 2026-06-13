@@ -21,10 +21,17 @@ impl RawSocket {
             use socket2::{Domain, Protocol, Type};
             let socket = socket2::Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::from(89)))
                 .map_err(|e| TransportError::Socket(e.to_string()))?;
-            socket.set_nonblocking(true).map_err(|e| TransportError::Socket(e.to_string()))?;
-            return Ok(Self { socket: Some(socket) });
+            socket
+                .set_nonblocking(true)
+                .map_err(|e| TransportError::Socket(e.to_string()))?;
+            return Ok(Self {
+                socket: Some(socket),
+            });
         }
-        Ok(Self { #[cfg(target_os = "linux")] socket: None })
+        Ok(Self {
+            #[cfg(target_os = "linux")]
+            socket: None,
+        })
     }
 
     /// Send raw bytes on the socket.
@@ -33,7 +40,8 @@ impl RawSocket {
         {
             if let Some(ref socket) = self.socket {
                 use std::io::Write;
-                let mut stream = std::net::TcpStream::connect("127.0.0.1:0").unwrap_or_else(|_| unreachable!());
+                let mut stream =
+                    std::net::TcpStream::connect("127.0.0.1:0").unwrap_or_else(|_| unreachable!());
                 // Real implementation uses send_to with destination address
                 return Ok(0);
             }

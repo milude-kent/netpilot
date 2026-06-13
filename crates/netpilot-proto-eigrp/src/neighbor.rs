@@ -8,15 +8,21 @@ pub struct EigrpNeighbor {
     pub autonomous_system: u32,
     pub hold_time_secs: u16,
     pub hold_time_remaining_secs: u16,
-    pub srtt_ms: u32,             // smooth round-trip time
-    pub rto_ms: u32,              // retransmission timeout
-    pub sequence_number: u32,     // last sequence sent
+    pub srtt_ms: u32,         // smooth round-trip time
+    pub rto_ms: u32,          // retransmission timeout
+    pub sequence_number: u32, // last sequence sent
     pub last_hello_received: Option<OffsetDateTime>,
     pub is_up: bool,
 }
 
 impl EigrpNeighbor {
-    pub fn new(router_id: &str, interface: &str, address: &str, asn: u32, hold_time_secs: u16) -> Self {
+    pub fn new(
+        router_id: &str,
+        interface: &str,
+        address: &str,
+        asn: u32,
+        hold_time_secs: u16,
+    ) -> Self {
         Self {
             router_id: router_id.to_string(),
             interface: interface.to_string(),
@@ -57,7 +63,9 @@ pub struct NeighborTable {
 }
 
 impl NeighborTable {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn get(&self, router_id: &str) -> Option<&EigrpNeighbor> {
         self.neighbors.get(router_id)
@@ -75,7 +83,13 @@ impl NeighborTable {
         self.neighbors.values().filter(|n| n.is_up)
     }
 
-    pub fn len(&self) -> usize { self.neighbors.len() }
+    pub fn len(&self) -> usize {
+        self.neighbors.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.neighbors.is_empty()
+    }
 
     pub fn tick_all(&mut self) -> Vec<String> {
         let mut down = Vec::new();

@@ -388,8 +388,15 @@ impl AsPath {
         self.segments.iter().map(|seg| seg.len()).sum()
     }
 
-    pub fn empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    /// Deprecated alias of [`Self::is_empty`]; retained for callers that
+    /// have not yet migrated to the standard name.
+    #[deprecated(note = "use is_empty()")]
+    pub fn empty(&self) -> bool {
+        self.is_empty()
     }
 
     pub fn prepend(&mut self, asn: u32) {

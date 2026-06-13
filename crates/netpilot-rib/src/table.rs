@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use crate::route::{RouteEntry, RouteKey};
 use crate::selection::select_best;
+use std::collections::HashMap;
 
 /// Per-table route storage with best-route selection.
 #[derive(Clone, Debug, Default)]
@@ -15,7 +15,12 @@ pub struct RouteTable {
 
 impl RouteTable {
     pub fn new(name: &str) -> Self {
-        Self { name: name.to_string(), routes: HashMap::new(), selected: HashMap::new(), route_count: 0 }
+        Self {
+            name: name.to_string(),
+            routes: HashMap::new(),
+            selected: HashMap::new(),
+            route_count: 0,
+        }
     }
 
     /// Insert a route. Runs best-route selection after insert.
@@ -28,7 +33,9 @@ impl RouteTable {
         if let Some(best) = select_best(entries) {
             self.selected.insert(key.clone(), best.clone());
         }
-        self.selected.get(&key).unwrap_or_else(|| entries.last().unwrap())
+        self.selected
+            .get(&key)
+            .unwrap_or_else(|| entries.last().unwrap())
     }
 
     /// Remove all routes from a protocol for a given key. Returns count removed.
@@ -45,7 +52,9 @@ impl RouteTable {
                 self.selected.insert(key.clone(), best.clone());
             }
             removed
-        } else { 0 }
+        } else {
+            0
+        }
     }
 
     /// Look up the selected route for a key.
@@ -58,5 +67,11 @@ impl RouteTable {
         self.selected.values()
     }
 
-    pub fn len(&self) -> usize { self.selected.len() }
+    pub fn len(&self) -> usize {
+        self.selected.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.selected.is_empty()
+    }
 }

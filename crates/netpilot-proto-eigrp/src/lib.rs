@@ -1,15 +1,15 @@
+pub mod actor;
 pub mod config;
+pub mod dual;
+pub mod neighbor;
 pub mod packet;
 pub mod tlv;
-pub mod neighbor;
-pub mod dual;
 pub mod transport;
-pub mod actor;
 
-pub use config::{EigrpConfig, EigrpInterfaceConfig, KValues};
-pub use packet::{EigrpPacket, EigrpHeader, EigrpOpcode, EigrpFlags};
-pub use tlv::{EigrpTlv, Params, IpInternalRoute, IpExternalRoute, EigrpMetric};
-pub use neighbor::{EigrpNeighbor, NeighborTable};
-pub use dual::{TopologyTable, TopologyEntry, DualResult, DualState};
-pub use transport::{EigrpTransport, LoopbackTransport, TransportError};
 pub use actor::EigrpActor;
+pub use config::{EigrpConfig, EigrpInterfaceConfig, KValues};
+pub use dual::{DualResult, DualState, TopologyEntry, TopologyTable};
+pub use neighbor::{EigrpNeighbor, NeighborTable};
+pub use packet::{EigrpFlags, EigrpHeader, EigrpOpcode, EigrpPacket};
+pub use tlv::{EigrpMetric, EigrpTlv, IpExternalRoute, IpInternalRoute, Params};
+pub use transport::{EigrpTransport, LoopbackTransport, TransportError};

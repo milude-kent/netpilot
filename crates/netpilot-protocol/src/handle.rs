@@ -1,7 +1,7 @@
-use netpilot_config::ProtocolConfig;
-use tokio::sync::{mpsc, oneshot};
 use crate::actor::{ProtocolError, ProtocolMsg, ReloadScope};
 use crate::event::ProtocolStatus;
+use netpilot_config::ProtocolConfig;
+use tokio::sync::{mpsc, oneshot};
 
 #[derive(Clone, Debug)]
 pub struct ProtocolHandle {

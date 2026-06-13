@@ -252,8 +252,8 @@ fn bgppath_construct_and_access() {
 
     // .empty
     let empty_path = AsPath { segments: vec![] };
-    assert!(empty_path.empty());
-    assert!(!path.empty());
+    assert!(empty_path.is_empty());
+    assert!(!path.is_empty());
 }
 
 #[test]

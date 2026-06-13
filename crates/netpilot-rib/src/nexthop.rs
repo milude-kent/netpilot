@@ -10,23 +10,31 @@ impl NextHopResolver {
     /// Resolve all next-hops for a route entry. If a next-hop's gateway
     /// has a route in the same table, use that route's next-hop (recursive lookup).
     pub fn resolve(&self, entry: &RouteEntry, table: &crate::table::RouteTable) -> Vec<NextHop> {
-        entry.next_hops.iter().map(|nh| {
-            // Check if the gateway is directly reachable via a connected/static route
-            let gw_key = RouteKey::prefix(&format!("{}/32", nh.gateway));
-            if let Some(gw_route) = table.lookup(&gw_key) {
-                // Recursive: use the gateway's next-hop
-                if let Some(first) = gw_route.next_hops.first() {
-                    return NextHop {
-                        gateway: first.gateway.clone(),
-                        interface: first.interface.clone().or(nh.interface.clone()),
-                        weight: nh.weight,
-                        mpls_labels: gw_route.mpls_label.iter()
-                            .chain(nh.mpls_labels.iter()).copied().collect(),
-                    };
+        entry
+            .next_hops
+            .iter()
+            .map(|nh| {
+                // Check if the gateway is directly reachable via a connected/static route
+                let gw_key = RouteKey::prefix(&format!("{}/32", nh.gateway));
+                if let Some(gw_route) = table.lookup(&gw_key) {
+                    // Recursive: use the gateway's next-hop
+                    if let Some(first) = gw_route.next_hops.first() {
+                        return NextHop {
+                            gateway: first.gateway.clone(),
+                            interface: first.interface.clone().or(nh.interface.clone()),
+                            weight: nh.weight,
+                            mpls_labels: gw_route
+                                .mpls_label
+                                .iter()
+                                .chain(nh.mpls_labels.iter())
+                                .copied()
+                                .collect(),
+                        };
+                    }
                 }
-            }
-            nh.clone()
-        }).collect()
+                nh.clone()
+            })
+            .collect()
     }
 }
 

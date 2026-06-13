@@ -1,4 +1,4 @@
-use tokio::time::{interval, Duration, Interval, MissedTickBehavior};
+use tokio::time::{Duration, Interval, MissedTickBehavior, interval};
 
 /// IS-IS protocol timers.
 pub struct IsisTimers {

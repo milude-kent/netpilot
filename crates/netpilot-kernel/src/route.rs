@@ -90,8 +90,8 @@ impl KernelRouteClient {
     pub async fn new() -> Result<Self, KernelError> {
         #[cfg(target_os = "linux")]
         {
-            let (connection, handle, _) = rtnetlink::new_connection()
-                .map_err(|e| KernelError::Netlink(e.to_string()))?;
+            let (connection, handle, _) =
+                rtnetlink::new_connection().map_err(|e| KernelError::Netlink(e.to_string()))?;
             tokio::spawn(connection);
             return Ok(Self { handle });
         }
@@ -103,8 +103,8 @@ impl KernelRouteClient {
     pub async fn add(&self, route: &KernelRoute) -> Result<(), KernelError> {
         #[cfg(target_os = "linux")]
         {
-            use netlink_packet_route::route::RouteAddress;
             use netlink_packet_route::AddressFamily;
+            use netlink_packet_route::route::RouteAddress;
             use std::net::Ipv4Addr;
 
             let mut msg = rtnetlink::packet::RouteMessage::default();
@@ -154,7 +154,9 @@ impl KernelRouteClient {
             // Set metric if specified
             if let Some(metric) = route.metric {
                 msg.attributes
-                    .push(netlink_packet_route::route::RouteAttribute::Priority(metric));
+                    .push(netlink_packet_route::route::RouteAttribute::Priority(
+                        metric,
+                    ));
             }
 
             self.handle
@@ -194,7 +196,11 @@ impl KernelRouteClient {
             use futures::TryStreamExt;
             let mut routes = Vec::new();
             let mut stream = self.handle.route().get(rtnetlink::IpVersion::V4).execute();
-            while let Some(msg) = stream.try_next().await.map_err(|e| KernelError::Netlink(e.to_string()))? {
+            while let Some(msg) = stream
+                .try_next()
+                .await
+                .map_err(|e| KernelError::Netlink(e.to_string()))?
+            {
                 routes.push(KernelRoute::new("0.0.0.0/0"));
             }
             return Ok(routes);

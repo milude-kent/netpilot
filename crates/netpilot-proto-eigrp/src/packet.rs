@@ -3,7 +3,7 @@ use crate::tlv::EigrpTlv;
 /// EIGRP packet header (20 bytes fixed + TLVs).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EigrpHeader {
-    pub version: u8,          // 2
+    pub version: u8, // 2
     pub opcode: EigrpOpcode,
     pub checksum: u16,
     pub flags: u32,
@@ -23,10 +23,23 @@ pub enum EigrpOpcode {
 
 impl EigrpOpcode {
     pub fn from_u8(v: u8) -> Option<Self> {
-        match v { 5 => Some(Self::Hello), 1 => Some(Self::Update), 3 => Some(Self::Query), 4 => Some(Self::Reply), 8 => Some(Self::Ack), _ => None }
+        match v {
+            5 => Some(Self::Hello),
+            1 => Some(Self::Update),
+            3 => Some(Self::Query),
+            4 => Some(Self::Reply),
+            8 => Some(Self::Ack),
+            _ => None,
+        }
     }
     pub fn to_u8(&self) -> u8 {
-        match self { Self::Hello => 5, Self::Update => 1, Self::Query => 3, Self::Reply => 4, Self::Ack => 8 }
+        match self {
+            Self::Hello => 5,
+            Self::Update => 1,
+            Self::Query => 3,
+            Self::Reply => 4,
+            Self::Ack => 8,
+        }
     }
 }
 

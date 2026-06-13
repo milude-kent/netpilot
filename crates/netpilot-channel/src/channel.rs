@@ -76,11 +76,11 @@ impl ProtocolChannel {
     /// In the full implementation, this runs the import filter VM.
     pub fn import_filter(&mut self, route: &RouteEntry) -> Option<RouteEntry> {
         // Check import limit
-        if let Some(limit) = self.import_limit {
-            if self.stats.imported >= limit as u64 {
-                self.stats.filtered_imports += 1;
-                return None;
-            }
+        if let Some(limit) = self.import_limit
+            && self.stats.imported >= limit as u64
+        {
+            self.stats.filtered_imports += 1;
+            return None;
         }
         if !self.evaluate_import(route) {
             self.stats.filtered_imports += 1;
@@ -92,11 +92,11 @@ impl ProtocolChannel {
 
     /// Apply export processing. Returns Some(route) if the route should be exported.
     pub fn export_filter(&mut self, route: &RouteEntry) -> Option<RouteEntry> {
-        if let Some(limit) = self.export_limit {
-            if self.stats.exported >= limit as u64 {
-                self.stats.filtered_exports += 1;
-                return None;
-            }
+        if let Some(limit) = self.export_limit
+            && self.stats.exported >= limit as u64
+        {
+            self.stats.filtered_exports += 1;
+            return None;
         }
         if !self.evaluate_export(route) {
             self.stats.filtered_exports += 1;

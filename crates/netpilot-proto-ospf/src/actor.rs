@@ -5,7 +5,7 @@ use netpilot_protocol::event::{ProtocolEvent, ProtocolState, ProtocolStats, Rout
 use netpilot_protocol::{ProtocolActor, ProtocolMsg};
 use tokio::select;
 use tokio::sync::mpsc;
-use tokio::time::{interval, Duration, MissedTickBehavior};
+use tokio::time::{Duration, MissedTickBehavior, interval};
 
 use crate::lsdb::Lsdb;
 
@@ -19,6 +19,12 @@ pub struct OspfActor {
     state: ProtocolState,
     stats: ProtocolStats,
     event_tx: Option<tokio::sync::broadcast::Sender<ProtocolEvent>>,
+}
+
+impl Default for OspfActor {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl OspfActor {

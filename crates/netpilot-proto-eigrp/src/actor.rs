@@ -1,15 +1,15 @@
 use async_trait::async_trait;
 use netpilot_config::ProtocolConfig;
-use netpilot_protocol::{ProtocolActor, ProtocolMsg};
 use netpilot_protocol::actor::ProtocolError;
 use netpilot_protocol::event::{ProtocolEvent, ProtocolState, ProtocolStats, RouteAttributes};
-use tokio::sync::mpsc;
+use netpilot_protocol::{ProtocolActor, ProtocolMsg};
 use tokio::select;
-use tokio::time::{interval, Duration, MissedTickBehavior};
+use tokio::sync::mpsc;
+use tokio::time::{Duration, MissedTickBehavior, interval};
 
 use crate::config::EigrpConfig;
-use crate::neighbor::NeighborTable;
 use crate::dual::TopologyTable;
+use crate::neighbor::NeighborTable;
 use crate::transport::EigrpTransport;
 
 pub struct EigrpActor {
@@ -56,16 +56,29 @@ impl EigrpActor {
     }
 
     fn extract_config(&mut self, config: &ProtocolConfig) {
-        if let ProtocolConfig::Eigrp { table, autonomous_system, router_id, interfaces, k_values, maximum_paths, variance, .. } = config {
-            let ifaces: Vec<crate::config::EigrpInterfaceConfig> = interfaces.iter().map(|i| crate::config::EigrpInterfaceConfig {
-                interface: i.interface.clone(),
-                hello_interval_secs: i.hello_interval_secs,
-                hold_time_secs: i.hold_time_secs,
-                bandwidth_kbps: i.bandwidth_kbps,
-                delay_tens_of_microseconds: i.delay_tens_of_microseconds,
-                passive: i.passive,
-                split_horizon: i.split_horizon,
-            }).collect();
+        if let ProtocolConfig::Eigrp {
+            table,
+            autonomous_system,
+            router_id,
+            interfaces,
+            k_values,
+            maximum_paths,
+            variance,
+            ..
+        } = config
+        {
+            let ifaces: Vec<crate::config::EigrpInterfaceConfig> = interfaces
+                .iter()
+                .map(|i| crate::config::EigrpInterfaceConfig {
+                    interface: i.interface.clone(),
+                    hello_interval_secs: i.hello_interval_secs,
+                    hold_time_secs: i.hold_time_secs,
+                    bandwidth_kbps: i.bandwidth_kbps,
+                    delay_tens_of_microseconds: i.delay_tens_of_microseconds,
+                    passive: i.passive,
+                    split_horizon: i.split_horizon,
+                })
+                .collect();
             self.interfaces = ifaces.clone();
             self.as_number = *autonomous_system;
             self.config.table = table.clone();
@@ -188,20 +201,20 @@ impl EigrpActor {
     async fn route_tick(&mut self) {
         // Run DUAL on each topology entry and announce reachable routes
         for entry in self.topology.iter() {
-            if let Some(ref successor) = entry.via_neighbor {
-                if self.neighbors.get(successor).map_or(false, |n| n.is_up) {
-                    self.emit(ProtocolEvent::RouteAnnounce {
-                        table: self.config.table.clone(),
-                        prefix: entry.prefix.clone(),
-                        next_hop: successor.clone(),
-                        preference: 90, // EIGRP internal
-                        attributes: RouteAttributes {
-                            metric: Some(entry.metric.composite()),
-                            ..Default::default()
-                        },
-                    });
-                    self.stats.routes_exported += 1;
-                }
+            if let Some(ref successor) = entry.via_neighbor
+                && self.neighbors.get(successor).is_some_and(|n| n.is_up)
+            {
+                self.emit(ProtocolEvent::RouteAnnounce {
+                    table: self.config.table.clone(),
+                    prefix: entry.prefix.clone(),
+                    next_hop: successor.clone(),
+                    preference: 90, // EIGRP internal
+                    attributes: RouteAttributes {
+                        metric: Some(entry.metric.composite()),
+                        ..Default::default()
+                    },
+                });
+                self.stats.routes_exported += 1;
             }
         }
     }

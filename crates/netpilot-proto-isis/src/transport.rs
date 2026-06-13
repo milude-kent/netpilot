@@ -1,5 +1,5 @@
-use async_trait::async_trait;
 use crate::packet::IsisPacket;
+use async_trait::async_trait;
 
 #[derive(Debug, thiserror::Error)]
 pub enum TransportError {
@@ -61,7 +61,13 @@ pub struct LoopbackTransport {
 impl LoopbackTransport {
     pub fn new_pair() -> (Self, tokio::sync::mpsc::Sender<(String, IsisPacket)>) {
         let (tx, rx) = tokio::sync::mpsc::channel(64);
-        (Self { queue: rx, sender: tx.clone() }, tx)
+        (
+            Self {
+                queue: rx,
+                sender: tx.clone(),
+            },
+            tx,
+        )
     }
 }
 
@@ -75,7 +81,9 @@ impl IsisTransport for LoopbackTransport {
     }
 
     async fn recv(&mut self) -> Result<(String, IsisPacket), TransportError> {
-        self.queue.recv().await
+        self.queue
+            .recv()
+            .await
             .ok_or(TransportError::Socket("channel closed".into()))
     }
 }

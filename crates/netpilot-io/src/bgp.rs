@@ -1,6 +1,6 @@
+use time::OffsetDateTime;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use time::OffsetDateTime;
 
 /// BGP message types
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -27,11 +27,23 @@ pub enum BgpMessage {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BgpCapability {
-    Multiprotocol { afi: u16, safi: u8 },
+    Multiprotocol {
+        afi: u16,
+        safi: u8,
+    },
     RouteRefresh,
-    GracefulRestart { flags: u8, time_secs: u16 },
-    FourOctetAsn { asn: u32 },
-    AddPath { afi: u16, safi: u8, send_receive: u8 },
+    GracefulRestart {
+        flags: u8,
+        time_secs: u16,
+    },
+    FourOctetAsn {
+        asn: u32,
+    },
+    AddPath {
+        afi: u16,
+        safi: u8,
+        send_receive: u8,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -83,7 +95,8 @@ impl BgpSession {
     pub async fn connect(&mut self) -> Result<(), BgpError> {
         self.state = BgpSessionState::Connect;
         let addr = format!("{}:179", self.peer_address);
-        let stream = TcpStream::connect(&addr).await
+        let stream = TcpStream::connect(&addr)
+            .await
             .map_err(|e| BgpError::Connection(e.to_string()))?;
         self.stream = Some(stream);
 
@@ -123,7 +136,9 @@ impl BgpSession {
             bgp_identifier: "0.0.0.0".to_string(),
             capabilities: vec![
                 BgpCapability::Multiprotocol { afi: 1, safi: 1 }, // IPv4 unicast
-                BgpCapability::FourOctetAsn { asn: self.local_asn },
+                BgpCapability::FourOctetAsn {
+                    asn: self.local_asn,
+                },
                 BgpCapability::RouteRefresh,
             ],
         }
@@ -135,14 +150,27 @@ impl BgpSession {
         // Marker (16 bytes of 0xFF)
         buf.extend_from_slice(&[0xFFu8; 16]);
         match msg {
-            BgpMessage::Open { version, asn, hold_time_secs, bgp_identifier, capabilities } => {
+            BgpMessage::Open {
+                version,
+                asn,
+                hold_time_secs,
+                bgp_identifier,
+                capabilities,
+            } => {
                 let mut body = Vec::new();
                 body.push(*version);
                 body.extend_from_slice(&asn.to_be_bytes());
                 body.extend_from_slice(&hold_time_secs.to_be_bytes());
                 // BGP identifier (4 bytes)
-                let octets: Vec<u8> = bgp_identifier.split('.').filter_map(|s| s.parse().ok()).collect();
-                body.extend_from_slice(if octets.len() >= 4 { &octets[..4] } else { &[0,0,0,0] });
+                let octets: Vec<u8> = bgp_identifier
+                    .split('.')
+                    .filter_map(|s| s.parse().ok())
+                    .collect();
+                body.extend_from_slice(if octets.len() >= 4 {
+                    &octets[..4]
+                } else {
+                    &[0, 0, 0, 0]
+                });
                 body.push(0); // opt param len
                 // Capabilities
                 let mut caps = Vec::new();
@@ -154,7 +182,9 @@ impl BgpSession {
                             caps.push(0);
                             caps.push(*safi);
                         }
-                        BgpCapability::RouteRefresh => { caps.extend_from_slice(&[2, 0]); }
+                        BgpCapability::RouteRefresh => {
+                            caps.extend_from_slice(&[2, 0]);
+                        }
                         BgpCapability::FourOctetAsn { asn } => {
                             caps.extend_from_slice(&[65, 4]);
                             caps.extend_from_slice(&asn.to_be_bytes());
@@ -186,14 +216,16 @@ impl BgpSession {
 
     /// Decode a BGP message from wire format.
     pub fn decode_message(data: &[u8]) -> Result<BgpMessage, BgpError> {
-        if data.len() < 19 { return Err(BgpError::Protocol("too short".into())); }
+        if data.len() < 19 {
+            return Err(BgpError::Protocol("too short".into()));
+        }
         let msg_type = data[18];
         match msg_type {
             1 => Ok(BgpMessage::Open {
                 version: data[19],
-                asn: u32::from_be_bytes([data[20],data[21],data[22],data[23]]),
-                hold_time_secs: u16::from_be_bytes([data[24],data[25]]),
-                bgp_identifier: format!("{}.{}.{}.{}", data[26],data[27],data[28],data[29]),
+                asn: u32::from_be_bytes([data[20], data[21], data[22], data[23]]),
+                hold_time_secs: u16::from_be_bytes([data[24], data[25]]),
+                bgp_identifier: format!("{}.{}.{}.{}", data[26], data[27], data[28], data[29]),
                 capabilities: vec![],
             }),
             2 => {
@@ -216,7 +248,11 @@ impl BgpSession {
         attributes: Vec<BgpAttribute>,
         nlri: Vec<String>,
     ) -> BgpMessage {
-        BgpMessage::Update { withdrawn_routes: withdrawn, path_attributes: attributes, nlri }
+        BgpMessage::Update {
+            withdrawn_routes: withdrawn,
+            path_attributes: attributes,
+            nlri,
+        }
     }
 
     /// Encode a full UPDATE message.
@@ -224,7 +260,12 @@ impl BgpSession {
         let mut buf = Vec::new();
         buf.extend_from_slice(&[0xFFu8; 16]); // marker
 
-        if let BgpMessage::Update { withdrawn_routes: _, path_attributes, nlri } = msg {
+        if let BgpMessage::Update {
+            withdrawn_routes: _,
+            path_attributes,
+            nlri,
+        } = msg
+        {
             let mut body = Vec::new();
 
             // Withdrawn routes length + data (simplified: empty for now)
@@ -248,7 +289,8 @@ impl BgpSession {
                 let len: u8 = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(32);
                 nlri_bytes.push(len);
                 // Add prefix bytes (simplified: 4 bytes for IPv4)
-                let ip_parts: Vec<u8> = parts[0].split('.').filter_map(|s| s.parse().ok()).collect();
+                let ip_parts: Vec<u8> =
+                    parts[0].split('.').filter_map(|s| s.parse().ok()).collect();
                 nlri_bytes.extend_from_slice(&ip_parts);
             }
             body.extend_from_slice(&nlri_bytes);
@@ -266,7 +308,8 @@ impl BgpSession {
     pub async fn send_keepalive(&mut self) -> Result<(), BgpError> {
         let data = Self::encode_message(&BgpMessage::Keepalive);
         if let Some(ref mut stream) = self.stream {
-            tokio::io::AsyncWriteExt::write_all(stream, &data).await
+            tokio::io::AsyncWriteExt::write_all(stream, &data)
+                .await
                 .map_err(|e| BgpError::Io(e.to_string()))?;
             self.messages_sent += 1;
         }
@@ -276,18 +319,35 @@ impl BgpSession {
     pub async fn send_update(&mut self, routes: &[String], next_hop: &str) -> Result<(), BgpError> {
         // Build NEXT_HOP attribute
         let nh_parts: Vec<u8> = next_hop.split('.').filter_map(|s| s.parse().ok()).collect();
-        let nh_attr = BgpAttribute { flags: 0x40, code: 3, value: nh_parts };
+        let nh_attr = BgpAttribute {
+            flags: 0x40,
+            code: 3,
+            value: nh_parts,
+        };
 
         // Build ORIGIN attribute (IGP)
-        let origin_attr = BgpAttribute { flags: 0x40, code: 1, value: vec![0] };
+        let origin_attr = BgpAttribute {
+            flags: 0x40,
+            code: 1,
+            value: vec![0],
+        };
 
         // Build AS_PATH attribute (empty for now)
-        let aspath_attr = BgpAttribute { flags: 0x40, code: 2, value: vec![] };
+        let aspath_attr = BgpAttribute {
+            flags: 0x40,
+            code: 2,
+            value: vec![],
+        };
 
-        let update = Self::build_update(vec![], vec![nh_attr, origin_attr, aspath_attr], routes.to_vec());
+        let update = Self::build_update(
+            vec![],
+            vec![nh_attr, origin_attr, aspath_attr],
+            routes.to_vec(),
+        );
         let data = Self::encode_update(&update);
         if let Some(ref mut stream) = self.stream {
-            tokio::io::AsyncWriteExt::write_all(stream, &data).await
+            tokio::io::AsyncWriteExt::write_all(stream, &data)
+                .await
                 .map_err(|e| BgpError::Io(e.to_string()))?;
             self.messages_sent += 1;
         }
@@ -297,7 +357,10 @@ impl BgpSession {
     async fn send_message(&mut self, msg: &BgpMessage) -> Result<(), BgpError> {
         let data = Self::encode_message(msg);
         if let Some(ref mut stream) = self.stream {
-            stream.write_all(&data).await.map_err(|e| BgpError::Io(e.to_string()))?;
+            stream
+                .write_all(&data)
+                .await
+                .map_err(|e| BgpError::Io(e.to_string()))?;
             self.messages_sent += 1;
         }
         Ok(())
@@ -306,11 +369,17 @@ impl BgpSession {
     pub async fn recv_message(&mut self) -> Result<BgpMessage, BgpError> {
         if let Some(ref mut stream) = self.stream {
             let mut header = vec![0u8; 19];
-            stream.read_exact(&mut header).await.map_err(|e| BgpError::Io(e.to_string()))?;
+            stream
+                .read_exact(&mut header)
+                .await
+                .map_err(|e| BgpError::Io(e.to_string()))?;
             let total_len = u16::from_be_bytes([header[16], header[17]]) as usize;
             let mut body = vec![0u8; total_len - 19];
             if !body.is_empty() {
-                stream.read_exact(&mut body).await.map_err(|e| BgpError::Io(e.to_string()))?;
+                stream
+                    .read_exact(&mut body)
+                    .await
+                    .map_err(|e| BgpError::Io(e.to_string()))?;
             }
             self.messages_received += 1;
             let mut full = header;
@@ -338,8 +407,11 @@ mod tests {
     #[test]
     fn encode_decode_open_message() {
         let open = BgpMessage::Open {
-            version: 4, asn: 65001, hold_time_secs: 180,
-            bgp_identifier: "192.0.2.1".into(), capabilities: vec![],
+            version: 4,
+            asn: 65001,
+            hold_time_secs: 180,
+            bgp_identifier: "192.0.2.1".into(),
+            capabilities: vec![],
         };
         let encoded = BgpSession::encode_message(&open);
         assert!(encoded.len() >= 29);
@@ -361,7 +433,11 @@ mod tests {
 
     #[test]
     fn encode_update_with_routes() {
-        let attr = BgpAttribute { flags: 0x40, code: 1, value: vec![0] };
+        let attr = BgpAttribute {
+            flags: 0x40,
+            code: 1,
+            value: vec![0],
+        };
         let update = BgpMessage::Update {
             withdrawn_routes: vec![],
             path_attributes: vec![attr],

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 RoutePlane Contributors
 
-/// AST for the RoutePlane filter language (BIRD-compatible).
-///
-/// Covers expressions, statements, filter functions, and the control-flow
-/// constructs (for-loop, case-statement) needed by milestone 1.
+//! AST for the RoutePlane filter language (BIRD-compatible).
+//!
+//! Covers expressions, statements, filter functions, and the control-flow
+//! constructs (for-loop, case-statement) needed by milestone 1.
 
 /// A filter-language expression.
 #[derive(Debug, Clone, PartialEq)]
@@ -139,16 +139,16 @@ pub enum BgpPathField {
 
 impl FilterFunction {
     pub fn validate_types(&self) -> Result<(), String> {
-        if let Some(ret) = &self.return_type {
-            if !is_valid_type_name(ret) {
-                return Err(format!("unknown return type: {ret}"));
-            }
+        if let Some(ret) = &self.return_type
+            && !is_valid_type_name(ret)
+        {
+            return Err(format!("unknown return type: {ret}"));
         }
         for (_, type_opt) in &self.params {
-            if let Some(t) = type_opt {
-                if !is_valid_type_name(t) {
-                    return Err(format!("unknown parameter type: {t}"));
-                }
+            if let Some(t) = type_opt
+                && !is_valid_type_name(t)
+            {
+                return Err(format!("unknown parameter type: {t}"));
             }
         }
         Ok(())

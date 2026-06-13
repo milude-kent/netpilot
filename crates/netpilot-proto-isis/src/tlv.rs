@@ -19,27 +19,37 @@ pub mod tlv_types {
 /// All supported IS-IS TLV variants.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum IsisTlv {
-    AreaAddresses(Vec<String>),                          // TLV 1
-    IsNeighbors(Vec<String>),                            // TLV 2
-    LanId { system_id: String, pseudonode_id: u8 },      // TLV 6
-    ProtocolsSupported(Vec<u8>),                          // TLV 129
-    IpInternalReachability(Vec<IpReachEntry>),            // TLV 128
-    IpExternalReachability(Vec<IpReachEntry>),            // TLV 130
-    ExtendedIsReachability(Vec<ExtendedNeighbor>),       // TLV 22
-    Ipv6Reachability(Vec<Ipv6ReachEntry>),               // TLV 236
-    Hostname(String),                                    // TLV 137
-    SrCapability { flags: u8, srgb_start: u32, srgb_end: u32 }, // TLV 242 sub-TLV
-    PrefixSid(PrefixSidEntry),                           // TLV 235
-    AdjacencySid(AdjacencySidEntry),                     // TLV 240
-    Unknown { type_code: u8, value: Vec<u8> },
+    AreaAddresses(Vec<String>), // TLV 1
+    IsNeighbors(Vec<String>),   // TLV 2
+    LanId {
+        system_id: String,
+        pseudonode_id: u8,
+    }, // TLV 6
+    ProtocolsSupported(Vec<u8>), // TLV 129
+    IpInternalReachability(Vec<IpReachEntry>), // TLV 128
+    IpExternalReachability(Vec<IpReachEntry>), // TLV 130
+    ExtendedIsReachability(Vec<ExtendedNeighbor>), // TLV 22
+    Ipv6Reachability(Vec<Ipv6ReachEntry>), // TLV 236
+    Hostname(String),           // TLV 137
+    SrCapability {
+        flags: u8,
+        srgb_start: u32,
+        srgb_end: u32,
+    }, // TLV 242 sub-TLV
+    PrefixSid(PrefixSidEntry),  // TLV 235
+    AdjacencySid(AdjacencySidEntry), // TLV 240
+    Unknown {
+        type_code: u8,
+        value: Vec<u8>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IpReachEntry {
     pub prefix: String,
     pub metric: u32,
-    pub up_down: bool,       // true = up (toward L2), false = down
-    pub sub_tlv: bool,       // has sub-TLVs
+    pub up_down: bool, // true = up (toward L2), false = down
+    pub sub_tlv: bool, // has sub-TLVs
     pub prefix_len: u8,
 }
 
@@ -145,12 +155,14 @@ fn parse_single_tlv(type_code: u8, value: &[u8]) -> IsisTlv {
             }
             IsisTlv::ExtendedIsReachability(neighbors)
         }
-        tlv_types::HOSTNAME => {
-            IsisTlv::Hostname(String::from_utf8_lossy(value).to_string())
-        }
+        tlv_types::HOSTNAME => IsisTlv::Hostname(String::from_utf8_lossy(value).to_string()),
         tlv_types::SR_CAPABILITY => {
             // Simplified: expect 2 bytes flags + 6 bytes SRGB
-            let flags = if value.len() >= 2 { u16::from_be_bytes([value[0], value[1]]) as u8 } else { 0 };
+            let flags = if value.len() >= 2 {
+                u16::from_be_bytes([value[0], value[1]]) as u8
+            } else {
+                0
+            };
             IsisTlv::SrCapability {
                 flags,
                 srgb_start: 16000,
@@ -208,10 +220,12 @@ fn encode_tlv(tlv: &IsisTlv) -> (u8, Vec<u8>) {
             }
             (tlv_types::EXTENDED_IS_REACHABILITY, v)
         }
-        IsisTlv::Hostname(name) => {
-            (tlv_types::HOSTNAME, name.as_bytes().to_vec())
-        }
-        IsisTlv::SrCapability { flags, srgb_start, srgb_end } => {
+        IsisTlv::Hostname(name) => (tlv_types::HOSTNAME, name.as_bytes().to_vec()),
+        IsisTlv::SrCapability {
+            flags,
+            srgb_start,
+            srgb_end,
+        } => {
             let mut v = Vec::new();
             v.push(*flags);
             v.push(0); // reserved
@@ -243,13 +257,20 @@ fn encode_tlv(tlv: &IsisTlv) -> (u8, Vec<u8>) {
 }
 
 fn hex_encode(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join("")
+    bytes
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<Vec<_>>()
+        .join("")
 }
 
 fn hex_decode(s: &str) -> Option<Vec<u8>> {
-    let s = s.replace('.', "").replace('-', "");
-    if s.len() % 2 != 0 { return None; }
-    (0..s.len()).step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i+2], 16).ok())
+    let s = s.replace(['.', '-'], "");
+    if !s.len().is_multiple_of(2) {
+        return None;
+    }
+    (0..s.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).ok())
         .collect()
 }

@@ -69,9 +69,11 @@ impl InterfaceWatcher {
     pub async fn new() -> Result<Self, KernelError> {
         #[cfg(target_os = "linux")]
         {
-            let (connection, _handle, _) = rtnetlink::new_connection()
-                .map_err(|e| KernelError::Netlink(e.to_string()))?;
-            return Ok(Self { connection: Some(connection) });
+            let (connection, _handle, _) =
+                rtnetlink::new_connection().map_err(|e| KernelError::Netlink(e.to_string()))?;
+            return Ok(Self {
+                connection: Some(connection),
+            });
         }
         Ok(Self {
             #[cfg(target_os = "linux")]
@@ -101,14 +103,21 @@ impl InterfaceWatcher {
     /// List all interfaces (snapshot).
     #[allow(unused_mut)]
     pub async fn list(&mut self) -> Result<Vec<InterfaceInfo>, KernelError> {
-        let mut ifaces = Vec::new();
-        ifaces.push(InterfaceInfo {
+        let ifaces = vec![InterfaceInfo {
             name: "lo".into(),
             index: 1,
-            flags: InterfaceFlags { up: true, running: true, loopback: true, ..Default::default() },
-            addresses: vec![IfaceAddress { prefix: "127.0.0.1/8".into(), scope: AddressScope::Host }],
+            flags: InterfaceFlags {
+                up: true,
+                running: true,
+                loopback: true,
+                ..Default::default()
+            },
+            addresses: vec![IfaceAddress {
+                prefix: "127.0.0.1/8".into(),
+                scope: AddressScope::Host,
+            }],
             mtu: Some(65536),
-        });
+        }];
         Ok(ifaces)
     }
 }

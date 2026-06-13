@@ -1,12 +1,12 @@
 use async_trait::async_trait;
-use std::collections::HashMap;
 use netpilot_config::ProtocolConfig;
-use netpilot_protocol::{ProtocolActor, ProtocolMsg};
 use netpilot_protocol::actor::ProtocolError;
 use netpilot_protocol::event::{ProtocolEvent, ProtocolState, ProtocolStats, RouteAttributes};
-use tokio::sync::mpsc;
+use netpilot_protocol::{ProtocolActor, ProtocolMsg};
+use std::collections::HashMap;
 use tokio::select;
-use tokio::time::{interval, Duration, MissedTickBehavior};
+use tokio::sync::mpsc;
+use tokio::time::{Duration, MissedTickBehavior, interval};
 
 pub struct RipActor {
     name: String,
@@ -15,6 +15,12 @@ pub struct RipActor {
     stats: ProtocolStats,
     event_tx: Option<tokio::sync::broadcast::Sender<ProtocolEvent>>,
     pub routing_table: HashMap<String, u32>,
+}
+
+impl Default for RipActor {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RipActor {
@@ -42,16 +48,19 @@ impl RipActor {
             let new_metric = (metric + 1).min(16);
             self.routing_table.insert(prefix.clone(), new_metric);
 
-            if new_metric < 16 {
-                if let Some(ref tx) = self.event_tx {
-                    let _ = tx.send(ProtocolEvent::RouteAnnounce {
-                        table: "rip".into(),
-                        prefix: prefix.clone(),
-                        next_hop: self.router_id.clone(),
-                        preference: 120,
-                        attributes: RouteAttributes { metric: Some(new_metric), ..Default::default() },
-                    });
-                }
+            if new_metric < 16
+                && let Some(ref tx) = self.event_tx
+            {
+                let _ = tx.send(ProtocolEvent::RouteAnnounce {
+                    table: "rip".into(),
+                    prefix: prefix.clone(),
+                    next_hop: self.router_id.clone(),
+                    preference: 120,
+                    attributes: RouteAttributes {
+                        metric: Some(new_metric),
+                        ..Default::default()
+                    },
+                });
             }
         }
     }

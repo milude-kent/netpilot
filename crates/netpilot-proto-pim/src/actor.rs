@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use netpilot_config::ProtocolConfig;
-use netpilot_protocol::{ProtocolActor, ProtocolMsg};
 use netpilot_protocol::actor::ProtocolError;
 use netpilot_protocol::event::{ProtocolEvent, ProtocolState, ProtocolStats};
-use tokio::sync::mpsc;
+use netpilot_protocol::{ProtocolActor, ProtocolMsg};
 use tokio::select;
-use tokio::time::{interval, Duration, MissedTickBehavior};
+use tokio::sync::mpsc;
+use tokio::time::{Duration, MissedTickBehavior, interval};
 
 #[derive(Clone, Debug)]
 pub struct MulticastGroup {
@@ -22,6 +22,12 @@ pub struct PimActor {
     stats: ProtocolStats,
     event_tx: Option<tokio::sync::broadcast::Sender<ProtocolEvent>>,
     pub groups: Vec<MulticastGroup>,
+}
+
+impl Default for PimActor {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PimActor {
