@@ -8,6 +8,7 @@ license.workspace = true
 axum.workspace = true
 netpilot-config = { path = "../netpilot-config" }
 netpilot-grpc = { path = "../netpilot-grpc" }
+netpilot-protocol = { path = "../netpilot-protocol" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
