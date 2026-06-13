@@ -19,7 +19,7 @@ Then open http://127.0.0.1:8080/ for the NOC dashboard.
 NetPilot follows a microkernel architecture with protocol actors communicating
 through a shared RIB (Routing Information Base) and event bus.
 
-### Crate Layout (15 crates)
+### Crate Layout (22 crates)
 
 | Crate | Purpose |
 |-------|---------|
@@ -62,6 +62,39 @@ through a shared RIB (Routing Information Base) and event bus.
 - **SNMP, NETCONF/YANG, PBR, VRRP, SBFD, VNC**
 - **Structured commit workflow** (candidate/running/rollback with confirmed-commit)
 - **SSE real-time event stream** for route changes and protocol state transitions
+
+## Current Status (2026-06-13)
+
+**205 tests passing, 0 failures. 22 crates. 50+ commits.**
+
+### What Works End-to-End
+- REST API config CRUD (GET/PUT/POST candidate, commit, rollback, diff)
+- gRPC/gNMI management interface (Capabilities, Get, Set, Subscribe)
+- React Web UI dashboard with real-time SSE events
+- BGP TCP sessions on port 179 (OPEN/KEEPALIVE/UPDATE encode/decode)
+- RIB with best-route selection, ECMP, and recursive next-hop resolution
+- Kernel FIB installation via netlink (Linux)
+- Protocol actor framework (9 protocol actors)
+- BIRD2 config parser (lexer + parser for static/BGP/OSPF blocks)
+- MPLS label pool allocation/deallocation with range management
+- Segment Routing prefix-SID registry with SRGB index resolution
+- IS-IS Dijkstra SPF, EIGRP DUAL algorithm, OSPF SPF
+- HMAC-based protocol authentication
+- CI/CD pipeline (GitHub Actions, macOS + Linux)
+
+### P0 Fixes Applied (12 fixes)
+1. main.rs now spawns protocol actors from running config
+2. Supervisor event_tx wired to all 9 protocol actors
+3. BGP OPEN decode byte offset corrected (hold_time, bgp_identifier)
+4. BGP persistent session loop with KEEPALIVE + reconnect
+5. BGP UPDATE message decode support added
+6. Kernel route messages now set real prefix/gateway/metric
+7. RIB-to-Kernel FIB sync wired in event processor
+8. IS-IS packet encode/decode functions added
+9. IS-IS LoopbackTransport + runtime injectable transport
+10. IS-IS hold timer decrement + adjacency expiry detection
+11. EIGRP EigrpTransport trait + LoopbackTransport
+12. OSPF real Dijkstra SPF replacing empty stub
 
 ## Configuration
 

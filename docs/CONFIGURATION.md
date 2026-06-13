@@ -570,6 +570,64 @@ NetPilot 支持三种配置输入方式：
 
 ---
 
+## BGP Neighbor — Planned Fields (Not Yet In Schema)
+
+The following BGP neighbor tuning fields are planned but not yet present in the schema. These are commonly used in production BGP configurations:
+
+| Field | Purpose | Priority |
+|-------|---------|----------|
+| `hold_time_secs` | BGP hold timer (default 180s) | High |
+| `keepalive_secs` | BGP keepalive interval (default 60s) | High |
+| `connect_retry_secs` | Connection retry interval | High |
+| `local_address` | Source address for TCP sessions | High |
+| `multihop_ttl` | TTL for eBGP multihop | Medium |
+| `override_nexthop` | Force nexthop to self | Medium |
+| `export_filter` | Outbound route filter expression | High |
+| `import_filter` | Inbound route filter expression | High |
+| `route_reflector_client` | Mark as RR client | Medium |
+| `cluster_id` | Route reflector cluster ID | Medium |
+| `add_path` | Enable ADD-PATH capability | Medium |
+| `confederation_member_as` | Confederation member AS | Low |
+| `max_prefix_limit` | Maximum prefixes accepted | High |
+| `max_prefix_action` | Action on prefix limit breach | High |
+| `next_hop_self` | Set next-hop to self | High |
+| `remove_private_as` | Strip private AS numbers | Medium |
+| `passive` | Passive mode (wait for inbound) | Medium |
+| `bfd_enabled` | Enable BFD for this neighbor | Medium |
+| `ttl_security` | GTSM / TTL security hack | Low |
+| `dampening` | Route flap dampening | Low |
+
+---
+
+## Validation Coverage
+
+The NetPilot config schema performs thorough validation on core config types, but has known gaps in cross-field and protocol-specific validation:
+
+| Area | Coverage | Notes |
+|------|----------|-------|
+| Top-level schema_version | Full | Rejects unknown values |
+| RouterIdentity.router_id | Full | Validates IPv4 format |
+| TableConfig.name | Full | Non-empty string enforced |
+| NettypeDef values | Full | Enum validation of all 14 variants |
+| ProtocolConfig variant tags | Full | Serde tag validation |
+| AuthPassword.algorithm | Full | Enum validation of 10 MAC algorithms |
+| Static routes | Full | Prefix + nexthop validation |
+| BGP basic neighbor fields | Full | remote_address, remote_asn required |
+| BGP neighbor tuning fields | Gap | ~20 fields not yet in schema (see table above) |
+| OSPF area_id | Full | Validates IP-like format |
+| IS-IS system_id / area_addresses | Full | Format validation |
+| EIGRP AS number / K values | Full | Range enforcement |
+| MPLS label ranges | Full | Validates 16..1,048,575 bounds |
+| SRGB range validation | Full | Must be subset of parent MPLS domain |
+| Srv6 locator prefix | Full | IPv6 prefix validation |
+| Cross-field: table references | Partial | Protocol table field must name an existing table |
+| Cross-field: MPLS domain references | Partial | SR SIDs reference domain by name |
+| gRPC TLS paths | Partial | Validates non-empty if TLS enabled |
+| Flowspec rules | Partial | Action/matches format, rate limit range |
+| Filter expressions | Gap | Text-to-AST parser not yet implemented (VM works) |
+
+---
+
 ## 参考示例
 
 完整示例配置：`configs/example-bgp.json` — BGP + Static + MPLS + SR 的综合配置。
