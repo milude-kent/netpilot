@@ -32,6 +32,12 @@ pub struct RoutePlaneConfig {
     pub grpc_listen_addr: Option<String>,
     pub grpc_tls_cert_path: Option<String>,
     pub grpc_tls_key_path: Option<String>,
+    pub snmp: Option<SnmpConfig>,
+    pub netconf: Option<NetconfConfig>,
+    pub pbr_rules: Option<Vec<PbrConfig>>,
+    pub vrrp_groups: Option<Vec<VrrpConfig>>,
+    pub sbfd: Option<SbfdConfig>,
+    pub vnc_tunnels: Option<Vec<VncConfig>>,
 }
 
 impl Default for RoutePlaneConfig {
@@ -75,6 +81,12 @@ impl Default for RoutePlaneConfig {
             grpc_listen_addr: None,
             grpc_tls_cert_path: None,
             grpc_tls_key_path: None,
+            snmp: None,
+            netconf: None,
+            pbr_rules: None,
+            vrrp_groups: None,
+            sbfd: None,
+            vnc_tunnels: None,
         }
     }
 }
@@ -203,6 +215,30 @@ pub enum ProtocolConfig {
         password: Option<String>,
         tx_class: Option<u8>,
         tx_priority: Option<u8>,
+        description: Option<String>,
+        mpls_channel: Option<MplsChannelConfig>,
+    },
+    Ldp {
+        name: String,
+        router_id: String,
+        lsr_id: String,
+        label_space_id: Option<u16>,
+        transport_address: Option<String>,
+        interfaces: Vec<LdpInterfaceConfig>,
+        limits: Option<ChannelLimits>,
+        import_keep_filtered: Option<bool>,
+        description: Option<String>,
+        mpls_channel: Option<MplsChannelConfig>,
+    },
+    Pim {
+        name: String,
+        table: String,
+        router_id: String,
+        interfaces: Vec<PimInterfaceConfig>,
+        rp_addresses: Option<Vec<String>>,
+        ssm_prefixes: Option<Vec<String>>,
+        limits: Option<ChannelLimits>,
+        import_keep_filtered: Option<bool>,
         description: Option<String>,
         mpls_channel: Option<MplsChannelConfig>,
     },
@@ -670,4 +706,132 @@ pub enum Srv6SidConfig {
         function: u32,
         vrf: String,
     },
+}
+
+// ── SNMP (#312) ─────────────────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct SnmpConfig {
+    pub enabled: bool,
+    pub listen_addr: Option<String>,        // default "0.0.0.0:161"
+    pub community: Option<String>,          // read-only community
+    pub location: Option<String>,
+    pub contact: Option<String>,
+    pub engine_id: Option<String>,
+}
+
+// ── YANG (#313) ─────────────────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct YangModelConfig {
+    pub name: String,
+    pub namespace: String,
+    pub prefix: String,
+    pub revision: Option<String>,
+    pub schema_path: Option<String>,
+}
+
+// ── NETCONF (#314) ──────────────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct NetconfConfig {
+    pub enabled: bool,
+    pub listen_addr: Option<String>,       // default "0.0.0.0:830"
+    pub yang_modules: Option<Vec<YangModelConfig>>,
+    pub username: Option<String>,
+    pub password: Option<String>,
+}
+
+// ── LDP (#303) ──────────────────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct LdpInterfaceConfig {
+    pub interface: String,
+    pub hello_interval_secs: Option<u32>,
+    pub hold_time_secs: Option<u32>,
+}
+
+// ── PIM (#302) ──────────────────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct PimInterfaceConfig {
+    pub interface: String,
+    pub hello_interval_secs: Option<u32>,
+    pub dr_priority: Option<u32>,
+    pub bfd_enabled: Option<bool>,
+}
+
+// ── PBR (#306) ──────────────────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct PbrRule {
+    pub seq: u32,
+    pub action: PbrAction,
+    pub match_prefix: Option<String>,
+    pub match_src_port: Option<u16>,
+    pub match_dst_port: Option<u16>,
+    pub match_protocol: Option<u8>,
+    pub set_next_hop: Option<String>,
+    pub set_interface: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct PbrConfig {
+    pub name: String,
+    pub rules: Vec<PbrRule>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PbrAction {
+    Permit,
+    Deny,
+}
+
+// ── VRRP (#307) ─────────────────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct VrrpConfig {
+    pub name: String,
+    pub interface: String,
+    pub vrid: u8,
+    pub priority: Option<u8>,
+    pub virtual_addresses: Vec<String>,
+    pub advertisement_interval_secs: Option<u32>,
+    pub preempt: Option<bool>,
+}
+
+// ── SBFD (#308) ─────────────────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct SbfdConfig {
+    pub enabled: bool,
+    pub reflector: Option<bool>,
+    pub discriminator: Option<u32>,
+    pub min_tx_interval_millis: Option<u32>,
+    pub min_rx_interval_millis: Option<u32>,
+    pub multiplier: Option<u8>,
+}
+
+// ── VNC (#320) ──────────────────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct VncConfig {
+    pub name: String,
+    pub nve_ip: String,
+    pub vni: u32,
+    pub multicast_group: Option<String>,
+    pub head_end_replication: Option<bool>,
+    pub flood_list: Option<Vec<String>>,
+    pub description: Option<String>,
 }

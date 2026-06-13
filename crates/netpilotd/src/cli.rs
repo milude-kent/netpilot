@@ -21,6 +21,11 @@ pub enum CliCommand {
     ShowEigrpRoutes,
     ShowBgpLs,
     ShowBgpFlowspec,
+    ShowSnmp,
+    ShowVrrp,
+    ShowPbr,
+    ShowLdpNeighbors,
+    ShowPimNeighbors,
 
     // Config
     Configure { file: Option<String>, soft: bool, timeout: Option<u32> },
@@ -130,6 +135,11 @@ fn parse_show(parts: &[&str]) -> CliCommand {
         Some("eigrp") if parts.get(1) == Some(&"routes") => CliCommand::ShowEigrpRoutes,
         Some("bgp") if parts.get(1) == Some(&"link-state") => CliCommand::ShowBgpLs,
         Some("bgp") if parts.get(1) == Some(&"flowspec") => CliCommand::ShowBgpFlowspec,
+        Some("snmp") => CliCommand::ShowSnmp,
+        Some("vrrp") => CliCommand::ShowVrrp,
+        Some("pbr") => CliCommand::ShowPbr,
+        Some("ldp") if parts.get(1) == Some(&"neighbors") => CliCommand::ShowLdpNeighbors,
+        Some("pim") if parts.get(1) == Some(&"neighbors") => CliCommand::ShowPimNeighbors,
         _ => CliCommand::Unknown(format!("show {}", parts.join(" "))),
     }
 }
@@ -240,6 +250,21 @@ pub fn execute_command(cmd: &CliCommand) -> String {
         }
         CliCommand::ShowEigrpRoutes => {
             "show eigrp routes: EIGRP protocol not started\n".to_string()
+        }
+        CliCommand::ShowSnmp => {
+            "show snmp: SNMP not configured\n".to_string()
+        }
+        CliCommand::ShowVrrp => {
+            "show vrrp: VRRP not configured\n".to_string()
+        }
+        CliCommand::ShowPbr => {
+            "show pbr: PBR rules not configured\n".to_string()
+        }
+        CliCommand::ShowLdpNeighbors => {
+            "show ldp neighbors: LDP protocol not started\n".to_string()
+        }
+        CliCommand::ShowPimNeighbors => {
+            "show pim neighbors: PIM protocol not started\n".to_string()
         }
 
         CliCommand::Unknown(input) => {

@@ -36,18 +36,22 @@ pub fn validate_config(config: &RoutePlaneConfig) -> Result<ValidationReport, Va
         .collect::<HashSet<_>>();
 
     for protocol in &config.protocols {
-        let table = match protocol {
-            ProtocolConfig::Static { table, .. } => table,
-            ProtocolConfig::Bgp { table, .. } => table,
-            ProtocolConfig::Ospf { table, .. } => table,
-            ProtocolConfig::Isis { table, .. } => table,
-            ProtocolConfig::Eigrp { table, .. } => table,
+        let table: Option<&String> = match protocol {
+            ProtocolConfig::Static { table, .. } => Some(table),
+            ProtocolConfig::Bgp { table, .. } => Some(table),
+            ProtocolConfig::Ospf { table, .. } => Some(table),
+            ProtocolConfig::Isis { table, .. } => Some(table),
+            ProtocolConfig::Eigrp { table, .. } => Some(table),
+            ProtocolConfig::Ldp { .. } => None, // LDP has no table field
+            ProtocolConfig::Pim { table, .. } => Some(table),
         };
 
-        if !table_names.contains(table.as_str()) {
-            return Err(ValidationError::Message(format!(
-                "protocol references missing table '{table}'"
-            )));
+        if let Some(table) = table {
+            if !table_names.contains(table.as_str()) {
+                return Err(ValidationError::Message(format!(
+                    "protocol references missing table '{table}'"
+                )));
+            }
         }
 
         // Warn on static routes with combinations of blackhole/unreachable/prohibit
@@ -115,6 +119,25 @@ pub fn validate_config(config: &RoutePlaneConfig) -> Result<ValidationReport, Va
     // SR validation
     let sr_warnings = validate_sr(config)?;
     warnings.extend(sr_warnings);
+
+    // SNMP validation
+    if let Some(ref snmp) = config.snmp {
+        if snmp.enabled && snmp.community.is_none() {
+            warnings.push("SNMP enabled but community not set".into());
+        }
+    }
+
+    // VRRP validation
+    if let Some(ref groups) = config.vrrp_groups {
+        for g in groups {
+            if g.virtual_addresses.is_empty() {
+                return Err(ValidationError::Message(format!(
+                    "VRRP group '{}' has no virtual addresses",
+                    g.name
+                )));
+            }
+        }
+    }
 
     Ok(ValidationReport { warnings })
 }
@@ -233,6 +256,8 @@ fn validate_mpls(config: &RoutePlaneConfig) -> Result<Vec<String>, ValidationErr
             ProtocolConfig::Ospf { mpls_channel, .. } => mpls_channel,
             ProtocolConfig::Isis { mpls_channel, .. } => mpls_channel,
             ProtocolConfig::Eigrp { mpls_channel, .. } => mpls_channel,
+            ProtocolConfig::Ldp { mpls_channel, .. } => mpls_channel,
+            ProtocolConfig::Pim { mpls_channel, .. } => mpls_channel,
         };
         if let Some(channel) = mpls_channel {
             if !table_names.contains(channel.table.as_str()) {
