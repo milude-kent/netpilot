@@ -52,6 +52,7 @@ fn static_route_config_round_trips_as_json() {
             tx_class: None,
             tx_priority: None,
             description: None,
+                mpls_channel: None,
         }],
         ..RoutePlaneConfig::default()
     };
@@ -78,6 +79,7 @@ fn validation_rejects_protocol_referencing_missing_table() {
             tx_class: None,
             tx_priority: None,
             description: None,
+                mpls_channel: None,
         }],
         ..RoutePlaneConfig::default()
     };
@@ -116,6 +118,7 @@ fn diff_reports_changed_protocol_count() {
             tx_class: None,
             tx_priority: None,
             description: None,
+                mpls_channel: None,
         }],
         ..RoutePlaneConfig::default()
     };
@@ -142,6 +145,7 @@ fn store_commits_candidate_to_running_and_records_revision() {
             tx_class: None,
             tx_priority: None,
             description: None,
+                mpls_channel: None,
         }],
         ..RoutePlaneConfig::default()
     };
@@ -187,6 +191,7 @@ fn store_rolls_back_to_previous_revision() {
             tx_class: None,
             tx_priority: None,
             description: None,
+                mpls_channel: None,
         }],
         ..RoutePlaneConfig::default()
     };

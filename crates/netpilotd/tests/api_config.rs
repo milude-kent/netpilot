@@ -38,6 +38,7 @@ async fn config_candidate_commit_flow_works_over_api() {
             tx_class: None,
             tx_priority: None,
             description: None,
+                mpls_channel: None,
         }],
         ..RoutePlaneConfig::default()
     };
