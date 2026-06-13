@@ -1,4 +1,6 @@
-use crate::schema::{MplsLabelRange, ProtocolConfig, RoutePlaneConfig, StaticNexthopType};
+use crate::schema::{
+    MplsLabelRange, ProtocolConfig, RoutePlaneConfig, SrAdjSidType, SrSidType, StaticNexthopType,
+};
 use std::collections::HashSet;
 use thiserror::Error;
 
@@ -79,6 +81,10 @@ pub fn validate_config(config: &RoutePlaneConfig) -> Result<ValidationReport, Va
     // MPLS validation
     let mpls_warnings = validate_mpls(config)?;
     warnings.extend(mpls_warnings);
+
+    // SR validation
+    let sr_warnings = validate_sr(config)?;
+    warnings.extend(sr_warnings);
 
     Ok(ValidationReport { warnings })
 }
@@ -202,6 +208,155 @@ fn validate_mpls(config: &RoutePlaneConfig) -> Result<Vec<String>, ValidationErr
                     "MPLS channel references non-existent MPLS table '{}'",
                     channel.table
                 )));
+            }
+        }
+    }
+
+    Ok(warnings)
+}
+
+fn validate_sr(config: &RoutePlaneConfig) -> Result<Vec<String>, ValidationError> {
+    let warnings = Vec::new();
+
+    let domain_map: std::collections::HashMap<&str, &crate::schema::MplsDomain> =
+        config
+            .mpls_domains
+            .as_deref()
+            .unwrap_or(&[])
+            .iter()
+            .map(|d| (d.name.as_str(), d))
+            .collect();
+
+    // 1. SRGB must be in domain label ranges
+    for domain in config.mpls_domains.as_deref().unwrap_or(&[]) {
+        if let Some(ref srgb) = domain.sr_global_block {
+            let in_range = domain
+                .label_ranges
+                .iter()
+                .any(|r| srgb.low >= r.low && srgb.high <= r.high);
+            if !in_range {
+                return Err(ValidationError::Message(format!(
+                    "MPLS domain '{}': sr_global_block [{}, {}] is not contained within any label range",
+                    domain.name, srgb.low, srgb.high
+                )));
+            }
+        }
+        // 2. SR enabled requires SRGB
+        if domain.sr_enabled == Some(true) && domain.sr_global_block.is_none() {
+            return Err(ValidationError::Message(format!(
+                "MPLS domain '{}': sr_enabled is true but sr_global_block is not set",
+                domain.name
+            )));
+        }
+    }
+
+    // 3-6. Prefix-SID validation
+    if let Some(sids) = &config.sr_prefix_sids {
+        for sid in sids {
+            let domain = domain_map.get(sid.domain.as_str()).ok_or_else(|| {
+                ValidationError::Message(format!(
+                    "SR prefix-SID for '{}' references non-existent domain '{}'",
+                    sid.prefix, sid.domain
+                ))
+            })?;
+
+            match &sid.sid_type {
+                SrSidType::Absolute(label) => {
+                    if let Some(ref srgb) = domain.sr_global_block {
+                        if *label < srgb.low || *label > srgb.high {
+                            return Err(ValidationError::Message(format!(
+                                "SR prefix-SID '{}': absolute label {} outside domain '{}' SRGB [{}, {}]",
+                                sid.prefix, label, sid.domain, srgb.low, srgb.high
+                            )));
+                        }
+                    }
+                }
+                SrSidType::Index(idx) => {
+                    if let Some(ref srgb) = domain.sr_global_block {
+                        if srgb.low + idx > srgb.high {
+                            return Err(ValidationError::Message(format!(
+                                "SR prefix-SID '{}': index {} overflows domain '{}' SRGB [{}, {}]",
+                                sid.prefix, idx, sid.domain, srgb.low, srgb.high
+                            )));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Adjacency-SID domain references + absolute SID in SRGB
+    if let Some(sids) = &config.sr_adjacency_sids {
+        for sid in sids {
+            if !domain_map.contains_key(sid.domain.as_str()) {
+                return Err(ValidationError::Message(format!(
+                    "SR adjacency-SID for '{}' on '{}' references non-existent domain '{}'",
+                    sid.neighbor, sid.interface, sid.domain
+                )));
+            }
+            if let SrAdjSidType::Absolute(label) = sid.sid_type {
+                if let Some(domain) = domain_map.get(sid.domain.as_str()) {
+                    if let Some(ref srgb) = domain.sr_global_block {
+                        if label < srgb.low || label > srgb.high {
+                            return Err(ValidationError::Message(format!(
+                                "SR adjacency-SID: absolute label {} outside domain '{}' SRGB [{}, {}]",
+                                label, sid.domain, srgb.low, srgb.high
+                            )));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Srv6 locator validation
+    let locator_map: std::collections::HashMap<&str, &crate::schema::Srv6LocatorConfig> =
+        config
+            .srv6_locators
+            .as_deref()
+            .unwrap_or(&[])
+            .iter()
+            .map(|l| (l.name.as_str(), l))
+            .collect();
+
+    for locator in config.srv6_locators.as_deref().unwrap_or(&[]) {
+        let total = locator.block_len.unwrap_or(0) as u32
+            + locator.node_len.unwrap_or(0) as u32
+            + locator.function_len.unwrap_or(0) as u32;
+        if total > 128 {
+            return Err(ValidationError::Message(format!(
+                "SRv6 locator '{}': block_len + node_len + function_len = {} exceeds 128",
+                locator.name, total
+            )));
+        }
+    }
+
+    // Srv6 SID validation
+    if let Some(sids) = &config.srv6_sids {
+        for sid in sids {
+            let (name, locator_name, function) = match sid {
+                crate::schema::Srv6SidConfig::End { name, locator, function } => (name, locator, function),
+                crate::schema::Srv6SidConfig::EndX { name, locator, function, .. } => (name, locator, function),
+                crate::schema::Srv6SidConfig::EndT { name, locator, function, .. } => (name, locator, function),
+                crate::schema::Srv6SidConfig::EndDT4 { name, locator, function, .. } => (name, locator, function),
+                crate::schema::Srv6SidConfig::EndDT6 { name, locator, function, .. } => (name, locator, function),
+            };
+
+            let locator = locator_map.get(locator_name.as_str()).ok_or_else(|| {
+                ValidationError::Message(format!(
+                    "SRv6 SID '{}' references non-existent locator '{}'",
+                    name, locator_name
+                ))
+            })?;
+
+            if let Some(func_len) = locator.function_len {
+                let max_func = (1u32 << func_len) - 1;
+                if *function > max_func {
+                    return Err(ValidationError::Message(format!(
+                        "SRv6 SID '{}': function {} exceeds max {} for locator '{}' (function_len={})",
+                        name, function, max_func, locator_name, func_len
+                    )));
+                }
             }
         }
     }
