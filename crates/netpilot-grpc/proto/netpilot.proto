@@ -1,0 +1,26 @@
+syntax = "proto3";
+package netpilot.v1;
+
+service Config {
+  rpc GetRunning(GetRunningRequest) returns (GetRunningResponse);
+  rpc PutCandidate(PutCandidateRequest) returns (PutCandidateResponse);
+  rpc CommitConfig(CommitConfigRequest) returns (CommitConfigResponse);
+  rpc Rollback(RollbackRequest) returns (RollbackResponse);
+}
+
+message GetRunningRequest {}
+message GetRunningResponse { bytes config_json = 1; uint64 revision_id = 2; }
+message PutCandidateRequest { bytes config_json = 1; }
+message PutCandidateResponse { string status = 1; }
+message CommitConfigRequest { string author = 1; string note = 2; }
+message CommitConfigResponse { uint64 revision_id = 1; string message = 2; }
+message RollbackRequest { uint64 revision_id = 1; string author = 2; string note = 3; }
+message RollbackResponse { uint64 revision_id = 1; string message = 2; }
+
+service Health {
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+  rpc Watch(HealthCheckRequest) returns (stream HealthCheckResponse);
+}
+
+message HealthCheckRequest {}
+message HealthCheckResponse { string status = 1; string uptime_secs = 2; uint32 config_revision = 3; }

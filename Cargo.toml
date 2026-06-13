@@ -2,6 +2,7 @@
 members = [
     "crates/netpilot-config",
     "crates/netpilot-filter",
+    "crates/netpilot-grpc",
     "crates/netpilotd",
 ]
 resolver = "2"

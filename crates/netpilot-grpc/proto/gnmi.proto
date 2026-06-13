@@ -1,0 +1,50 @@
+syntax = "proto3";
+package gnmi.v1;
+
+service gNMI {
+  rpc Capabilities(CapabilityRequest) returns (CapabilityResponse);
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc Set(SetRequest) returns (SetResponse);
+  rpc Subscribe(stream SubscribeRequest) returns (stream SubscribeResponse);
+}
+
+message Path { repeated string elem = 1; }
+message PathValue { Path path = 1; bytes value = 2; }
+message CapabilityRequest {}
+message CapabilityResponse {
+  repeated string supported_models = 1;
+  repeated string supported_encodings = 2;
+  string version = 3;
+}
+message GetRequest {
+  repeated Path path = 1;
+  enum Encoding { JSON = 0; PROTO = 1; }
+  Encoding encoding = 2;
+}
+message GetResponse { repeated PathValue value = 1; }
+message SetRequest {
+  repeated PathValue replace = 1;
+  repeated PathValue update = 2;
+  repeated Path delete = 3;
+}
+message SetResponse { repeated PathValue value = 1; string message = 2; }
+message SubscribeRequest {
+  oneof request { SubscriptionList subscribe = 1; }
+}
+message SubscriptionList {
+  repeated Subscription subscription = 1;
+  enum Mode { STREAM = 0; ONCE = 1; POLL = 2; }
+  Mode mode = 2;
+}
+message Subscription {
+  Path path = 1;
+  enum Mode { SAMPLE = 0; ON_CHANGE = 1; }
+  Mode mode = 3;
+  uint64 sample_interval_nanos = 2;
+}
+message SubscribeResponse {
+  oneof response {
+    PathValue update = 1;
+    bool sync_response = 2;
+  }
+}
