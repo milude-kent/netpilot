@@ -29,6 +29,9 @@ pub struct RoutePlaneConfig {
     pub sr_prefix_sids: Option<Vec<SrPrefixSidConfig>>,
     pub sr_adjacency_sids: Option<Vec<SrAdjacencySidConfig>>,
     pub srv6_sids: Option<Vec<Srv6SidConfig>>,
+    pub grpc_listen_addr: Option<String>,
+    pub grpc_tls_cert_path: Option<String>,
+    pub grpc_tls_key_path: Option<String>,
 }
 
 impl Default for RoutePlaneConfig {
@@ -69,6 +72,9 @@ impl Default for RoutePlaneConfig {
             sr_prefix_sids: None,
             sr_adjacency_sids: None,
             srv6_sids: None,
+            grpc_listen_addr: None,
+            grpc_tls_cert_path: None,
+            grpc_tls_key_path: None,
         }
     }
 }
