@@ -16,6 +16,9 @@ pub enum CliCommand {
     ShowIsisTopology,
     ShowIsisAdjacencies,
     ShowIsisDatabase,
+    ShowEigrpNeighbors,
+    ShowEigrpTopology,
+    ShowEigrpRoutes,
 
     // Config
     Configure { file: Option<String>, soft: bool, timeout: Option<u32> },
@@ -120,6 +123,9 @@ fn parse_show(parts: &[&str]) -> CliCommand {
         Some("isis") if parts.get(1) == Some(&"topology") => CliCommand::ShowIsisTopology,
         Some("isis") if parts.get(1) == Some(&"adjacencies") => CliCommand::ShowIsisAdjacencies,
         Some("isis") if parts.get(1) == Some(&"database") => CliCommand::ShowIsisDatabase,
+        Some("eigrp") if parts.get(1) == Some(&"neighbors") => CliCommand::ShowEigrpNeighbors,
+        Some("eigrp") if parts.get(1) == Some(&"topology") => CliCommand::ShowEigrpTopology,
+        Some("eigrp") if parts.get(1) == Some(&"routes") => CliCommand::ShowEigrpRoutes,
         _ => CliCommand::Unknown(format!("show {}", parts.join(" "))),
     }
 }
@@ -214,6 +220,15 @@ pub fn execute_command(cmd: &CliCommand) -> String {
         }
         CliCommand::ShowIsisDatabase => {
             "show isis database: IS-IS protocol not started\n".to_string()
+        }
+        CliCommand::ShowEigrpNeighbors => {
+            "show eigrp neighbors: EIGRP protocol not started\n".to_string()
+        }
+        CliCommand::ShowEigrpTopology => {
+            "show eigrp topology: EIGRP protocol not started\n".to_string()
+        }
+        CliCommand::ShowEigrpRoutes => {
+            "show eigrp routes: EIGRP protocol not started\n".to_string()
         }
 
         CliCommand::Unknown(input) => {
