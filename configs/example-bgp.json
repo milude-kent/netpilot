@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "identity": { "router_id": "192.0.2.1", "local_asn": 64512 },
+  "hostname": "netpilot-edge-01",
+  "protocols": [
+    {
+      "kind": "bgp",
+      "name": "bgp-upstream",
+      "table": "master",
+      "local_asn": 64512,
+      "neighbors": [
+        {
+          "name": "isp-peer",
+          "remote_address": "192.0.2.2",
+          "remote_asn": 64513,
+          "address_families": ["ipv4", "ipv6"]
+        }
+      ]
+    },
+    {
+      "kind": "static",
+      "name": "static-default",
+      "table": "master",
+      "routes": [
+        {
+          "prefix": "0.0.0.0/0",
+          "next_hop": "192.0.2.2",
+          "blackhole": false,
+          "address_family": "ipv4"
+        }
+      ]
+    }
+  ],
+  "mpls_domains": [
+    {
+      "name": "main",
+      "label_ranges": [{ "low": 100, "high": 999 }],
+      "label_policy": "per-prefix",
+      "max_label_stack_depth": 8
+    }
+  ],
+  "mpls_tables": [
+    { "name": "mpls-1", "domain": "main" }
+  ],
+  "sr_prefix_sids": [
+    {
+      "prefix": "10.0.0.0/8",
+      "domain": "main",
+      "sid_type": { "type": "index", "value": 0 },
+      "flags": {}
+    }
+  ]
+}

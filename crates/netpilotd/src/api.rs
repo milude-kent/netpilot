@@ -7,6 +7,7 @@ use axum::{
 };
 use netpilot_config::{CommitRequest, RollbackRequest, RoutePlaneConfig};
 use serde::Deserialize;
+use tower_http::services::ServeDir;
 
 pub fn build_router(state: AppState) -> Router {
     Router::new()
@@ -23,6 +24,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/config/undo", post(undo_config))
         .route("/api/config/rollback", post(rollback_config))
         .with_state(state)
+        .fallback_service(ServeDir::new("crates/netpilot-web/dist"))
 }
 
 async fn health() -> &'static str {
