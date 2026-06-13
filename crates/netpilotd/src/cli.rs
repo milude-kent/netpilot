@@ -10,6 +10,7 @@ pub enum CliCommand {
     ShowBfdSessions,
     ShowRpkI,
     ShowMemory,
+    ShowMplsLabels,
 
     // Config
     Configure { file: Option<String>, soft: bool, timeout: Option<u32> },
@@ -108,6 +109,7 @@ fn parse_show(parts: &[&str]) -> CliCommand {
         Some("bfd") => CliCommand::ShowBfdSessions,
         Some("rpki") => CliCommand::ShowRpkI,
         Some("memory") => CliCommand::ShowMemory,
+        Some("mpls") if parts.get(1) == Some(&"labels") => CliCommand::ShowMplsLabels,
         _ => CliCommand::Unknown(format!("show {}", parts.join(" "))),
     }
 }
@@ -182,6 +184,10 @@ pub fn execute_command(cmd: &CliCommand) -> String {
             help.push_str("  timeformat <format> [limit <format>]\n");
             help.push_str("  down | graceful restart\n");
             help
+        }
+
+        CliCommand::ShowMplsLabels => {
+            "show mpls labels: no MPLS table routes loaded yet\n".to_string()
         }
 
         CliCommand::Unknown(input) => {
