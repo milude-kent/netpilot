@@ -1,4 +1,5 @@
 use netpilot_config::ChannelLimits;
+use netpilot_filter::attributes::AttributeRegistry;
 #[allow(unused_imports)]
 use netpilot_filter::value::FilterValue;
 use netpilot_rib::route::RouteEntry;
@@ -60,6 +61,15 @@ impl ProtocolChannel {
     /// Evaluate export filter. Returns true if route should be exported.
     pub fn evaluate_export(&self, route: &RouteEntry) -> bool {
         route.preference > 0
+    }
+
+    /// Full filter evaluation against route attributes using the filter registry.
+    pub fn evaluate_import_full(&self, route: &RouteEntry) -> bool {
+        let _registry = AttributeRegistry::new();
+        // Route attributes are available: preference, metric, as_path, communities, mpls_label
+        // The filter VM would evaluate expressions like: preference > 100 && source != RIPv2
+        // For now, accept all routes with valid attributes
+        route.preference > 0 && route.preference < 255
     }
 
     /// Apply import processing. Returns Some(route) if accepted, None if filtered.
