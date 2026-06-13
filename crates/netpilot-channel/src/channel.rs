@@ -1,5 +1,9 @@
 use netpilot_config::ChannelLimits;
+#[allow(unused_imports)]
+use netpilot_filter::value::FilterValue;
 use netpilot_rib::route::RouteEntry;
+#[allow(unused_imports)]
+use std::collections::HashMap;
 
 /// Statistics for a protocol channel.
 #[derive(Clone, Debug, Default)]
@@ -40,6 +44,24 @@ impl ProtocolChannel {
         self
     }
 
+    /// Set import filter from a filter expression string.
+    pub fn set_import_filter(&mut self, _expr: &str) {
+        // Full implementation: parse filter, compile to VM bytecode
+        // For now, this is a hook that will integrate with netpilot-filter
+    }
+
+    /// Evaluate import filter against route attributes. Returns true if accepted.
+    pub fn evaluate_import(&self, route: &RouteEntry) -> bool {
+        // Stub: accept all routes with preference > 0
+        // Full implementation: run filter VM
+        route.preference > 0
+    }
+
+    /// Evaluate export filter. Returns true if route should be exported.
+    pub fn evaluate_export(&self, route: &RouteEntry) -> bool {
+        route.preference > 0
+    }
+
     /// Apply import processing. Returns Some(route) if accepted, None if filtered.
     /// In the full implementation, this runs the import filter VM.
     pub fn import_filter(&mut self, route: &RouteEntry) -> Option<RouteEntry> {
@@ -49,6 +71,10 @@ impl ProtocolChannel {
                 self.stats.filtered_imports += 1;
                 return None;
             }
+        }
+        if !self.evaluate_import(route) {
+            self.stats.filtered_imports += 1;
+            return None;
         }
         self.stats.imported += 1;
         Some(route.clone())
@@ -61,6 +87,10 @@ impl ProtocolChannel {
                 self.stats.filtered_exports += 1;
                 return None;
             }
+        }
+        if !self.evaluate_export(route) {
+            self.stats.filtered_exports += 1;
+            return None;
         }
         self.stats.exported += 1;
         Some(route.clone())

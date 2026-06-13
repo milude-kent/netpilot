@@ -6,5 +6,6 @@ license.workspace = true
 
 [dependencies]
 netpilot-config = { path = "../netpilot-config" }
+netpilot-filter = { path = "../netpilot-filter" }
 netpilot-rib = { path = "../netpilot-rib" }
 thiserror.workspace = true

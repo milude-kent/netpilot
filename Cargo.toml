@@ -10,6 +10,8 @@ members = [
     "crates/netpilot-birdconf",
     "crates/netpilot-proto-eigrp",
     "crates/netpilot-proto-isis",
+    "crates/netpilot-proto-ospf",
+    "crates/netpilot-proto-bgp",
     "crates/netpilot-io",
     "crates/netpilotd",
 ]

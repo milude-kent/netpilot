@@ -53,4 +53,42 @@ impl RibCore {
     pub fn all_routes(&self, table: &str) -> Vec<&RouteEntry> {
         self.tables.get(table).map(|t| t.all_selected().collect()).unwrap_or_default()
     }
+
+    /// Dump all selected routes as JSON string.
+    pub fn dump_json(&self) -> Result<String, serde_json::Error> {
+        let all: Vec<_> = self
+            .tables
+            .iter()
+            .map(|(name, table)| {
+                let routes: Vec<_> = table
+                    .all_selected()
+                    .map(|e| {
+                        serde_json::json!({
+                            "table": e.table,
+                            "prefix": match &e.key {
+                                RouteKey::Prefix { prefix, prefix_len } => {
+                                    format!("{}/{}", prefix, prefix_len)
+                                }
+                                RouteKey::MplsLabel { label } => {
+                                    format!("label:{}", label)
+                                }
+                            },
+                            "source": e.source_protocol,
+                            "preference": e.preference,
+                            "metric": e.metric,
+                            "next_hops": e.next_hops.iter().map(|nh| nh.gateway.clone()).collect::<Vec<_>>(),
+                        })
+                    })
+                    .collect();
+                (name.clone(), routes)
+            })
+            .collect();
+        serde_json::to_string_pretty(&all)
+    }
+
+    /// Load routes from a JSON snapshot (placeholder — full implementation requires
+    /// reconstructing RouteEntry from saved fields).
+    pub fn load_json(&mut self, _json: &str) -> Result<(), serde_json::Error> {
+        Ok(()) // Future: deserialize and insert into tables
+    }
 }
