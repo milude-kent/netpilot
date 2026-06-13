@@ -430,7 +430,7 @@ pub struct SrPrefixSidConfig {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(untagged)]
+#[serde(tag = "type", content = "value", rename_all = "kebab-case")]
 pub enum SrSidType {
     Absolute(u32),
     Index(u32),
@@ -455,7 +455,7 @@ pub struct SrAdjacencySidConfig {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(untagged)]
+#[serde(tag = "type", content = "value", rename_all = "kebab-case")]
 pub enum SrAdjSidType {
     Absolute(u32),
     Dynamic,

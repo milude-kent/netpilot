@@ -679,11 +679,8 @@ fn sr_prefix_sid_index_round_trips() {
     };
     let encoded = serde_json::to_string(&sid).expect("serializes");
     let decoded: SrPrefixSidConfig = serde_json::from_str(&encoded).expect("deserializes");
-    // untagged repr: both Absolute and Index serialize as a bare integer,
-    // so deserialization picks the first variant (Absolute) regardless of
-    // which one was originally written. The test accepts Absolute while the
-    // value is preserved.
-    assert!(matches!(decoded.sid_type, SrSidType::Absolute(5)));
+    // tagged repr: Index correctly round-trips as Index
+    assert!(matches!(decoded.sid_type, SrSidType::Index(5)));
     assert_eq!(decoded.flags.n_flag_clear, Some(true));
     assert_eq!(decoded.flags.explicit_null, Some(true));
 }
