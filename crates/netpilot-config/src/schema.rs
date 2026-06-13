@@ -26,6 +26,9 @@ pub struct RoutePlaneConfig {
     pub mpls_domains: Option<Vec<MplsDomain>>,
     pub mpls_tables: Option<Vec<MplsTableConfig>>,
     pub srv6_locators: Option<Vec<Srv6LocatorConfig>>,
+    pub sr_prefix_sids: Option<Vec<SrPrefixSidConfig>>,
+    pub sr_adjacency_sids: Option<Vec<SrAdjacencySidConfig>>,
+    pub srv6_sids: Option<Vec<Srv6SidConfig>>,
 }
 
 impl Default for RoutePlaneConfig {
@@ -63,6 +66,9 @@ impl Default for RoutePlaneConfig {
             mpls_domains: None,
             mpls_tables: None,
             srv6_locators: None,
+            sr_prefix_sids: None,
+            sr_adjacency_sids: None,
+            srv6_sids: None,
         }
     }
 }
@@ -410,4 +416,84 @@ impl From<NettypeDef> for Nettype {
             NettypeDef::Neighbor => Nettype::Neighbor,
         }
     }
+}
+
+// ── SR-MPLS ────────────────────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct SrPrefixSidConfig {
+    pub prefix: String,
+    pub domain: String,
+    pub sid_type: SrSidType,
+    pub flags: SrPrefixSidFlags,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum SrSidType {
+    Absolute(u32),
+    Index(u32),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct SrPrefixSidFlags {
+    pub n_flag_clear: Option<bool>,
+    pub php: Option<bool>,
+    pub explicit_null: Option<bool>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct SrAdjacencySidConfig {
+    pub interface: String,
+    pub neighbor: String,
+    pub domain: String,
+    pub sid_type: SrAdjSidType,
+    pub protected: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum SrAdjSidType {
+    Absolute(u32),
+    Dynamic,
+}
+
+// ── SRv6 ───────────────────────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "behavior", rename_all = "kebab-case")]
+pub enum Srv6SidConfig {
+    End {
+        name: String,
+        locator: String,
+        function: u32,
+    },
+    EndX {
+        name: String,
+        locator: String,
+        function: u32,
+        interface: String,
+        nexthop: String,
+    },
+    EndT {
+        name: String,
+        locator: String,
+        function: u32,
+        vrf: String,
+    },
+    EndDT4 {
+        name: String,
+        locator: String,
+        function: u32,
+        vrf: String,
+    },
+    EndDT6 {
+        name: String,
+        locator: String,
+        function: u32,
+        vrf: String,
+    },
 }
