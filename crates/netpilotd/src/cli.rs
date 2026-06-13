@@ -13,6 +13,9 @@ pub enum CliCommand {
     ShowMplsLabels,
     ShowSrPrefixSids,
     ShowSrv6Sids,
+    ShowIsisTopology,
+    ShowIsisAdjacencies,
+    ShowIsisDatabase,
 
     // Config
     Configure { file: Option<String>, soft: bool, timeout: Option<u32> },
@@ -114,6 +117,9 @@ fn parse_show(parts: &[&str]) -> CliCommand {
         Some("mpls") if parts.get(1) == Some(&"labels") => CliCommand::ShowMplsLabels,
         Some("sr") if parts.get(1) == Some(&"prefix-sids") => CliCommand::ShowSrPrefixSids,
         Some("srv6") if parts.get(1) == Some(&"sids") => CliCommand::ShowSrv6Sids,
+        Some("isis") if parts.get(1) == Some(&"topology") => CliCommand::ShowIsisTopology,
+        Some("isis") if parts.get(1) == Some(&"adjacencies") => CliCommand::ShowIsisAdjacencies,
+        Some("isis") if parts.get(1) == Some(&"database") => CliCommand::ShowIsisDatabase,
         _ => CliCommand::Unknown(format!("show {}", parts.join(" "))),
     }
 }
@@ -199,6 +205,15 @@ pub fn execute_command(cmd: &CliCommand) -> String {
         }
         CliCommand::ShowSrv6Sids => {
             "show srv6 sids: no SRv6 dataplane configured yet\n".to_string()
+        }
+        CliCommand::ShowIsisTopology => {
+            "show isis topology: IS-IS protocol not started\n".to_string()
+        }
+        CliCommand::ShowIsisAdjacencies => {
+            "show isis adjacencies: IS-IS protocol not started\n".to_string()
+        }
+        CliCommand::ShowIsisDatabase => {
+            "show isis database: IS-IS protocol not started\n".to_string()
         }
 
         CliCommand::Unknown(input) => {
