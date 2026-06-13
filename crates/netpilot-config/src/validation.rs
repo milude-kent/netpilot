@@ -47,36 +47,47 @@ pub fn validate_config(config: &RoutePlaneConfig) -> Result<ValidationReport, Va
             ProtocolConfig::Rip { table, .. } => Some(table),
         };
 
-        if let Some(table) = table {
-            if !table_names.contains(table.as_str()) {
-                return Err(ValidationError::Message(format!(
-                    "protocol references missing table '{table}'"
-                )));
-            }
+        if let Some(table) = table
+            && !table_names.contains(table.as_str())
+        {
+            return Err(ValidationError::Message(format!(
+                "protocol references missing table '{table}'"
+            )));
         }
 
         // Warn on static routes with combinations of blackhole/unreachable/prohibit
         // BGP-LS/BGPsec/Flowspec validation
-        if let ProtocolConfig::Bgp { bgp_ls, bgpsec, flowspec, .. } = protocol {
-            if let Some(ls) = bgp_ls {
-                if ls.enabled && ls.ls_identifier.is_none() {
-                    warnings.push("BGP-LS enabled but ls-identifier not set".into());
-                }
+        if let ProtocolConfig::Bgp {
+            bgp_ls,
+            bgpsec,
+            flowspec,
+            ..
+        } = protocol
+        {
+            if let Some(ls) = bgp_ls
+                && ls.enabled
+                && ls.ls_identifier.is_none()
+            {
+                warnings.push("BGP-LS enabled but ls-identifier not set".into());
             }
-            if let Some(bs) = bgpsec {
-                if bs.enabled && bs.key_path.is_none() {
-                    warnings.push("BGPsec enabled but key-path not set".into());
-                }
+            if let Some(bs) = bgpsec
+                && bs.enabled
+                && bs.key_path.is_none()
+            {
+                warnings.push("BGPsec enabled but key-path not set".into());
             }
             if let Some(fs_configs) = flowspec {
                 for fs in fs_configs {
                     for rule in &fs.rules {
                         if rule.name.trim().is_empty() {
-                            return Err(ValidationError::Message("flowspec rule has empty name".into()));
+                            return Err(ValidationError::Message(
+                                "flowspec rule has empty name".into(),
+                            ));
                         }
                         if rule.matches.is_empty() {
                             return Err(ValidationError::Message(format!(
-                                "flowspec rule '{}' has no match conditions", rule.name
+                                "flowspec rule '{}' has no match conditions",
+                                rule.name
                             )));
                         }
                     }
@@ -122,10 +133,11 @@ pub fn validate_config(config: &RoutePlaneConfig) -> Result<ValidationReport, Va
     warnings.extend(sr_warnings);
 
     // SNMP validation
-    if let Some(ref snmp) = config.snmp {
-        if snmp.enabled && snmp.community.is_none() {
-            warnings.push("SNMP enabled but community not set".into());
-        }
+    if let Some(ref snmp) = config.snmp
+        && snmp.enabled
+        && snmp.community.is_none()
+    {
+        warnings.push("SNMP enabled but community not set".into());
     }
 
     // VRRP validation
@@ -220,13 +232,13 @@ fn validate_mpls(config: &RoutePlaneConfig) -> Result<Vec<String>, ValidationErr
             }
 
             // 8. Stack depth range
-            if let Some(depth) = domain.max_label_stack_depth {
-                if depth < 1 || depth > 32 {
-                    return Err(ValidationError::Message(format!(
-                        "MPLS domain '{}': max_label_stack_depth {} out of range [1, 32]",
-                        domain.name, depth
-                    )));
-                }
+            if let Some(depth) = domain.max_label_stack_depth
+                && (!(1..=32).contains(&depth))
+            {
+                return Err(ValidationError::Message(format!(
+                    "MPLS domain '{}': max_label_stack_depth {} out of range [1, 32]",
+                    domain.name, depth
+                )));
             }
         }
     }
@@ -261,13 +273,13 @@ fn validate_mpls(config: &RoutePlaneConfig) -> Result<Vec<String>, ValidationErr
             ProtocolConfig::Pim { mpls_channel, .. } => mpls_channel,
             ProtocolConfig::Rip { mpls_channel, .. } => mpls_channel,
         };
-        if let Some(channel) = mpls_channel {
-            if !table_names.contains(channel.table.as_str()) {
-                return Err(ValidationError::Message(format!(
-                    "MPLS channel references non-existent MPLS table '{}'",
-                    channel.table
-                )));
-            }
+        if let Some(channel) = mpls_channel
+            && !table_names.contains(channel.table.as_str())
+        {
+            return Err(ValidationError::Message(format!(
+                "MPLS channel references non-existent MPLS table '{}'",
+                channel.table
+            )));
         }
     }
 
@@ -277,14 +289,13 @@ fn validate_mpls(config: &RoutePlaneConfig) -> Result<Vec<String>, ValidationErr
 fn validate_sr(config: &RoutePlaneConfig) -> Result<Vec<String>, ValidationError> {
     let warnings = Vec::new();
 
-    let domain_map: std::collections::HashMap<&str, &crate::schema::MplsDomain> =
-        config
-            .mpls_domains
-            .as_deref()
-            .unwrap_or(&[])
-            .iter()
-            .map(|d| (d.name.as_str(), d))
-            .collect();
+    let domain_map: std::collections::HashMap<&str, &crate::schema::MplsDomain> = config
+        .mpls_domains
+        .as_deref()
+        .unwrap_or(&[])
+        .iter()
+        .map(|d| (d.name.as_str(), d))
+        .collect();
 
     // 1. SRGB must be in domain label ranges
     for domain in config.mpls_domains.as_deref().unwrap_or(&[]) {
@@ -321,23 +332,23 @@ fn validate_sr(config: &RoutePlaneConfig) -> Result<Vec<String>, ValidationError
 
             match &sid.sid_type {
                 SrSidType::Absolute(label) => {
-                    if let Some(ref srgb) = domain.sr_global_block {
-                        if *label < srgb.low || *label > srgb.high {
-                            return Err(ValidationError::Message(format!(
-                                "SR prefix-SID '{}': absolute label {} outside domain '{}' SRGB [{}, {}]",
-                                sid.prefix, label, sid.domain, srgb.low, srgb.high
-                            )));
-                        }
+                    if let Some(ref srgb) = domain.sr_global_block
+                        && (*label < srgb.low || *label > srgb.high)
+                    {
+                        return Err(ValidationError::Message(format!(
+                            "SR prefix-SID '{}': absolute label {} outside domain '{}' SRGB [{}, {}]",
+                            sid.prefix, label, sid.domain, srgb.low, srgb.high
+                        )));
                     }
                 }
                 SrSidType::Index(idx) => {
-                    if let Some(ref srgb) = domain.sr_global_block {
-                        if srgb.low + idx > srgb.high {
-                            return Err(ValidationError::Message(format!(
-                                "SR prefix-SID '{}': index {} overflows domain '{}' SRGB [{}, {}]",
-                                sid.prefix, idx, sid.domain, srgb.low, srgb.high
-                            )));
-                        }
+                    if let Some(ref srgb) = domain.sr_global_block
+                        && srgb.low + idx > srgb.high
+                    {
+                        return Err(ValidationError::Message(format!(
+                            "SR prefix-SID '{}': index {} overflows domain '{}' SRGB [{}, {}]",
+                            sid.prefix, idx, sid.domain, srgb.low, srgb.high
+                        )));
                     }
                 }
             }
@@ -353,30 +364,27 @@ fn validate_sr(config: &RoutePlaneConfig) -> Result<Vec<String>, ValidationError
                     sid.neighbor, sid.interface, sid.domain
                 )));
             }
-            if let SrAdjSidType::Absolute(label) = sid.sid_type {
-                if let Some(domain) = domain_map.get(sid.domain.as_str()) {
-                    if let Some(ref srgb) = domain.sr_global_block {
-                        if label < srgb.low || label > srgb.high {
-                            return Err(ValidationError::Message(format!(
-                                "SR adjacency-SID: absolute label {} outside domain '{}' SRGB [{}, {}]",
-                                label, sid.domain, srgb.low, srgb.high
-                            )));
-                        }
-                    }
-                }
+            if let SrAdjSidType::Absolute(label) = sid.sid_type
+                && let Some(domain) = domain_map.get(sid.domain.as_str())
+                && let Some(ref srgb) = domain.sr_global_block
+                && (label < srgb.low || label > srgb.high)
+            {
+                return Err(ValidationError::Message(format!(
+                    "SR adjacency-SID: absolute label {} outside domain '{}' SRGB [{}, {}]",
+                    label, sid.domain, srgb.low, srgb.high
+                )));
             }
         }
     }
 
     // Srv6 locator validation
-    let locator_map: std::collections::HashMap<&str, &crate::schema::Srv6LocatorConfig> =
-        config
-            .srv6_locators
-            .as_deref()
-            .unwrap_or(&[])
-            .iter()
-            .map(|l| (l.name.as_str(), l))
-            .collect();
+    let locator_map: std::collections::HashMap<&str, &crate::schema::Srv6LocatorConfig> = config
+        .srv6_locators
+        .as_deref()
+        .unwrap_or(&[])
+        .iter()
+        .map(|l| (l.name.as_str(), l))
+        .collect();
 
     for locator in config.srv6_locators.as_deref().unwrap_or(&[]) {
         let total = locator.block_len.unwrap_or(0) as u32
@@ -394,11 +402,35 @@ fn validate_sr(config: &RoutePlaneConfig) -> Result<Vec<String>, ValidationError
     if let Some(sids) = &config.srv6_sids {
         for sid in sids {
             let (name, locator_name, function) = match sid {
-                crate::schema::Srv6SidConfig::End { name, locator, function } => (name, locator, function),
-                crate::schema::Srv6SidConfig::EndX { name, locator, function, .. } => (name, locator, function),
-                crate::schema::Srv6SidConfig::EndT { name, locator, function, .. } => (name, locator, function),
-                crate::schema::Srv6SidConfig::EndDT4 { name, locator, function, .. } => (name, locator, function),
-                crate::schema::Srv6SidConfig::EndDT6 { name, locator, function, .. } => (name, locator, function),
+                crate::schema::Srv6SidConfig::End {
+                    name,
+                    locator,
+                    function,
+                } => (name, locator, function),
+                crate::schema::Srv6SidConfig::EndX {
+                    name,
+                    locator,
+                    function,
+                    ..
+                } => (name, locator, function),
+                crate::schema::Srv6SidConfig::EndT {
+                    name,
+                    locator,
+                    function,
+                    ..
+                } => (name, locator, function),
+                crate::schema::Srv6SidConfig::EndDT4 {
+                    name,
+                    locator,
+                    function,
+                    ..
+                } => (name, locator, function),
+                crate::schema::Srv6SidConfig::EndDT6 {
+                    name,
+                    locator,
+                    function,
+                    ..
+                } => (name, locator, function),
             };
 
             let locator = locator_map.get(locator_name.as_str()).ok_or_else(|| {

@@ -1,5 +1,6 @@
 use netpilot_filter::nettype::Nettype;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -38,6 +39,9 @@ pub struct RoutePlaneConfig {
     pub vrrp_groups: Option<Vec<VrrpConfig>>,
     pub sbfd: Option<SbfdConfig>,
     pub vnc_tunnels: Option<Vec<VncConfig>>,
+    /// Authentication / TLS settings for the REST + gRPC control plane.
+    /// When `None` the control plane is unauthenticated and uses plain HTTP.
+    pub auth: Option<AuthConfig>,
 }
 
 impl Default for RoutePlaneConfig {
@@ -87,6 +91,7 @@ impl Default for RoutePlaneConfig {
             vrrp_groups: None,
             sbfd: None,
             vnc_tunnels: None,
+            auth: None,
         }
     }
 }
@@ -115,6 +120,11 @@ pub struct TableConfig {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
+// The variants intentionally carry every protocol's configuration inline so the
+// schema is one round-trip from JSON to a fully-typed view. The enum is only
+// ever held inside `Vec<ProtocolConfig>`, which heap-allocates the buffer, so
+// the per-variant size delta does not propagate to a hot stack path.
+#[allow(clippy::large_enum_variant)]
 pub enum ProtocolConfig {
     Static {
         name: String,
@@ -724,8 +734,8 @@ pub enum Srv6SidConfig {
 #[serde(rename_all = "kebab-case")]
 pub struct SnmpConfig {
     pub enabled: bool,
-    pub listen_addr: Option<String>,        // default "0.0.0.0:161"
-    pub community: Option<String>,          // read-only community
+    pub listen_addr: Option<String>, // default "0.0.0.0:161"
+    pub community: Option<String>,   // read-only community
     pub location: Option<String>,
     pub contact: Option<String>,
     pub engine_id: Option<String>,
@@ -749,7 +759,7 @@ pub struct YangModelConfig {
 #[serde(rename_all = "kebab-case")]
 pub struct NetconfConfig {
     pub enabled: bool,
-    pub listen_addr: Option<String>,       // default "0.0.0.0:830"
+    pub listen_addr: Option<String>, // default "0.0.0.0:830"
     pub yang_modules: Option<Vec<YangModelConfig>>,
     pub username: Option<String>,
     pub password: Option<String>,
@@ -856,4 +866,58 @@ pub struct VncConfig {
     pub head_end_replication: Option<bool>,
     pub flood_list: Option<Vec<String>>,
     pub description: Option<String>,
+}
+
+// ── Auth (C1) ────────────────────────────────────────────────
+
+/// Authentication / TLS configuration for the control plane (REST + gRPC).
+///
+/// * `bearer_secret` is the HMAC-SHA256 key used to sign and verify bearer
+///   tokens of the form `<exp_unix>.<hex_hmac>`. When `None`, bearer
+///   authentication is disabled and the daemon falls back to a
+///   "no authentication" mode that should only be used in trusted
+///   environments.
+/// * `tls_cert_path` / `tls_key_path` enable TLS on the REST listener when
+///   both are present.
+/// * `tls_client_ca_path` enables mTLS (client certificate verification)
+///   when present.
+/// * `allowed_spiffe_ids` is an optional allowlist of client certificate
+///   URI SANs that are accepted by mTLS.
+/// * `unauthed_paths` is the list of routes that bypass the bearer
+///   middleware (defaults to `/health` and `/metrics`).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct AuthConfig {
+    /// Bearer token secret (HMAC-SHA256 key). If `None`, bearer auth is
+    /// disabled.
+    pub bearer_secret: Option<String>,
+    /// TLS server certificate PEM path.
+    pub tls_cert_path: Option<PathBuf>,
+    /// TLS server private key PEM path.
+    pub tls_key_path: Option<PathBuf>,
+    /// TLS client CA bundle PEM path (for mTLS verify).
+    pub tls_client_ca_path: Option<PathBuf>,
+    /// Allowed SPIFFE IDs (validates against client cert URI SAN).
+    #[serde(default)]
+    pub allowed_spiffe_ids: Vec<String>,
+    /// Routes that bypass auth (default: `/health`, `/metrics`).
+    #[serde(default = "default_unauthed_paths")]
+    pub unauthed_paths: Vec<String>,
+}
+
+impl Default for AuthConfig {
+    fn default() -> Self {
+        Self {
+            bearer_secret: None,
+            tls_cert_path: None,
+            tls_key_path: None,
+            tls_client_ca_path: None,
+            allowed_spiffe_ids: Vec::new(),
+            unauthed_paths: default_unauthed_paths(),
+        }
+    }
+}
+
+fn default_unauthed_paths() -> Vec<String> {
+    vec!["/health".into(), "/metrics".into()]
 }

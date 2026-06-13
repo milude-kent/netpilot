@@ -3,7 +3,6 @@
 
 /// Filter VM — evaluates filter expressions and statements against a context
 /// that holds route attributes as FilterValues.
-
 use crate::ast::{Expr, Stmt};
 use crate::attributes::AttributeRegistry;
 use crate::value::FilterValue;
@@ -38,9 +37,7 @@ impl FilterContext {
     }
 
     pub fn get(&self, name: &str) -> Option<&FilterValue> {
-        self.locals
-            .get(name)
-            .or_else(|| self.attributes.get(name))
+        self.locals.get(name).or_else(|| self.attributes.get(name))
     }
 
     pub fn set(&mut self, name: &str, value: FilterValue) {
@@ -128,20 +125,17 @@ impl FilterVm {
             Expr::Lte(l, r) => {
                 let lv = Self::evaluate_expr(l, ctx, registry)?;
                 let rv = Self::evaluate_expr(r, ctx, registry)?;
-                cmp_values(&lv, &rv)
-                    .map(|o| FilterValue::Bool(o != std::cmp::Ordering::Greater))
+                cmp_values(&lv, &rv).map(|o| FilterValue::Bool(o != std::cmp::Ordering::Greater))
             }
             Expr::Gt(l, r) => {
                 let lv = Self::evaluate_expr(l, ctx, registry)?;
                 let rv = Self::evaluate_expr(r, ctx, registry)?;
-                cmp_values(&lv, &rv)
-                    .map(|o| FilterValue::Bool(o == std::cmp::Ordering::Greater))
+                cmp_values(&lv, &rv).map(|o| FilterValue::Bool(o == std::cmp::Ordering::Greater))
             }
             Expr::Gte(l, r) => {
                 let lv = Self::evaluate_expr(l, ctx, registry)?;
                 let rv = Self::evaluate_expr(r, ctx, registry)?;
-                cmp_values(&lv, &rv)
-                    .map(|o| FilterValue::Bool(o != std::cmp::Ordering::Less))
+                cmp_values(&lv, &rv).map(|o| FilterValue::Bool(o != std::cmp::Ordering::Less))
             }
 
             // ── Logical ──────────────────────────────────────────────────

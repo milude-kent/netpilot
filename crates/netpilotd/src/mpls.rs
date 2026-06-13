@@ -63,11 +63,12 @@ impl LabelPool {
     /// the configured ranges, it is allocated. Otherwise the first free label
     /// is returned. Returns `None` when all labels are exhausted.
     pub fn allocate(&mut self, preferred: Option<u32>) -> Option<u32> {
-        if let Some(label) = preferred {
-            if self.is_in_range(label) && !self.allocated.contains(&label) {
-                self.allocated.insert(label);
-                return Some(label);
-            }
+        if let Some(label) = preferred
+            && self.is_in_range(label)
+            && !self.allocated.contains(&label)
+        {
+            self.allocated.insert(label);
+            return Some(label);
         }
 
         for range in &self.ranges {
@@ -139,21 +140,16 @@ impl MplsLabelState {
     pub fn from_domains(domains: &[netpilot_config::MplsDomain]) -> Self {
         let mut state = Self::default();
         for domain in domains {
-            state
-                .pools
-                .insert(domain.name.clone(), LabelPool::new(domain.label_ranges.clone()));
+            state.pools.insert(
+                domain.name.clone(),
+                LabelPool::new(domain.label_ranges.clone()),
+            );
         }
         state
     }
 
     /// Bind a FEC to a label, recording the binding for CLI queries.
-    pub fn bind(
-        &mut self,
-        domain: &str,
-        prefix: &str,
-        label: u32,
-        source: LabelSource,
-    ) {
+    pub fn bind(&mut self, domain: &str, prefix: &str, label: u32, source: LabelSource) {
         self.bindings.push(FecLabelBinding {
             prefix: prefix.to_string(),
             label,
@@ -196,23 +192,36 @@ mod tests {
 
     #[test]
     fn pool_allocate_static_succeeds_for_free_label() {
-        let mut pool = LabelPool::new(vec![MplsLabelRange { low: 100, high: 199 }]);
+        let mut pool = LabelPool::new(vec![MplsLabelRange {
+            low: 100,
+            high: 199,
+        }]);
         assert!(pool.allocate_static(150).is_ok());
         assert!(!pool.is_available(150));
     }
 
     #[test]
     fn pool_allocate_static_fails_for_already_allocated() {
-        let mut pool = LabelPool::new(vec![MplsLabelRange { low: 100, high: 199 }]);
+        let mut pool = LabelPool::new(vec![MplsLabelRange {
+            low: 100,
+            high: 199,
+        }]);
         pool.allocate_static(150).unwrap();
-        let err = pool.allocate_static(150).expect_err("duplicate allocation should fail");
+        let err = pool
+            .allocate_static(150)
+            .expect_err("duplicate allocation should fail");
         assert!(matches!(err, LabelError::AlreadyAllocated(150)));
     }
 
     #[test]
     fn pool_allocate_static_fails_for_out_of_range() {
-        let mut pool = LabelPool::new(vec![MplsLabelRange { low: 100, high: 199 }]);
-        let err = pool.allocate_static(999).expect_err("out-of-range should fail");
+        let mut pool = LabelPool::new(vec![MplsLabelRange {
+            low: 100,
+            high: 199,
+        }]);
+        let err = pool
+            .allocate_static(999)
+            .expect_err("out-of-range should fail");
         assert!(matches!(err, LabelError::OutOfRange(999)));
     }
 
@@ -236,15 +245,21 @@ mod tests {
     #[test]
     fn pool_capacity_is_sum_of_range_sizes() {
         let pool = LabelPool::new(vec![
-            MplsLabelRange { low: 16, high: 25 },   // 10 labels
-            MplsLabelRange { low: 100, high: 109 }, // 10 labels
+            MplsLabelRange { low: 16, high: 25 }, // 10 labels
+            MplsLabelRange {
+                low: 100,
+                high: 109,
+            }, // 10 labels
         ]);
         assert_eq!(pool.capacity(), 20);
     }
 
     #[test]
     fn pool_frees_label_correctly_from_middle_of_range() {
-        let mut pool = LabelPool::new(vec![MplsLabelRange { low: 100, high: 105 }]);
+        let mut pool = LabelPool::new(vec![MplsLabelRange {
+            low: 100,
+            high: 105,
+        }]);
         pool.allocate_static(100).unwrap();
         pool.allocate_static(101).unwrap();
         pool.allocate_static(102).unwrap();
@@ -261,7 +276,10 @@ mod tests {
 
         let domains = vec![MplsDomain {
             name: "main".into(),
-            label_ranges: vec![MplsLabelRange { low: 100, high: 199 }],
+            label_ranges: vec![MplsLabelRange {
+                low: 100,
+                high: 199,
+            }],
             label_policy: None,
             max_label_stack_depth: None,
             sr_enabled: None,

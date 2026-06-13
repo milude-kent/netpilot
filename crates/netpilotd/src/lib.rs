@@ -1,6 +1,9 @@
 pub mod api;
+pub mod auth_mw;
 pub mod cli;
+pub mod metrics;
 pub mod mpls;
 pub mod security;
 pub mod sr;
 pub mod state;
+pub mod supervisor_resilience;

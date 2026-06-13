@@ -81,16 +81,17 @@ impl SidRegistry {
 /// Compute an MPLS label stack for a given destination.
 /// Returns single-label stack for prefix-SID matches; IGP topology integration in M6.
 pub fn compute_label_stack(registry: &SidRegistry, destination: &str) -> Option<Vec<u32>> {
-    registry.resolve_prefix_sid(destination).map(|label| vec![label])
+    registry
+        .resolve_prefix_sid(destination)
+        .map(|label| vec![label])
 }
 
 fn resolve_index_in_srgb(config: &RoutePlaneConfig, domain_name: &str, index: u32) -> u32 {
-    if let Some(domains) = &config.mpls_domains {
-        if let Some(d) = domains.iter().find(|d| d.name == domain_name) {
-            if let Some(ref srgb) = d.sr_global_block {
-                return srgb.low + index;
-            }
-        }
+    if let Some(domains) = &config.mpls_domains
+        && let Some(d) = domains.iter().find(|d| d.name == domain_name)
+        && let Some(ref srgb) = d.sr_global_block
+    {
+        return srgb.low + index;
     }
     index
 }
@@ -118,11 +119,17 @@ mod tests {
         RoutePlaneConfig {
             mpls_domains: Some(vec![MplsDomain {
                 name: "main".into(),
-                label_ranges: vec![MplsLabelRange { low: 16000, high: 24000 }],
+                label_ranges: vec![MplsLabelRange {
+                    low: 16000,
+                    high: 24000,
+                }],
                 label_policy: None,
                 max_label_stack_depth: None,
                 sr_enabled: Some(true),
-                sr_global_block: Some(MplsLabelRange { low: 16000, high: 24000 }),
+                sr_global_block: Some(MplsLabelRange {
+                    low: 16000,
+                    high: 24000,
+                }),
                 static_bindings: None,
             }]),
             sr_prefix_sids: Some(vec![
@@ -207,11 +214,17 @@ mod tests {
         let config = RoutePlaneConfig {
             mpls_domains: Some(vec![MplsDomain {
                 name: "main".into(),
-                label_ranges: vec![MplsLabelRange { low: 16000, high: 24000 }],
+                label_ranges: vec![MplsLabelRange {
+                    low: 16000,
+                    high: 24000,
+                }],
                 label_policy: None,
                 max_label_stack_depth: None,
                 sr_enabled: Some(true),
-                sr_global_block: Some(MplsLabelRange { low: 16000, high: 24000 }),
+                sr_global_block: Some(MplsLabelRange {
+                    low: 16000,
+                    high: 24000,
+                }),
                 static_bindings: None,
             }]),
             sr_adjacency_sids: Some(vec![netpilot_config::SrAdjacencySidConfig {

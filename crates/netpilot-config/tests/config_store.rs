@@ -1,7 +1,7 @@
 use netpilot_config::{
     AddressFamily, CommitRequest, ConfigStore, MplsChannelConfig, MplsDomain, MplsLabelPolicy,
     MplsLabelRange, MplsStaticBinding, MplsTableConfig, ProtocolConfig, RollbackRequest,
-    RoutePlaneConfig, RouterIdentity, SrAdjacencySidConfig, SrAdjSidType, SrPrefixSidConfig,
+    RoutePlaneConfig, RouterIdentity, SrAdjSidType, SrAdjacencySidConfig, SrPrefixSidConfig,
     SrPrefixSidFlags, SrSidType, Srv6SidConfig, StaticNexthopType, StaticRoute, TableConfig,
     diff::ConfigDiff, validation::validate_config,
 };
@@ -54,7 +54,7 @@ fn static_route_config_round_trips_as_json() {
             tx_class: None,
             tx_priority: None,
             description: None,
-                mpls_channel: None,
+            mpls_channel: None,
         }],
         ..RoutePlaneConfig::default()
     };
@@ -81,7 +81,7 @@ fn validation_rejects_protocol_referencing_missing_table() {
             tx_class: None,
             tx_priority: None,
             description: None,
-                mpls_channel: None,
+            mpls_channel: None,
         }],
         ..RoutePlaneConfig::default()
     };
@@ -120,7 +120,7 @@ fn diff_reports_changed_protocol_count() {
             tx_class: None,
             tx_priority: None,
             description: None,
-                mpls_channel: None,
+            mpls_channel: None,
         }],
         ..RoutePlaneConfig::default()
     };
@@ -147,7 +147,7 @@ fn store_commits_candidate_to_running_and_records_revision() {
             tx_class: None,
             tx_priority: None,
             description: None,
-                mpls_channel: None,
+            mpls_channel: None,
         }],
         ..RoutePlaneConfig::default()
     };
@@ -193,7 +193,7 @@ fn store_rolls_back_to_previous_revision() {
             tx_class: None,
             tx_priority: None,
             description: None,
-                mpls_channel: None,
+            mpls_channel: None,
         }],
         ..RoutePlaneConfig::default()
     };
@@ -244,7 +244,10 @@ fn mpls_domain_round_trips_as_json() {
     assert_eq!(decoded.label_ranges.len(), 1);
     assert_eq!(decoded.label_ranges[0].low, 100);
     assert_eq!(decoded.label_ranges[0].high, 200);
-    assert!(matches!(decoded.label_policy, Some(MplsLabelPolicy::PerPrefix)));
+    assert!(matches!(
+        decoded.label_policy,
+        Some(MplsLabelPolicy::PerPrefix)
+    ));
     assert_eq!(decoded.max_label_stack_depth, Some(8));
 }
 
@@ -253,8 +256,14 @@ fn mpls_domain_with_multiple_ranges_round_trips() {
     let domain = MplsDomain {
         name: "dual".into(),
         label_ranges: vec![
-            MplsLabelRange { low: 100, high: 199 },
-            MplsLabelRange { low: 300, high: 399 },
+            MplsLabelRange {
+                low: 100,
+                high: 199,
+            },
+            MplsLabelRange {
+                low: 300,
+                high: 399,
+            },
         ],
         label_policy: None,
         max_label_stack_depth: None,
@@ -270,10 +279,7 @@ fn mpls_domain_with_multiple_ranges_round_trips() {
     let decoded: MplsDomain = serde_json::from_str(&encoded).expect("deserializes");
 
     assert_eq!(decoded.label_ranges.len(), 2);
-    assert_eq!(
-        decoded.static_bindings.as_ref().unwrap()[0].label,
-        150
-    );
+    assert_eq!(decoded.static_bindings.as_ref().unwrap()[0].label, 150);
     assert_eq!(
         decoded.static_bindings.as_ref().unwrap()[0].prefix,
         "10.0.0.0/8"
@@ -295,8 +301,7 @@ fn all_four_mpls_label_policy_variants_round_trip() {
             expected_key,
             encoded
         );
-        let _decoded: MplsLabelPolicy =
-            serde_json::from_str(&encoded).expect("deserializes");
+        let _decoded: MplsLabelPolicy = serde_json::from_str(&encoded).expect("deserializes");
     }
 }
 
@@ -376,7 +381,10 @@ fn validation_rejects_duplicate_mpls_domain_names() {
             },
             MplsDomain {
                 name: "dup".into(),
-                label_ranges: vec![MplsLabelRange { low: 100, high: 199 }],
+                label_ranges: vec![MplsLabelRange {
+                    low: 100,
+                    high: 199,
+                }],
                 label_policy: None,
                 max_label_stack_depth: None,
                 sr_enabled: None,
@@ -398,8 +406,14 @@ fn validation_rejects_overlapping_label_ranges() {
         mpls_domains: Some(vec![MplsDomain {
             name: "main".into(),
             label_ranges: vec![
-                MplsLabelRange { low: 100, high: 200 },
-                MplsLabelRange { low: 150, high: 300 },
+                MplsLabelRange {
+                    low: 100,
+                    high: 200,
+                },
+                MplsLabelRange {
+                    low: 150,
+                    high: 300,
+                },
             ],
             label_policy: None,
             max_label_stack_depth: None,
@@ -420,8 +434,14 @@ fn validation_accepts_non_overlapping_label_ranges() {
         mpls_domains: Some(vec![MplsDomain {
             name: "main".into(),
             label_ranges: vec![
-                MplsLabelRange { low: 100, high: 199 },
-                MplsLabelRange { low: 300, high: 399 },
+                MplsLabelRange {
+                    low: 100,
+                    high: 199,
+                },
+                MplsLabelRange {
+                    low: 300,
+                    high: 399,
+                },
             ],
             label_policy: None,
             max_label_stack_depth: None,
@@ -482,7 +502,10 @@ fn validation_rejects_static_binding_outside_ranges() {
     let config = RoutePlaneConfig {
         mpls_domains: Some(vec![MplsDomain {
             name: "main".into(),
-            label_ranges: vec![MplsLabelRange { low: 100, high: 199 }],
+            label_ranges: vec![MplsLabelRange {
+                low: 100,
+                high: 199,
+            }],
             label_policy: None,
             max_label_stack_depth: None,
             sr_enabled: None,
@@ -504,7 +527,10 @@ fn validation_rejects_duplicate_static_binding_labels() {
     let config = RoutePlaneConfig {
         mpls_domains: Some(vec![MplsDomain {
             name: "main".into(),
-            label_ranges: vec![MplsLabelRange { low: 100, high: 299 }],
+            label_ranges: vec![MplsLabelRange {
+                low: 100,
+                high: 299,
+            }],
             label_policy: None,
             max_label_stack_depth: None,
             sr_enabled: None,
@@ -582,8 +608,7 @@ fn validation_rejects_mpls_channel_with_non_existent_table() {
         ..RoutePlaneConfig::default()
     };
 
-    let err =
-        validate_config(&config).expect_err("non-existent MPLS table reference should fail");
+    let err = validate_config(&config).expect_err("non-existent MPLS table reference should fail");
     assert!(err.to_string().contains("non-existent MPLS table"));
 }
 
@@ -616,7 +641,10 @@ fn validation_accepts_valid_mpls_config() {
         },
         mpls_domains: Some(vec![MplsDomain {
             name: "main".into(),
-            label_ranges: vec![MplsLabelRange { low: 100, high: 199 }],
+            label_ranges: vec![MplsLabelRange {
+                low: 100,
+                high: 199,
+            }],
             label_policy: Some(MplsLabelPolicy::PerPrefix),
             max_label_stack_depth: Some(8),
             sr_enabled: None,
@@ -742,7 +770,11 @@ fn srv6_sid_end_round_trips() {
     assert!(encoded.contains("end"));
     let decoded: Srv6SidConfig = serde_json::from_str(&encoded).expect("deserializes");
     match decoded {
-        Srv6SidConfig::End { name, locator, function } => {
+        Srv6SidConfig::End {
+            name,
+            locator,
+            function,
+        } => {
             assert_eq!(name, "end1");
             assert_eq!(locator, "loc1");
             assert_eq!(function, 1);
@@ -764,7 +796,9 @@ fn srv6_sid_endx_round_trips() {
     assert!(encoded.contains("end-x"));
     let decoded: Srv6SidConfig = serde_json::from_str(&encoded).expect("deserializes");
     match decoded {
-        Srv6SidConfig::EndX { interface, nexthop, .. } => {
+        Srv6SidConfig::EndX {
+            interface, nexthop, ..
+        } => {
             assert_eq!(interface, "eth0");
             assert_eq!(nexthop, "2001:db8::1");
         }
@@ -799,11 +833,17 @@ fn full_config_with_sr_round_trips() {
         },
         mpls_domains: Some(vec![MplsDomain {
             name: "main".into(),
-            label_ranges: vec![MplsLabelRange { low: 16000, high: 24000 }],
+            label_ranges: vec![MplsLabelRange {
+                low: 16000,
+                high: 24000,
+            }],
             label_policy: None,
             max_label_stack_depth: None,
             sr_enabled: Some(true),
-            sr_global_block: Some(MplsLabelRange { low: 16000, high: 24000 }),
+            sr_global_block: Some(MplsLabelRange {
+                low: 16000,
+                high: 24000,
+            }),
             static_bindings: None,
         }]),
         sr_prefix_sids: Some(vec![SrPrefixSidConfig {
@@ -847,11 +887,17 @@ fn validation_rejects_srgb_outside_domain_ranges() {
     let config = RoutePlaneConfig {
         mpls_domains: Some(vec![MplsDomain {
             name: "main".into(),
-            label_ranges: vec![MplsLabelRange { low: 100, high: 199 }],
+            label_ranges: vec![MplsLabelRange {
+                low: 100,
+                high: 199,
+            }],
             label_policy: None,
             max_label_stack_depth: None,
             sr_enabled: Some(true),
-            sr_global_block: Some(MplsLabelRange { low: 1000, high: 2000 }),
+            sr_global_block: Some(MplsLabelRange {
+                low: 1000,
+                high: 2000,
+            }),
             static_bindings: None,
         }]),
         ..RoutePlaneConfig::default()
@@ -866,7 +912,10 @@ fn validation_rejects_sr_enabled_without_srgb() {
     let config = RoutePlaneConfig {
         mpls_domains: Some(vec![MplsDomain {
             name: "main".into(),
-            label_ranges: vec![MplsLabelRange { low: 16000, high: 24000 }],
+            label_ranges: vec![MplsLabelRange {
+                low: 16000,
+                high: 24000,
+            }],
             label_policy: None,
             max_label_stack_depth: None,
             sr_enabled: Some(true),
@@ -904,11 +953,17 @@ fn validation_rejects_absolute_sid_outside_srgb() {
     let config = RoutePlaneConfig {
         mpls_domains: Some(vec![MplsDomain {
             name: "main".into(),
-            label_ranges: vec![MplsLabelRange { low: 16000, high: 24000 }],
+            label_ranges: vec![MplsLabelRange {
+                low: 16000,
+                high: 24000,
+            }],
             label_policy: None,
             max_label_stack_depth: None,
             sr_enabled: Some(true),
-            sr_global_block: Some(MplsLabelRange { low: 16000, high: 17000 }),
+            sr_global_block: Some(MplsLabelRange {
+                low: 16000,
+                high: 17000,
+            }),
             static_bindings: None,
         }]),
         sr_prefix_sids: Some(vec![SrPrefixSidConfig {
@@ -933,11 +988,17 @@ fn validation_rejects_index_sid_overflow() {
     let config = RoutePlaneConfig {
         mpls_domains: Some(vec![MplsDomain {
             name: "main".into(),
-            label_ranges: vec![MplsLabelRange { low: 16000, high: 24000 }],
+            label_ranges: vec![MplsLabelRange {
+                low: 16000,
+                high: 24000,
+            }],
             label_policy: None,
             max_label_stack_depth: None,
             sr_enabled: Some(true),
-            sr_global_block: Some(MplsLabelRange { low: 16000, high: 16099 }),
+            sr_global_block: Some(MplsLabelRange {
+                low: 16000,
+                high: 16099,
+            }),
             static_bindings: None,
         }]),
         sr_prefix_sids: Some(vec![SrPrefixSidConfig {
@@ -1017,11 +1078,17 @@ fn validation_accepts_valid_sr_config() {
         },
         mpls_domains: Some(vec![MplsDomain {
             name: "main".into(),
-            label_ranges: vec![MplsLabelRange { low: 16000, high: 24000 }],
+            label_ranges: vec![MplsLabelRange {
+                low: 16000,
+                high: 24000,
+            }],
             label_policy: None,
             max_label_stack_depth: None,
             sr_enabled: Some(true),
-            sr_global_block: Some(MplsLabelRange { low: 16000, high: 24000 }),
+            sr_global_block: Some(MplsLabelRange {
+                low: 16000,
+                high: 24000,
+            }),
             static_bindings: None,
         }]),
         sr_prefix_sids: Some(vec![SrPrefixSidConfig {

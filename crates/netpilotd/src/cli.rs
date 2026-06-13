@@ -3,10 +3,23 @@
 pub enum CliCommand {
     // Status
     ShowStatus,
-    ShowProtocols { all: bool, name: Option<String> },
-    ShowInterfaces { summary: bool },
-    ShowRoute { prefix: Option<String>, table: Option<String>, filter: Option<String>, filtered: bool, count: bool },
-    ShowSymbols { kind: Option<String> },
+    ShowProtocols {
+        all: bool,
+        name: Option<String>,
+    },
+    ShowInterfaces {
+        summary: bool,
+    },
+    ShowRoute {
+        prefix: Option<String>,
+        table: Option<String>,
+        filter: Option<String>,
+        filtered: bool,
+        count: bool,
+    },
+    ShowSymbols {
+        kind: Option<String>,
+    },
     ShowBfdSessions,
     ShowRpkI,
     ShowMemory,
@@ -28,25 +41,59 @@ pub enum CliCommand {
     ShowPimNeighbors,
 
     // Config
-    Configure { file: Option<String>, soft: bool, timeout: Option<u32> },
-    ConfigureCheck { file: Option<String> },
+    Configure {
+        file: Option<String>,
+        soft: bool,
+        timeout: Option<u32>,
+    },
+    ConfigureCheck {
+        file: Option<String>,
+    },
     ConfigureConfirm,
     ConfigureUndo,
-    ConfigureCommit { author: String, note: String },
-    ConfigureRollback { revision_id: u64 },
+    ConfigureCommit {
+        author: String,
+        note: String,
+    },
+    ConfigureRollback {
+        revision_id: u64,
+    },
 
     // Protocol control
-    Enable { name: String },
-    Disable { name: String },
-    Restart { name: String },
-    Reload { name: String, direction: Option<String> },
+    Enable {
+        name: String,
+    },
+    Disable {
+        name: String,
+    },
+    Restart {
+        name: String,
+    },
+    Reload {
+        name: String,
+        direction: Option<String>,
+    },
 
     // Debug & diagnostics
-    Eval { expr: String },
-    Dump { kind: String, file: String },
-    Debug { target: String, flags: String },
-    Echo { classes: String, buffer_size: Option<usize> },
-    TimeFormat { format: String, limit: Option<String> },
+    Eval {
+        expr: String,
+    },
+    Dump {
+        kind: String,
+        file: String,
+    },
+    Debug {
+        target: String,
+        flags: String,
+    },
+    Echo {
+        classes: String,
+        buffer_size: Option<usize>,
+    },
+    TimeFormat {
+        format: String,
+        limit: Option<String>,
+    },
 
     // System
     Down,
@@ -69,15 +116,23 @@ pub fn parse_command(input: &str) -> CliCommand {
     match parts[0] {
         "show" => parse_show(&parts[1..]),
         "configure" => parse_configure(&parts[1..]),
-        "enable" => CliCommand::Enable { name: parts.get(1).map(|s| s.to_string()).unwrap_or_default() },
-        "disable" => CliCommand::Disable { name: parts.get(1).map(|s| s.to_string()).unwrap_or_default() },
-        "restart" => CliCommand::Restart { name: parts.get(1).map(|s| s.to_string()).unwrap_or_default() },
+        "enable" => CliCommand::Enable {
+            name: parts.get(1).map(|s| s.to_string()).unwrap_or_default(),
+        },
+        "disable" => CliCommand::Disable {
+            name: parts.get(1).map(|s| s.to_string()).unwrap_or_default(),
+        },
+        "restart" => CliCommand::Restart {
+            name: parts.get(1).map(|s| s.to_string()).unwrap_or_default(),
+        },
         "reload" => {
             let name = parts.get(1).map(|s| s.to_string()).unwrap_or_default();
             let direction = parts.get(2).map(|s| s.to_string());
             CliCommand::Reload { name, direction }
         }
-        "eval" => CliCommand::Eval { expr: parts[1..].join(" ") },
+        "eval" => CliCommand::Eval {
+            expr: parts[1..].join(" "),
+        },
         "dump" => CliCommand::Dump {
             kind: parts.get(1).map(|s| s.to_string()).unwrap_or_default(),
             file: parts.get(2).map(|s| s.to_string()).unwrap_or_default(),
@@ -106,21 +161,37 @@ fn parse_show(parts: &[&str]) -> CliCommand {
         Some("status") => CliCommand::ShowStatus,
         Some("protocols") => CliCommand::ShowProtocols {
             all: parts.contains(&"all"),
-            name: parts.iter().find(|p| !matches!(**p, "protocols" | "all")).map(|s| s.to_string()),
+            name: parts
+                .iter()
+                .find(|p| !matches!(**p, "protocols" | "all"))
+                .map(|s| s.to_string()),
         },
-        Some("interfaces") => CliCommand::ShowInterfaces { summary: parts.contains(&"summary") },
+        Some("interfaces") => CliCommand::ShowInterfaces {
+            summary: parts.contains(&"summary"),
+        },
         Some("route") => {
             let filtered = parts.contains(&"filtered");
             let count = parts.contains(&"count");
             CliCommand::ShowRoute {
-                prefix: parts.iter().find(|p| p.contains('/')).map(|s| s.to_string()),
-                table: parts.windows(2).find(|w| w[0] == "table").map(|w| w[1].to_string()),
-                filter: parts.windows(2).find(|w| w[0] == "filter" || w[0] == "where").map(|w| w[1..].join(" ")),
+                prefix: parts
+                    .iter()
+                    .find(|p| p.contains('/'))
+                    .map(|s| s.to_string()),
+                table: parts
+                    .windows(2)
+                    .find(|w| w[0] == "table")
+                    .map(|w| w[1].to_string()),
+                filter: parts
+                    .windows(2)
+                    .find(|w| w[0] == "filter" || w[0] == "where")
+                    .map(|w| w[1..].join(" ")),
                 filtered,
                 count,
             }
         }
-        Some("symbols") => CliCommand::ShowSymbols { kind: parts.get(1).map(|s| s.to_string()) },
+        Some("symbols") => CliCommand::ShowSymbols {
+            kind: parts.get(1).map(|s| s.to_string()),
+        },
         Some("bfd") => CliCommand::ShowBfdSessions,
         Some("rpki") => CliCommand::ShowRpkI,
         Some("memory") => CliCommand::ShowMemory,
@@ -146,14 +217,27 @@ fn parse_show(parts: &[&str]) -> CliCommand {
 
 fn parse_configure(parts: &[&str]) -> CliCommand {
     match parts.first().copied() {
-        Some("check") => CliCommand::ConfigureCheck { file: parts.get(1).map(|s| s.to_string()) },
+        Some("check") => CliCommand::ConfigureCheck {
+            file: parts.get(1).map(|s| s.to_string()),
+        },
         Some("confirm") => CliCommand::ConfigureConfirm,
         Some("undo") => CliCommand::ConfigureUndo,
-        Some("soft") => CliCommand::Configure { file: parts.get(1).map(|s| s.to_string()), soft: true, timeout: None },
+        Some("soft") => CliCommand::Configure {
+            file: parts.get(1).map(|s| s.to_string()),
+            soft: true,
+            timeout: None,
+        },
         _ => {
             let soft = parts.contains(&"soft");
-            let timeout = parts.windows(2).find(|w| w[0] == "timeout").and_then(|w| w[1].parse::<u32>().ok());
-            CliCommand::Configure { file: parts.first().map(|s| s.to_string()), soft, timeout }
+            let timeout = parts
+                .windows(2)
+                .find(|w| w[0] == "timeout")
+                .and_then(|w| w[1].parse::<u32>().ok());
+            CliCommand::Configure {
+                file: parts.first().map(|s| s.to_string()),
+                soft,
+                timeout,
+            }
         }
     }
 }
@@ -165,8 +249,11 @@ pub fn execute_command(cmd: &CliCommand) -> String {
         CliCommand::ShowStatus => "NetPilot daemon running\n".to_string(),
 
         CliCommand::ShowProtocols { all, name: _ } => {
-            if *all { "All protocols:\n".to_string() }
-            else { "Protocols:\n".to_string() }
+            if *all {
+                "All protocols:\n".to_string()
+            } else {
+                "Protocols:\n".to_string()
+            }
         }
 
         CliCommand::Eval { expr } => {
@@ -190,21 +277,22 @@ pub fn execute_command(cmd: &CliCommand) -> String {
             format!("timeformat: {format} (limit: {limit_str})\n")
         }
 
-        CliCommand::Down => {
-            "shutting down...\n".to_string()
-        }
+        CliCommand::Down => "shutting down...\n".to_string(),
 
         CliCommand::GracefulRestart => {
             "graceful restart: not yet implemented (requires protocol state)\n".to_string()
         }
 
         CliCommand::ShowRoute { filtered: true, .. } => {
-            "show route filtered: not yet implemented (requires RIB with import keep filtered)\n".to_string()
+            "show route filtered: not yet implemented (requires RIB with import keep filtered)\n"
+                .to_string()
         }
 
         CliCommand::Help => {
             let mut help = String::from("Available commands:\n");
-            help.push_str("  show status | protocols | interfaces | route | symbols | bfd | rpki | memory\n");
+            help.push_str(
+                "  show status | protocols | interfaces | route | symbols | bfd | rpki | memory\n",
+            );
             help.push_str("  configure [soft] [check] [confirm | undo] [timeout <n>]\n");
             help.push_str("  enable | disable | restart | reload <name>\n");
             help.push_str("  eval <expr>\n");
@@ -216,12 +304,8 @@ pub fn execute_command(cmd: &CliCommand) -> String {
             help
         }
 
-        CliCommand::ShowBgpLs => {
-            "show bgp link-state: BGP-LS not configured\n".to_string()
-        }
-        CliCommand::ShowBgpFlowspec => {
-            "show bgp flowspec: flowspec not configured\n".to_string()
-        }
+        CliCommand::ShowBgpLs => "show bgp link-state: BGP-LS not configured\n".to_string(),
+        CliCommand::ShowBgpFlowspec => "show bgp flowspec: flowspec not configured\n".to_string(),
 
         CliCommand::ShowMplsLabels => {
             "show mpls labels: no MPLS table routes loaded yet\n".to_string()
@@ -251,15 +335,9 @@ pub fn execute_command(cmd: &CliCommand) -> String {
         CliCommand::ShowEigrpRoutes => {
             "show eigrp routes: EIGRP protocol not started\n".to_string()
         }
-        CliCommand::ShowSnmp => {
-            "show snmp: SNMP not configured\n".to_string()
-        }
-        CliCommand::ShowVrrp => {
-            "show vrrp: VRRP not configured\n".to_string()
-        }
-        CliCommand::ShowPbr => {
-            "show pbr: PBR rules not configured\n".to_string()
-        }
+        CliCommand::ShowSnmp => "show snmp: SNMP not configured\n".to_string(),
+        CliCommand::ShowVrrp => "show vrrp: VRRP not configured\n".to_string(),
+        CliCommand::ShowPbr => "show pbr: PBR rules not configured\n".to_string(),
         CliCommand::ShowLdpNeighbors => {
             "show ldp neighbors: LDP protocol not started\n".to_string()
         }

@@ -1,5 +1,5 @@
-use crate::gnmi::{Path, PathValue};
 use crate::GrpcAppState;
+use crate::gnmi::{Path, PathValue};
 
 pub fn resolve(state: &GrpcAppState, path: &Path) -> Option<PathValue> {
     let path_str = path.elem.join("/");
@@ -8,22 +8,24 @@ pub fn resolve(state: &GrpcAppState, path: &Path) -> Option<PathValue> {
             let store = state.config_store.try_read().ok()?;
             serde_json::to_vec(store.running()).ok()
         }
-        "netpilot/state/health" => {
-            Some(br#"{"status":"SERVING"}"#.to_vec())
-        }
+        "netpilot/state/health" => Some(br#"{"status":"SERVING"}"#.to_vec()),
         "netpilot/state/protocols" => {
             let store = state.config_store.try_read().ok()?;
             let config = store.running();
-            let names: Vec<&str> = config.protocols.iter().map(|p| match p {
-                netpilot_config::ProtocolConfig::Static { name, .. } => name.as_str(),
-                netpilot_config::ProtocolConfig::Bgp { name, .. } => name.as_str(),
-                netpilot_config::ProtocolConfig::Ospf { name, .. } => name.as_str(),
-                netpilot_config::ProtocolConfig::Isis { name, .. } => name.as_str(),
-                netpilot_config::ProtocolConfig::Eigrp { name, .. } => name.as_str(),
-                netpilot_config::ProtocolConfig::Ldp { name, .. } => name.as_str(),
-                netpilot_config::ProtocolConfig::Pim { name, .. } => name.as_str(),
-                netpilot_config::ProtocolConfig::Rip { name, .. } => name.as_str(),
-            }).collect();
+            let names: Vec<&str> = config
+                .protocols
+                .iter()
+                .map(|p| match p {
+                    netpilot_config::ProtocolConfig::Static { name, .. } => name.as_str(),
+                    netpilot_config::ProtocolConfig::Bgp { name, .. } => name.as_str(),
+                    netpilot_config::ProtocolConfig::Ospf { name, .. } => name.as_str(),
+                    netpilot_config::ProtocolConfig::Isis { name, .. } => name.as_str(),
+                    netpilot_config::ProtocolConfig::Eigrp { name, .. } => name.as_str(),
+                    netpilot_config::ProtocolConfig::Ldp { name, .. } => name.as_str(),
+                    netpilot_config::ProtocolConfig::Pim { name, .. } => name.as_str(),
+                    netpilot_config::ProtocolConfig::Rip { name, .. } => name.as_str(),
+                })
+                .collect();
             serde_json::to_vec(&names).ok()
         }
         "netpilot/state/mpls/domains" => {
@@ -38,5 +40,8 @@ pub fn resolve(state: &GrpcAppState, path: &Path) -> Option<PathValue> {
         }
         _ => None,
     };
-    value.map(|v| PathValue { path: Some(path.clone()), value: v })
+    value.map(|v| PathValue {
+        path: Some(path.clone()),
+        value: v,
+    })
 }
