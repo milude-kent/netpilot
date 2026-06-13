@@ -5,8 +5,10 @@ pub mod validation;
 
 pub use schema::{
     AddressFamily, AuthAlgorithm, AuthPassword, BgpNeighbor, ChannelLimits, CliSocketConfig,
-    ConstantDef, GrMode, LimitAction, LinkBandwidth, NettypeDef, OspfAreaConfig, ProtocolConfig,
-    RoutePlaneConfig, RouterIdentity, StaticNexthopType, StaticRoute, TableConfig, TemplateRef,
+    ConstantDef, GrMode, LimitAction, LinkBandwidth, MplsChannelConfig, MplsDomain,
+    MplsLabelPolicy, MplsLabelRange, MplsStaticBinding, MplsTableConfig, NettypeDef,
+    OspfAreaConfig, ProtocolConfig, RoutePlaneConfig, RouterIdentity, Srv6LocatorConfig,
+    StaticNexthopType, StaticRoute, TableConfig, TemplateRef,
 };
 pub use store::{CommitRequest, ConfigStore, PendingConfirm, Revision, RollbackRequest};
 pub use validation::{ValidationError, ValidationReport};
