@@ -10,6 +10,7 @@ prost = "0.13"
 prost-types = "0.13"
 serde_json.workspace = true
 tokio.workspace = true
+tokio-stream = "0.1"
 tonic = "0.12"
 
 [build-dependencies]
