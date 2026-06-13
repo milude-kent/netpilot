@@ -1,0 +1,16 @@
+[package]
+name = "netpilot-io"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+socket2 = "0.5"
+
+[dependencies]
+netpilot-config = { path = "../netpilot-config" }
+async-trait = "0.1"
+bytes = "1"
+thiserror.workspace = true
+tokio.workspace = true
+time.workspace = true
