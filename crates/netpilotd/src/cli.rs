@@ -11,6 +11,8 @@ pub enum CliCommand {
     ShowRpkI,
     ShowMemory,
     ShowMplsLabels,
+    ShowSrPrefixSids,
+    ShowSrv6Sids,
 
     // Config
     Configure { file: Option<String>, soft: bool, timeout: Option<u32> },
@@ -110,6 +112,8 @@ fn parse_show(parts: &[&str]) -> CliCommand {
         Some("rpki") => CliCommand::ShowRpkI,
         Some("memory") => CliCommand::ShowMemory,
         Some("mpls") if parts.get(1) == Some(&"labels") => CliCommand::ShowMplsLabels,
+        Some("sr") if parts.get(1) == Some(&"prefix-sids") => CliCommand::ShowSrPrefixSids,
+        Some("srv6") if parts.get(1) == Some(&"sids") => CliCommand::ShowSrv6Sids,
         _ => CliCommand::Unknown(format!("show {}", parts.join(" "))),
     }
 }
@@ -188,6 +192,13 @@ pub fn execute_command(cmd: &CliCommand) -> String {
 
         CliCommand::ShowMplsLabels => {
             "show mpls labels: no MPLS table routes loaded yet\n".to_string()
+        }
+
+        CliCommand::ShowSrPrefixSids => {
+            "show sr prefix-sids: no IGP topology loaded yet\n".to_string()
+        }
+        CliCommand::ShowSrv6Sids => {
+            "show srv6 sids: no SRv6 dataplane configured yet\n".to_string()
         }
 
         CliCommand::Unknown(input) => {

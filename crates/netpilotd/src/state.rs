@@ -1,4 +1,5 @@
 use crate::mpls::MplsLabelState;
+use crate::sr::SidRegistry;
 use netpilot_config::{ConfigStore, RoutePlaneConfig};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -7,6 +8,7 @@ use tokio::sync::RwLock;
 pub struct AppState {
     pub config_store: Arc<RwLock<ConfigStore>>,
     pub mpls_labels: Arc<RwLock<MplsLabelState>>,
+    pub sid_registry: Arc<RwLock<SidRegistry>>,
 }
 
 impl Default for AppState {
@@ -15,9 +17,11 @@ impl Default for AppState {
         let mpls_labels = MplsLabelState::from_domains(
             default_config.mpls_domains.as_deref().unwrap_or(&[]),
         );
+        let sid_registry = SidRegistry::from_config(&default_config);
         Self {
             config_store: Arc::new(RwLock::new(ConfigStore::new(default_config))),
             mpls_labels: Arc::new(RwLock::new(mpls_labels)),
+            sid_registry: Arc::new(RwLock::new(sid_registry)),
         }
     }
 }
