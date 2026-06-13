@@ -1,8 +1,9 @@
 use async_trait::async_trait;
+use std::collections::HashMap;
 use netpilot_config::ProtocolConfig;
 use netpilot_protocol::{ProtocolActor, ProtocolMsg};
 use netpilot_protocol::actor::ProtocolError;
-use netpilot_protocol::event::{ProtocolEvent, ProtocolState, ProtocolStats};
+use netpilot_protocol::event::{ProtocolEvent, ProtocolState, ProtocolStats, RouteAttributes};
 use tokio::sync::mpsc;
 use tokio::select;
 use tokio::time::{interval, Duration, MissedTickBehavior};
@@ -13,6 +14,7 @@ pub struct LdpActor {
     state: ProtocolState,
     stats: ProtocolStats,
     event_tx: Option<tokio::sync::broadcast::Sender<ProtocolEvent>>,
+    pub label_bindings: HashMap<String, u32>, // prefix -> label
 }
 
 impl LdpActor {
@@ -23,6 +25,7 @@ impl LdpActor {
             state: ProtocolState::Down,
             stats: ProtocolStats::default(),
             event_tx: None,
+            label_bindings: HashMap::new(),
         }
     }
 
@@ -35,6 +38,31 @@ impl LdpActor {
         if let Some(ref tx) = self.event_tx {
             let _ = tx.send(event);
         }
+    }
+
+    /// Allocate a label for a prefix from the MPLS label pool.
+    pub fn bind_label(&mut self, prefix: &str, label: u32) {
+        self.label_bindings.insert(prefix.to_string(), label);
+        self.stats.routes_exported += 1;
+        if let Some(ref tx) = self.event_tx {
+            let _ = tx.send(ProtocolEvent::RouteAnnounce {
+                table: "mpls".into(),
+                prefix: prefix.to_string(),
+                next_hop: self.lsr_id.clone(),
+                preference: 150,
+                attributes: Default::default(),
+            });
+        }
+    }
+
+    /// Withdraw a label binding.
+    pub fn withdraw_label(&mut self, prefix: &str) {
+        self.label_bindings.remove(prefix);
+    }
+
+    /// Periodic label distribution: send label mappings to peers.
+    pub fn distribute_labels(&self) -> Vec<(&str, u32)> {
+        self.label_bindings.iter().map(|(p, l)| (p.as_str(), *l)).collect()
     }
 }
 
@@ -78,8 +106,8 @@ impl ProtocolActor for LdpActor {
                                 name: self.name.clone(),
                                 state: self.state.clone(),
                                 uptime_secs: 0,
-                                routes_imported: 0,
-                                routes_exported: 0,
+                                routes_imported: self.stats.routes_imported,
+                                routes_exported: self.stats.routes_exported,
                             });
                         }
                         None => return Ok(()),
@@ -88,6 +116,16 @@ impl ProtocolActor for LdpActor {
                 }
                 _ = hello_tick.tick() => {
                     // Send LDP Hello messages
+                    // Also distribute label bindings
+                    for (prefix, label) in self.distribute_labels() {
+                        self.emit(ProtocolEvent::RouteAnnounce {
+                            table: "mpls".into(),
+                            prefix: prefix.to_string(),
+                            next_hop: self.lsr_id.clone(),
+                            preference: 150,
+                            attributes: RouteAttributes { mpls_label: Some(label), ..Default::default() },
+                        });
+                    }
                 }
             }
         }

@@ -1,8 +1,9 @@
 use async_trait::async_trait;
+use std::collections::HashMap;
 use netpilot_config::ProtocolConfig;
 use netpilot_protocol::{ProtocolActor, ProtocolMsg};
 use netpilot_protocol::actor::ProtocolError;
-use netpilot_protocol::event::{ProtocolEvent, ProtocolState, ProtocolStats};
+use netpilot_protocol::event::{ProtocolEvent, ProtocolState, ProtocolStats, RouteAttributes};
 use tokio::sync::mpsc;
 use tokio::select;
 use tokio::time::{interval, Duration, MissedTickBehavior};
@@ -13,6 +14,7 @@ pub struct RipActor {
     state: ProtocolState,
     stats: ProtocolStats,
     event_tx: Option<tokio::sync::broadcast::Sender<ProtocolEvent>>,
+    pub routing_table: HashMap<String, u32>,
 }
 
 impl RipActor {
@@ -23,6 +25,7 @@ impl RipActor {
             state: ProtocolState::Down,
             stats: ProtocolStats::default(),
             event_tx: None,
+            routing_table: HashMap::new(),
         }
     }
 
@@ -34,6 +37,27 @@ impl RipActor {
     fn emit(&self, event: ProtocolEvent) {
         if let Some(ref tx) = self.event_tx {
             let _ = tx.send(event);
+        }
+    }
+
+    /// Run distance-vector update: send our routing table to neighbors.
+    pub fn run_distance_vector(&mut self, routes: &HashMap<String, u32>) {
+        for (prefix, metric) in routes {
+            // RIP max metric is 15, 16 = infinity/unreachable
+            let new_metric = (metric + 1).min(16);
+            self.routing_table.insert(prefix.clone(), new_metric);
+
+            if new_metric < 16 {
+                if let Some(ref tx) = self.event_tx {
+                    let _ = tx.send(ProtocolEvent::RouteAnnounce {
+                        table: "rip".into(),
+                        prefix: prefix.clone(),
+                        next_hop: self.router_id.clone(),
+                        preference: 120,
+                        attributes: RouteAttributes { metric: Some(new_metric), ..Default::default() },
+                    });
+                }
+            }
         }
     }
 }
@@ -78,8 +102,8 @@ impl ProtocolActor for RipActor {
                                 name: self.name.clone(),
                                 state: self.state.clone(),
                                 uptime_secs: 0,
-                                routes_imported: 0,
-                                routes_exported: 0,
+                                routes_imported: self.stats.routes_imported,
+                                routes_exported: self.stats.routes_exported,
                             });
                         }
                         None => return Ok(()),

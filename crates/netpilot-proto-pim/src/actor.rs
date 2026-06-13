@@ -7,12 +7,21 @@ use tokio::sync::mpsc;
 use tokio::select;
 use tokio::time::{interval, Duration, MissedTickBehavior};
 
+#[derive(Clone, Debug)]
+pub struct MulticastGroup {
+    pub group: String,
+    pub source: String,
+    pub upstream_interface: String,
+    pub downstream_interfaces: Vec<String>,
+}
+
 pub struct PimActor {
     name: String,
     router_id: String,
     state: ProtocolState,
     stats: ProtocolStats,
     event_tx: Option<tokio::sync::broadcast::Sender<ProtocolEvent>>,
+    pub groups: Vec<MulticastGroup>,
 }
 
 impl PimActor {
@@ -23,6 +32,7 @@ impl PimActor {
             state: ProtocolState::Down,
             stats: ProtocolStats::default(),
             event_tx: None,
+            groups: vec![],
         }
     }
 
@@ -35,6 +45,20 @@ impl PimActor {
         if let Some(ref tx) = self.event_tx {
             let _ = tx.send(event);
         }
+    }
+
+    pub fn join_group(&mut self, group: &str, source: &str) {
+        self.groups.push(MulticastGroup {
+            group: group.to_string(),
+            source: source.to_string(),
+            upstream_interface: "eth0".into(),
+            downstream_interfaces: vec![],
+        });
+        self.stats.routes_imported += 1;
+    }
+
+    pub fn leave_group(&mut self, group: &str) {
+        self.groups.retain(|g| g.group != group);
     }
 }
 
@@ -78,8 +102,8 @@ impl ProtocolActor for PimActor {
                                 name: self.name.clone(),
                                 state: self.state.clone(),
                                 uptime_secs: 0,
-                                routes_imported: 0,
-                                routes_exported: 0,
+                                routes_imported: self.stats.routes_imported,
+                                routes_exported: self.stats.routes_exported,
                             });
                         }
                         None => return Ok(()),

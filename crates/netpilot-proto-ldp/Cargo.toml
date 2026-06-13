@@ -7,5 +7,6 @@ license.workspace = true
 [dependencies]
 netpilot-protocol = { path = "../netpilot-protocol" }
 netpilot-config = { path = "../netpilot-config" }
+netpilot-rib = { path = "../netpilot-rib" }
 async-trait = "0.1"
 tokio.workspace = true

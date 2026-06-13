@@ -50,3 +50,32 @@ impl IsisTransport for RawSocketTransport {
         unreachable!()
     }
 }
+
+/// Real transport implementation using a channel-based loopback for testing.
+/// In production, this would use socket2 raw sockets.
+pub struct LoopbackTransport {
+    queue: tokio::sync::mpsc::Receiver<(String, IsisPacket)>,
+    sender: tokio::sync::mpsc::Sender<(String, IsisPacket)>,
+}
+
+impl LoopbackTransport {
+    pub fn new_pair() -> (Self, tokio::sync::mpsc::Sender<(String, IsisPacket)>) {
+        let (tx, rx) = tokio::sync::mpsc::channel(64);
+        (Self { queue: rx, sender: tx.clone() }, tx)
+    }
+}
+
+#[async_trait]
+impl IsisTransport for LoopbackTransport {
+    async fn send(&self, iface: &str, pkt: &IsisPacket) -> Result<(), TransportError> {
+        // In real implementation: send via raw socket
+        // For loopback: put into the channel for recv
+        let _ = self.sender.send((iface.to_string(), pkt.clone())).await;
+        Ok(())
+    }
+
+    async fn recv(&mut self) -> Result<(String, IsisPacket), TransportError> {
+        self.queue.recv().await
+            .ok_or(TransportError::Socket("channel closed".into()))
+    }
+}

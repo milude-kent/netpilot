@@ -201,6 +201,79 @@ impl BgpSession {
         }
     }
 
+    /// Build a BGP UPDATE message with NLRI and path attributes.
+    pub fn build_update(
+        withdrawn: Vec<String>,
+        attributes: Vec<BgpAttribute>,
+        nlri: Vec<String>,
+    ) -> BgpMessage {
+        BgpMessage::Update { withdrawn_routes: withdrawn, path_attributes: attributes, nlri }
+    }
+
+    /// Encode a full UPDATE message.
+    pub fn encode_update(msg: &BgpMessage) -> Vec<u8> {
+        let mut buf = Vec::new();
+        buf.extend_from_slice(&[0xFFu8; 16]); // marker
+
+        if let BgpMessage::Update { withdrawn_routes: _, path_attributes, nlri } = msg {
+            let mut body = Vec::new();
+
+            // Withdrawn routes length + data (simplified: empty for now)
+            body.extend_from_slice(&0u16.to_be_bytes());
+
+            // Path attributes
+            let mut attr_bytes = Vec::new();
+            for attr in path_attributes {
+                attr_bytes.push(attr.flags);
+                attr_bytes.push(attr.code);
+                attr_bytes.extend_from_slice(&(attr.value.len() as u16).to_be_bytes());
+                attr_bytes.extend_from_slice(&attr.value);
+            }
+            body.extend_from_slice(&(attr_bytes.len() as u16).to_be_bytes());
+            body.extend_from_slice(&attr_bytes);
+
+            // NLRI (simplified: prefix + length byte)
+            let mut nlri_bytes = Vec::new();
+            for prefix in nlri {
+                let parts: Vec<&str> = prefix.split('/').collect();
+                let len: u8 = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(32);
+                nlri_bytes.push(len);
+                // Add prefix bytes (simplified: 4 bytes for IPv4)
+                let ip_parts: Vec<u8> = parts[0].split('.').filter_map(|s| s.parse().ok()).collect();
+                nlri_bytes.extend_from_slice(&ip_parts);
+            }
+            body.extend_from_slice(&nlri_bytes);
+
+            let total = 19 + body.len();
+            buf.extend_from_slice(&(total as u16).to_be_bytes());
+            buf.push(2); // UPDATE type
+            buf.extend_from_slice(&body);
+        }
+        buf
+    }
+
+    /// Send routes to a BGP peer.
+    pub async fn send_update(&mut self, routes: &[String], next_hop: &str) -> Result<(), BgpError> {
+        // Build NEXT_HOP attribute
+        let nh_parts: Vec<u8> = next_hop.split('.').filter_map(|s| s.parse().ok()).collect();
+        let nh_attr = BgpAttribute { flags: 0x40, code: 3, value: nh_parts };
+
+        // Build ORIGIN attribute (IGP)
+        let origin_attr = BgpAttribute { flags: 0x40, code: 1, value: vec![0] };
+
+        // Build AS_PATH attribute (empty for now)
+        let aspath_attr = BgpAttribute { flags: 0x40, code: 2, value: vec![] };
+
+        let update = Self::build_update(vec![], vec![nh_attr, origin_attr, aspath_attr], routes.to_vec());
+        let data = Self::encode_update(&update);
+        if let Some(ref mut stream) = self.stream {
+            tokio::io::AsyncWriteExt::write_all(stream, &data).await
+                .map_err(|e| BgpError::Io(e.to_string()))?;
+            self.messages_sent += 1;
+        }
+        Ok(())
+    }
+
     async fn send_message(&mut self, msg: &BgpMessage) -> Result<(), BgpError> {
         let data = Self::encode_message(msg);
         if let Some(ref mut stream) = self.stream {
@@ -264,5 +337,21 @@ mod tests {
         assert_eq!(encoded.len(), 19);
         let decoded = BgpSession::decode_message(&encoded).unwrap();
         assert!(matches!(decoded, BgpMessage::Keepalive));
+    }
+
+    #[test]
+    fn encode_update_with_routes() {
+        let attr = BgpAttribute { flags: 0x40, code: 1, value: vec![0] };
+        let update = BgpMessage::Update {
+            withdrawn_routes: vec![],
+            path_attributes: vec![attr],
+            nlri: vec!["10.0.0.0/8".into()],
+        };
+        let encoded = BgpSession::encode_update(&update);
+        // Verify UPDATE type byte (type 2 at offset 18)
+        assert_eq!(encoded[18], 2);
+        // Verify length
+        let total = u16::from_be_bytes([encoded[16], encoded[17]]);
+        assert!(total as usize >= encoded.len());
     }
 }

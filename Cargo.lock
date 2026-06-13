@@ -944,6 +944,7 @@ dependencies = [
  "async-trait",
  "netpilot-config",
  "netpilot-protocol",
+ "netpilot-rib",
  "tokio",
 ]
 

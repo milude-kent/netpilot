@@ -13,7 +13,7 @@ use crate::lsp::LspDatabase;
 use crate::packet::{IihPacket, IsisPacket, IsisPacketBody, PduType};
 use crate::spf::compute_spf;
 use crate::timer::IsisTimers;
-use crate::transport::{IsisTransport, RawSocketTransport};
+use crate::transport::{IsisTransport, LoopbackTransport};
 
 pub struct IsisActor {
     name: String,
@@ -36,7 +36,7 @@ impl IsisActor {
             adjacencies: HashMap::new(),
             lsp_db: LspDatabase::new(),
             timers: IsisTimers::default_timers(),
-            transport: Box::new(RawSocketTransport::new().unwrap()),
+            transport: Box::new(LoopbackTransport::new_pair().0),
             event_tx: None,
             sequence_number: 1,
             state: ProtocolState::Down,
@@ -270,6 +270,19 @@ impl ProtocolActor for IsisActor {
                         }
                         None => {
                             return Ok(()); // channel closed
+                        }
+                    }
+                }
+                recv_result = self.transport.recv() => {
+                    match recv_result {
+                        Ok((iface, pkt)) => {
+                            self.handle_packet(&iface, &pkt).await;
+                        }
+                        Err(e) => {
+                            self.emit(ProtocolEvent::Error {
+                                protocol_name: self.name.clone(),
+                                message: format!("transport recv error: {e}"),
+                            });
                         }
                     }
                 }

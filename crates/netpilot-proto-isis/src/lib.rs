@@ -16,4 +16,4 @@ pub use lsp::{LspDatabase, LspEntry};
 pub use spf::{compute_spf, SpfResult, SpfNode, SpfRoute};
 pub use actor::IsisActor;
 pub use timer::IsisTimers;
-pub use transport::{IsisTransport, RawSocketTransport, TransportError};
+pub use transport::{IsisTransport, LoopbackTransport, RawSocketTransport, TransportError};
