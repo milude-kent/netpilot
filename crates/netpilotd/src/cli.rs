@@ -19,6 +19,8 @@ pub enum CliCommand {
     ShowEigrpNeighbors,
     ShowEigrpTopology,
     ShowEigrpRoutes,
+    ShowBgpLs,
+    ShowBgpFlowspec,
 
     // Config
     Configure { file: Option<String>, soft: bool, timeout: Option<u32> },
@@ -126,6 +128,8 @@ fn parse_show(parts: &[&str]) -> CliCommand {
         Some("eigrp") if parts.get(1) == Some(&"neighbors") => CliCommand::ShowEigrpNeighbors,
         Some("eigrp") if parts.get(1) == Some(&"topology") => CliCommand::ShowEigrpTopology,
         Some("eigrp") if parts.get(1) == Some(&"routes") => CliCommand::ShowEigrpRoutes,
+        Some("bgp") if parts.get(1) == Some(&"link-state") => CliCommand::ShowBgpLs,
+        Some("bgp") if parts.get(1) == Some(&"flowspec") => CliCommand::ShowBgpFlowspec,
         _ => CliCommand::Unknown(format!("show {}", parts.join(" "))),
     }
 }
@@ -200,6 +204,13 @@ pub fn execute_command(cmd: &CliCommand) -> String {
             help.push_str("  timeformat <format> [limit <format>]\n");
             help.push_str("  down | graceful restart\n");
             help
+        }
+
+        CliCommand::ShowBgpLs => {
+            "show bgp link-state: BGP-LS not configured\n".to_string()
+        }
+        CliCommand::ShowBgpFlowspec => {
+            "show bgp flowspec: flowspec not configured\n".to_string()
         }
 
         CliCommand::ShowMplsLabels => {

@@ -143,6 +143,9 @@ pub enum ProtocolConfig {
         tx_priority: Option<u8>,
         description: Option<String>,
         mpls_channel: Option<MplsChannelConfig>,
+        bgp_ls: Option<BgpLsConfig>,
+        bgpsec: Option<BgpsecConfig>,
+        flowspec: Option<Vec<BgpFlowspecConfig>>,
     },
     Ospf {
         name: String,
@@ -554,6 +557,82 @@ pub struct SrAdjacencySidConfig {
 pub enum SrAdjSidType {
     Absolute(u32),
     Dynamic,
+}
+
+// ── BGP-LS ──────────────────────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct BgpLsConfig {
+    pub enabled: bool,
+    pub ls_identifier: Option<u32>,
+    pub instance_identifier: Option<u64>,
+    pub domain_id: Option<String>,
+}
+
+// ── BGPsec ──────────────────────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct BgpsecConfig {
+    pub enabled: bool,
+    pub key_path: Option<String>,
+    pub algorithm: Option<BgpsecAlgorithm>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BgpsecAlgorithm {
+    RsaSha256,
+    EcdsaP256Sha256,
+    EcdsaP384Sha384,
+}
+
+// ── BGP Flowspec ─────────────────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct BgpFlowspecConfig {
+    pub enabled: bool,
+    pub address_family: AddressFamily,
+    pub rules: Vec<FlowspecRule>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct FlowspecRule {
+    pub name: String,
+    pub action: FlowspecAction,
+    pub matches: Vec<FlowspecMatch>,
+    pub rate_limit_bps: Option<u64>,
+    pub remark: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum FlowspecAction {
+    Drop,
+    RateLimit,
+    Redirect { next_hop: String },
+    Remark,
+    Accept,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "kebab-case")]
+pub enum FlowspecMatch {
+    DestinationPrefix { value: String },
+    SourcePrefix { value: String },
+    IpProtocol { values: Vec<u8> },
+    Port { values: Vec<u16> },
+    DestinationPort { values: Vec<u16> },
+    SourcePort { values: Vec<u16> },
+    IcmpType { values: Vec<u8> },
+    IcmpCode { values: Vec<u8> },
+    TcpFlags { values: Vec<String> },
+    PacketLength { min: u16, max: u16 },
+    Dscp { values: Vec<u8> },
+    Fragment { values: Vec<String> },
 }
 
 // ── SRv6 ───────────────────────────────────────────────────

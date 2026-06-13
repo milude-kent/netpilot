@@ -51,6 +51,34 @@ pub fn validate_config(config: &RoutePlaneConfig) -> Result<ValidationReport, Va
         }
 
         // Warn on static routes with combinations of blackhole/unreachable/prohibit
+        // BGP-LS/BGPsec/Flowspec validation
+        if let ProtocolConfig::Bgp { bgp_ls, bgpsec, flowspec, .. } = protocol {
+            if let Some(ls) = bgp_ls {
+                if ls.enabled && ls.ls_identifier.is_none() {
+                    warnings.push("BGP-LS enabled but ls-identifier not set".into());
+                }
+            }
+            if let Some(bs) = bgpsec {
+                if bs.enabled && bs.key_path.is_none() {
+                    warnings.push("BGPsec enabled but key-path not set".into());
+                }
+            }
+            if let Some(fs_configs) = flowspec {
+                for fs in fs_configs {
+                    for rule in &fs.rules {
+                        if rule.name.trim().is_empty() {
+                            return Err(ValidationError::Message("flowspec rule has empty name".into()));
+                        }
+                        if rule.matches.is_empty() {
+                            return Err(ValidationError::Message(format!(
+                                "flowspec rule '{}' has no match conditions", rule.name
+                            )));
+                        }
+                    }
+                }
+            }
+        }
+
         if let ProtocolConfig::Static { routes, .. } = protocol {
             for route in routes {
                 if let Some(nexthop_type) = &route.nexthop_type {
