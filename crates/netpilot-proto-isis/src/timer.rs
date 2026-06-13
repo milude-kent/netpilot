@@ -12,6 +12,8 @@ pub struct IsisTimers {
     pub purge_interval: Interval,
     /// Interval to run SPF after topology changes.
     pub spf_interval: Interval,
+    /// Interval to check adjacency hold timers (every 1 sec).
+    pub hold_check_interval: Interval,
 }
 
 impl IsisTimers {
@@ -33,6 +35,7 @@ impl IsisTimers {
             csnp_interval: mk_interval(csnp_secs),
             purge_interval: mk_interval(purge_secs),
             spf_interval: mk_interval(spf_debounce_secs),
+            hold_check_interval: mk_interval(1),
         }
     }
 

@@ -9,6 +9,11 @@ axum.workspace = true
 netpilot-channel = { path = "../netpilot-channel" }
 netpilot-config = { path = "../netpilot-config" }
 netpilot-grpc = { path = "../netpilot-grpc" }
+netpilot-kernel = { path = "../netpilot-kernel" }
+netpilot-proto-bgp = { path = "../netpilot-proto-bgp" }
+netpilot-proto-eigrp = { path = "../netpilot-proto-eigrp" }
+netpilot-proto-isis = { path = "../netpilot-proto-isis" }
+netpilot-proto-ospf = { path = "../netpilot-proto-ospf" }
 netpilot-protocol = { path = "../netpilot-protocol" }
 netpilot-rib = { path = "../netpilot-rib" }
 serde.workspace = true

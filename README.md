@@ -3,6 +3,8 @@
 A Rust-based routing daemon with full BIRD2 configuration compatibility, structured
 config management, and modern management interfaces.
 
+📖 **[完整介绍文档](docs/INTRODUCTION.md)** | 📋 **[配置参考](docs/CONFIGURATION.md)**
+
 ## Quick Start
 ```bash
 git clone <repo>

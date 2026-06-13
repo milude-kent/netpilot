@@ -8,6 +8,8 @@ pub struct LsaEntry {
     pub sequence_number: u32,
     pub age_secs: u16,
     pub lsa_type: LsaType,
+    pub metric: Option<u32>,
+    pub area: Option<String>,
 }
 
 /// OSPF LSA types.
@@ -36,5 +38,9 @@ impl Lsdb {
 
     pub fn len(&self) -> usize {
         self.lsas.len()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &LsaEntry)> {
+        self.lsas.iter()
     }
 }

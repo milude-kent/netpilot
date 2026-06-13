@@ -15,6 +15,7 @@ pub struct BgpActor {
     state: ProtocolState,
     stats: ProtocolStats,
     event_tx: Option<tokio::sync::broadcast::Sender<ProtocolEvent>>,
+    handles: Vec<tokio::task::JoinHandle<()>>,
 }
 
 impl BgpActor {
@@ -27,12 +28,8 @@ impl BgpActor {
             state: ProtocolState::Down,
             stats: ProtocolStats::default(),
             event_tx: None,
+            handles: vec![],
         }
-    }
-
-    pub fn with_event_tx(mut self, tx: tokio::sync::broadcast::Sender<ProtocolEvent>) -> Self {
-        self.event_tx = Some(tx);
-        self
     }
 
     fn emit(&self, event: ProtocolEvent) {
@@ -44,6 +41,10 @@ impl BgpActor {
 
 #[async_trait]
 impl ProtocolActor for BgpActor {
+    fn set_event_tx(&mut self, tx: tokio::sync::broadcast::Sender<ProtocolEvent>) {
+        self.event_tx = Some(tx);
+    }
+
     async fn run(
         &mut self,
         name: String,
@@ -80,8 +81,9 @@ impl ProtocolActor for BgpActor {
             message: format!("BGP started with {} peers", self.neighbors.len()),
         });
 
-        // For each neighbor, attempt TCP connection (non-blocking).
-        // Collect all required data into owned values before spawning.
+        // For each neighbor, spawn a persistent BGP session task.
+        // Each task connects, then stays in a keepalive + receive loop,
+        // reconnecting with exponential backoff on failure.
         let spawn_neighbors: Vec<_> = self
             .neighbors
             .iter()
@@ -96,29 +98,65 @@ impl ProtocolActor for BgpActor {
             })
             .collect();
 
-        for (addr, asn, neighbor_name, protocol_name, event_tx) in spawn_neighbors {
-            tokio::spawn(async move {
-                let mut session = netpilot_io::bgp::BgpSession::new(&addr, 0, asn);
-                match session.connect().await {
-                    Ok(()) => {
-                        if let Some(tx) = &event_tx {
-                            let _ = tx.send(ProtocolEvent::StateChange {
-                                protocol_name: protocol_name.clone(),
-                                new_state: ProtocolState::Up,
-                                message: format!("BGP peer {} established", neighbor_name),
-                            });
+        for (addr, asn, neighbor_name, name, tx) in spawn_neighbors {
+            let handle = tokio::spawn(async move {
+                let mut retry_delay = 30u64;
+                loop {
+                    let mut session = netpilot_io::bgp::BgpSession::new(&addr, 0, asn);
+                    match session.connect().await {
+                        Ok(()) => {
+                            if let Some(ref tx) = tx {
+                                let _ = tx.send(ProtocolEvent::StateChange {
+                                    protocol_name: name.clone(),
+                                    new_state: ProtocolState::Up,
+                                    message: format!("BGP peer {} established", neighbor_name),
+                                });
+                            }
+                            // Keepalive + receive loop
+                            loop {
+                                tokio::select! {
+                                    _ = tokio::time::sleep(tokio::time::Duration::from_secs(60)) => {
+                                        // Send KEEPALIVE
+                                        if session.send_keepalive().await.is_err() { break; }
+                                    }
+                                    result = session.recv_message() => {
+                                        match result {
+                                            Ok(netpilot_io::bgp::BgpMessage::Keepalive) => {}
+                                            Ok(netpilot_io::bgp::BgpMessage::Update { nlri, .. }) => {
+                                                for prefix in &nlri {
+                                                    if let Some(ref tx) = tx {
+                                                        let _ = tx.send(ProtocolEvent::RouteAnnounce {
+                                                            table: "master".into(),
+                                                            prefix: prefix.clone(),
+                                                            next_hop: addr.clone(),
+                                                            preference: 100,
+                                                            attributes: Default::default(),
+                                                        });
+                                                    }
+                                                }
+                                            }
+                                            Ok(_) => {}
+                                            Err(_) => break,
+                                        }
+                                    }
+                                }
+                            }
+                            retry_delay = 30; // reset on successful connection then break
+                        }
+                        Err(e) => {
+                            if let Some(ref tx) = tx {
+                                let _ = tx.send(ProtocolEvent::Error {
+                                    protocol_name: name.clone(),
+                                    message: format!("BGP peer {} failed: {}, retry in {}s", neighbor_name, e, retry_delay),
+                                });
+                            }
                         }
                     }
-                    Err(e) => {
-                        if let Some(tx) = &event_tx {
-                            let _ = tx.send(ProtocolEvent::Error {
-                                protocol_name: protocol_name.clone(),
-                                message: format!("BGP peer {} failed: {}", neighbor_name, e),
-                            });
-                        }
-                    }
+                    tokio::time::sleep(tokio::time::Duration::from_secs(retry_delay)).await;
+                    retry_delay = (retry_delay * 2).min(300); // exponential backoff, max 5 min
                 }
             });
+            self.handles.push(handle);
         }
 
         loop {

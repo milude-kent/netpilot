@@ -192,10 +192,19 @@ impl BgpSession {
             1 => Ok(BgpMessage::Open {
                 version: data[19],
                 asn: u32::from_be_bytes([data[20],data[21],data[22],data[23]]),
-                hold_time_secs: u16::from_be_bytes([data[22],data[23]]),
-                bgp_identifier: format!("{}.{}.{}.{}", data[24],data[25],data[26],data[27]),
+                hold_time_secs: u16::from_be_bytes([data[24],data[25]]),
+                bgp_identifier: format!("{}.{}.{}.{}", data[26],data[27],data[28],data[29]),
                 capabilities: vec![],
             }),
+            2 => {
+                // UPDATE: skip parsing for now, return empty UPDATE
+                // Full implementation would parse withdrawn routes, path attributes, NLRI
+                Ok(BgpMessage::Update {
+                    withdrawn_routes: vec![],
+                    path_attributes: vec![],
+                    nlri: vec![],
+                })
+            }
             4 => Ok(BgpMessage::Keepalive),
             _ => Err(BgpError::Protocol(format!("unknown type: {msg_type}"))),
         }
@@ -253,6 +262,17 @@ impl BgpSession {
     }
 
     /// Send routes to a BGP peer.
+    /// Send a KEEPALIVE message to the peer.
+    pub async fn send_keepalive(&mut self) -> Result<(), BgpError> {
+        let data = Self::encode_message(&BgpMessage::Keepalive);
+        if let Some(ref mut stream) = self.stream {
+            tokio::io::AsyncWriteExt::write_all(stream, &data).await
+                .map_err(|e| BgpError::Io(e.to_string()))?;
+            self.messages_sent += 1;
+        }
+        Ok(())
+    }
+
     pub async fn send_update(&mut self, routes: &[String], next_hop: &str) -> Result<(), BgpError> {
         // Build NEXT_HOP attribute
         let nh_parts: Vec<u8> = next_hop.split('.').filter_map(|s| s.parse().ok()).collect();
@@ -283,7 +303,7 @@ impl BgpSession {
         Ok(())
     }
 
-    async fn recv_message(&mut self) -> Result<BgpMessage, BgpError> {
+    pub async fn recv_message(&mut self) -> Result<BgpMessage, BgpError> {
         if let Some(ref mut stream) = self.stream {
             let mut header = vec![0u8; 19];
             stream.read_exact(&mut header).await.map_err(|e| BgpError::Io(e.to_string()))?;

@@ -13,7 +13,7 @@ use crate::lsp::LspDatabase;
 use crate::packet::{IihPacket, IsisPacket, IsisPacketBody, PduType};
 use crate::spf::compute_spf;
 use crate::timer::IsisTimers;
-use crate::transport::{IsisTransport, LoopbackTransport};
+use crate::transport::IsisTransport;
 
 pub struct IsisActor {
     name: String,
@@ -21,7 +21,7 @@ pub struct IsisActor {
     adjacencies: HashMap<String, Adjacency>,
     lsp_db: LspDatabase,
     timers: IsisTimers,
-    transport: Box<dyn IsisTransport>,
+    transport: Option<Box<dyn IsisTransport>>,
     event_tx: Option<tokio::sync::broadcast::Sender<ProtocolEvent>>,
     sequence_number: u32,
     state: ProtocolState,
@@ -36,7 +36,7 @@ impl IsisActor {
             adjacencies: HashMap::new(),
             lsp_db: LspDatabase::new(),
             timers: IsisTimers::default_timers(),
-            transport: Box::new(LoopbackTransport::new_pair().0),
+            transport: None,
             event_tx: None,
             sequence_number: 1,
             state: ProtocolState::Down,
@@ -44,10 +44,10 @@ impl IsisActor {
         }
     }
 
-    /// Set the event sender (called by the supervisor spawn wrapper).
-    pub fn with_event_tx(mut self, tx: tokio::sync::broadcast::Sender<ProtocolEvent>) -> Self {
-        self.event_tx = Some(tx);
-        self
+    /// Swap in a real transport (e.g. `LoopbackTransport` for testing,
+    /// or a future raw socket transport for Linux).
+    pub fn set_transport(&mut self, transport: Box<dyn IsisTransport>) {
+        self.transport = Some(transport);
     }
 
     fn emit(&self, event: ProtocolEvent) {
@@ -202,8 +202,10 @@ impl IsisActor {
         };
 
         // Send hello on each configured interface
-        for iface in &self.config.interfaces {
-            let _ = self.transport.send(&iface.interface, &pkt).await;
+        if let Some(ref transport) = self.transport {
+            for iface in &self.config.interfaces {
+                let _ = transport.send(&iface.interface, &pkt).await;
+            }
         }
     }
 
@@ -229,6 +231,10 @@ impl IsisActor {
 
 #[async_trait]
 impl ProtocolActor for IsisActor {
+    fn set_event_tx(&mut self, tx: tokio::sync::broadcast::Sender<ProtocolEvent>) {
+        self.event_tx = Some(tx);
+    }
+
     async fn run(
         &mut self,
         name: String,
@@ -273,7 +279,13 @@ impl ProtocolActor for IsisActor {
                         }
                     }
                 }
-                recv_result = self.transport.recv() => {
+                recv_result = async {
+                    if let Some(ref mut transport) = self.transport {
+                        transport.recv().await
+                    } else {
+                        std::future::pending::<Result<(String, IsisPacket), crate::transport::TransportError>>().await
+                    }
+                } => {
                     match recv_result {
                         Ok((iface, pkt)) => {
                             self.handle_packet(&iface, &pkt).await;
@@ -288,6 +300,22 @@ impl ProtocolActor for IsisActor {
                 }
                 _ = self.timers.hello_interval.tick() => {
                     self.hello_tick().await;
+                }
+                _ = self.timers.hold_check_interval.tick() => {
+                    let mut expired_neighbors = Vec::new();
+                    for adj in self.adjacencies.values_mut() {
+                        let expired = adj.tick_holding_timer();
+                        if expired {
+                            expired_neighbors.push(adj.neighbor_system_id.clone());
+                        }
+                    }
+                    for neighbor_id in expired_neighbors {
+                        self.emit(ProtocolEvent::StateChange {
+                            protocol_name: self.name.clone(),
+                            new_state: self.state.clone(),
+                            message: format!("adjacency {} expired", neighbor_id),
+                        });
+                    }
                 }
                 _ = self.timers.lsp_refresh_interval.tick() => {
                     let self_lsp = self.lsp_db.generate_self_lsp(

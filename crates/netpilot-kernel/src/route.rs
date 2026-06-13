@@ -103,11 +103,60 @@ impl KernelRouteClient {
     pub async fn add(&self, route: &KernelRoute) -> Result<(), KernelError> {
         #[cfg(target_os = "linux")]
         {
-            use netlink_packet_route::route::RouteProtocol as NlProto;
+            use netlink_packet_route::route::RouteAddress;
+            use netlink_packet_route::AddressFamily;
+            use std::net::Ipv4Addr;
+
             let mut msg = rtnetlink::packet::RouteMessage::default();
             msg.header.table = route.table_id as u8;
-            msg.header.protocol = NlProto::from(route.protocol.clone());
-            // Full implementation would set destination prefix, gateway, etc.
+            msg.header.protocol =
+                netlink_packet_route::route::RouteProtocol::from(u8::from(route.protocol.clone()));
+            msg.header.destination_prefix_len = route
+                .prefix
+                .split('/')
+                .nth(1)
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(32);
+            msg.header.address_family = AddressFamily::Inet;
+
+            // Set destination prefix
+            if let Ok(ip) = route
+                .prefix
+                .split('/')
+                .next()
+                .unwrap_or("0.0.0.0")
+                .parse::<Ipv4Addr>()
+            {
+                msg.attributes
+                    .push(netlink_packet_route::route::RouteAttribute::Destination(
+                        RouteAddress::Inet(ip),
+                    ));
+            }
+
+            // Set gateway
+            if let Some(ref nh) = route.next_hop {
+                if let Ok(gw) = nh.parse::<Ipv4Addr>() {
+                    msg.attributes
+                        .push(netlink_packet_route::route::RouteAttribute::Gateway(
+                            RouteAddress::Inet(gw),
+                        ));
+                }
+            }
+
+            // Set outgoing interface index if specified
+            if let Some(ref _iface) = route.interface {
+                // In production: resolve iface name to index via netlink
+                // For now: use a basic RouteAttribute
+                msg.attributes
+                    .push(netlink_packet_route::route::RouteAttribute::Oif(0));
+            }
+
+            // Set metric if specified
+            if let Some(metric) = route.metric {
+                msg.attributes
+                    .push(netlink_packet_route::route::RouteAttribute::Priority(metric));
+            }
+
             self.handle
                 .route()
                 .add(msg)

@@ -14,7 +14,7 @@ pub enum TransportError {
 /// Abstract IS-IS packet transport. Protocol logic uses this trait
 /// without knowing about raw sockets.
 #[async_trait]
-pub trait IsisTransport: Send {
+pub trait IsisTransport: Send + Sync {
     /// Send an IS-IS packet on a specific interface.
     async fn send(&self, iface: &str, pkt: &IsisPacket) -> Result<(), TransportError>;
 

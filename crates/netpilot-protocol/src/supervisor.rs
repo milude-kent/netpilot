@@ -42,6 +42,9 @@ impl ProtocolSupervisor {
         let event_tx = self.event_tx.clone();
         let actor_name = name.to_string();
 
+        // Pass the event sender to the actor before running
+        actor.set_event_tx(event_tx.clone());
+
         let task = tokio::spawn(async move {
             // Send initial state change
             let _ = event_tx.send(ProtocolEvent::StateChange {

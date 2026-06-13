@@ -10,12 +10,16 @@ use tokio::time::{interval, Duration, MissedTickBehavior};
 use crate::config::EigrpConfig;
 use crate::neighbor::NeighborTable;
 use crate::dual::TopologyTable;
+use crate::transport::EigrpTransport;
 
 pub struct EigrpActor {
     name: String,
     config: EigrpConfig,
     neighbors: NeighborTable,
     topology: TopologyTable,
+    pub transport: Option<Box<dyn EigrpTransport>>,
+    pub interfaces: Vec<crate::config::EigrpInterfaceConfig>,
+    pub as_number: u32,
     event_tx: Option<tokio::sync::broadcast::Sender<ProtocolEvent>>,
     state: ProtocolState,
     stats: ProtocolStats,
@@ -24,11 +28,16 @@ pub struct EigrpActor {
 
 impl EigrpActor {
     pub fn new(config: EigrpConfig) -> Self {
+        let interfaces = config.interfaces.clone();
+        let as_number = config.autonomous_system;
         Self {
             name: config.name.clone(),
             config,
             neighbors: NeighborTable::new(),
             topology: TopologyTable::new(),
+            transport: None,
+            interfaces,
+            as_number,
             event_tx: None,
             state: ProtocolState::Down,
             stats: ProtocolStats::default(),
@@ -36,9 +45,8 @@ impl EigrpActor {
         }
     }
 
-    pub fn with_event_tx(mut self, tx: tokio::sync::broadcast::Sender<ProtocolEvent>) -> Self {
-        self.event_tx = Some(tx);
-        self
+    pub fn set_transport(&mut self, transport: Box<dyn EigrpTransport>) {
+        self.transport = Some(transport);
     }
 
     fn emit(&self, event: ProtocolEvent) {
@@ -49,10 +57,7 @@ impl EigrpActor {
 
     fn extract_config(&mut self, config: &ProtocolConfig) {
         if let ProtocolConfig::Eigrp { table, autonomous_system, router_id, interfaces, k_values, maximum_paths, variance, .. } = config {
-            self.config.table = table.clone();
-            self.config.autonomous_system = *autonomous_system;
-            self.config.router_id = router_id.clone();
-            self.config.interfaces = interfaces.iter().map(|i| crate::config::EigrpInterfaceConfig {
+            let ifaces: Vec<crate::config::EigrpInterfaceConfig> = interfaces.iter().map(|i| crate::config::EigrpInterfaceConfig {
                 interface: i.interface.clone(),
                 hello_interval_secs: i.hello_interval_secs,
                 hold_time_secs: i.hold_time_secs,
@@ -61,6 +66,12 @@ impl EigrpActor {
                 passive: i.passive,
                 split_horizon: i.split_horizon,
             }).collect();
+            self.interfaces = ifaces.clone();
+            self.as_number = *autonomous_system;
+            self.config.table = table.clone();
+            self.config.autonomous_system = *autonomous_system;
+            self.config.router_id = router_id.clone();
+            self.config.interfaces = ifaces;
             self.config.k_values = k_values.clone().map(|kv| crate::config::KValues {
                 k1: kv.k1,
                 k2: kv.k2,
@@ -140,21 +151,37 @@ impl EigrpActor {
     }
 
     async fn hello_tick(&mut self) {
-        // Simulate neighbor processing: each configured interface "sees" a neighbor
-        for iface in &self.config.interfaces {
-            use crate::neighbor::EigrpNeighbor;
-            let neighbor_id = format!("{}-neighbor", iface.interface);
-            if let Some(n) = self.neighbors.get_mut(&neighbor_id) {
-                n.process_hello();
-            } else {
-                self.neighbors.upsert(EigrpNeighbor::new(
-                    &neighbor_id, &iface.interface, "0.0.0.0",
-                    self.config.autonomous_system, 15,
-                ));
-                if let Some(n) = self.neighbors.get_mut(&neighbor_id) {
-                    n.process_hello();
-                }
+        let hello = crate::packet::EigrpPacket {
+            header: crate::packet::EigrpHeader {
+                version: 2,
+                opcode: crate::packet::EigrpOpcode::Hello,
+                checksum: 0,
+                flags: 0,
+                sequence_number: 0,
+                ack_sequence_number: 0,
+                autonomous_system: self.as_number,
+            },
+            tlvs: vec![crate::tlv::EigrpTlv::Parameter(crate::tlv::Params {
+                k_values: crate::config::KValues::default(),
+                hold_time_secs: 15,
+            })],
+        };
+
+        // Send hello on each interface
+        for iface in &self.interfaces {
+            if let Some(ref transport) = self.transport {
+                let _ = transport.send(&iface.interface, &hello).await;
             }
+        }
+
+        // Also process holds on existing neighbors
+        let down = self.neighbors.tick_all();
+        for nid in &down {
+            self.emit(ProtocolEvent::StateChange {
+                protocol_name: self.name.clone(),
+                new_state: self.state.clone(),
+                message: format!("EIGRP neighbor {} down", nid),
+            });
         }
     }
 
@@ -182,6 +209,10 @@ impl EigrpActor {
 
 #[async_trait]
 impl ProtocolActor for EigrpActor {
+    fn set_event_tx(&mut self, tx: tokio::sync::broadcast::Sender<ProtocolEvent>) {
+        self.event_tx = Some(tx);
+    }
+
     async fn run(
         &mut self,
         name: String,

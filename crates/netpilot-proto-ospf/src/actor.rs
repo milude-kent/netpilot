@@ -35,11 +35,6 @@ impl OspfActor {
         }
     }
 
-    pub fn with_event_tx(mut self, tx: tokio::sync::broadcast::Sender<ProtocolEvent>) -> Self {
-        self.event_tx = Some(tx);
-        self
-    }
-
     fn emit(&self, event: ProtocolEvent) {
         if let Some(ref tx) = self.event_tx {
             let _ = tx.send(event);
@@ -49,6 +44,10 @@ impl OspfActor {
 
 #[async_trait]
 impl ProtocolActor for OspfActor {
+    fn set_event_tx(&mut self, tx: tokio::sync::broadcast::Sender<ProtocolEvent>) {
+        self.event_tx = Some(tx);
+    }
+
     async fn run(
         &mut self,
         name: String,

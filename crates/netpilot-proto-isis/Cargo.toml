@@ -14,3 +14,4 @@ socket2 = "0.5"
 thiserror.workspace = true
 tokio.workspace = true
 time.workspace = true
+hex = "0.4"

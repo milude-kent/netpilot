@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use netpilot_config::ProtocolConfig;
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
-use crate::event::ProtocolStatus;
+use crate::event::{ProtocolEvent, ProtocolStatus};
 
 #[async_trait]
 pub trait ProtocolActor: Send + 'static {
@@ -12,6 +12,9 @@ pub trait ProtocolActor: Send + 'static {
         config: ProtocolConfig,
         rx: mpsc::Receiver<ProtocolMsg>,
     ) -> Result<(), ProtocolError>;
+
+    /// Set the event broadcast sender. Default no-op.
+    fn set_event_tx(&mut self, _tx: tokio::sync::broadcast::Sender<ProtocolEvent>) {}
 }
 
 #[derive(Debug)]
