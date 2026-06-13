@@ -166,6 +166,54 @@ pub enum ProtocolConfig {
         description: Option<String>,
         mpls_channel: Option<MplsChannelConfig>,
     },
+    Isis {
+        name: String,
+        table: String,
+        area_addresses: Vec<String>,
+        system_id: String,
+        levels: Vec<IsisLevel>,
+        interfaces: Vec<IsisInterfaceConfig>,
+        sr_enabled: Option<bool>,
+        limits: Option<ChannelLimits>,
+        import_keep_filtered: Option<bool>,
+        rpki_reload: Option<bool>,
+        passwords: Option<Vec<AuthPassword>>,
+        password: Option<String>,
+        tx_class: Option<u8>,
+        tx_priority: Option<u8>,
+        description: Option<String>,
+        mpls_channel: Option<MplsChannelConfig>,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum IsisLevel {
+    Level1,
+    Level2,
+    Level12,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct IsisInterfaceConfig {
+    pub interface: String,
+    pub levels: Vec<IsisLevel>,
+    pub hello_interval_secs: Option<u32>,
+    pub hello_multiplier: Option<u8>,
+    pub metric: Option<u32>,
+    pub passive: Option<bool>,
+    pub circuit_type: Option<CircuitType>,
+    pub priority: Option<u8>,
+    pub sr_adjacency_sid: Option<u32>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CircuitType {
+    Level1,
+    Level2,
+    Level12,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

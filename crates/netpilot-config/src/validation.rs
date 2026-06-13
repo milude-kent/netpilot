@@ -40,6 +40,7 @@ pub fn validate_config(config: &RoutePlaneConfig) -> Result<ValidationReport, Va
             ProtocolConfig::Static { table, .. } => table,
             ProtocolConfig::Bgp { table, .. } => table,
             ProtocolConfig::Ospf { table, .. } => table,
+            ProtocolConfig::Isis { table, .. } => table,
         };
 
         if !table_names.contains(table.as_str()) {
@@ -201,6 +202,7 @@ fn validate_mpls(config: &RoutePlaneConfig) -> Result<Vec<String>, ValidationErr
             ProtocolConfig::Static { mpls_channel, .. } => mpls_channel,
             ProtocolConfig::Bgp { mpls_channel, .. } => mpls_channel,
             ProtocolConfig::Ospf { mpls_channel, .. } => mpls_channel,
+            ProtocolConfig::Isis { mpls_channel, .. } => mpls_channel,
         };
         if let Some(channel) = mpls_channel {
             if !table_names.contains(channel.table.as_str()) {

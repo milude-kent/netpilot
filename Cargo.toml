@@ -5,6 +5,7 @@ members = [
     "crates/netpilot-grpc",
     "crates/netpilot-kernel",
     "crates/netpilot-protocol",
+    "crates/netpilot-proto-isis",
     "crates/netpilotd",
 ]
 resolver = "2"

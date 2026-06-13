@@ -18,6 +18,7 @@ pub fn resolve(state: &GrpcAppState, path: &Path) -> Option<PathValue> {
                 netpilot_config::ProtocolConfig::Static { name, .. } => name.as_str(),
                 netpilot_config::ProtocolConfig::Bgp { name, .. } => name.as_str(),
                 netpilot_config::ProtocolConfig::Ospf { name, .. } => name.as_str(),
+                netpilot_config::ProtocolConfig::Isis { name, .. } => name.as_str(),
             }).collect();
             serde_json::to_vec(&names).ok()
         }
