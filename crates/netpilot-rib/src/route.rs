@@ -112,4 +112,16 @@ impl RouteEntry {
         self.as_path = Some(path);
         self
     }
+    pub fn with_local_pref(mut self, lp: u32) -> Self {
+        self.local_pref = Some(lp);
+        self
+    }
+    pub fn with_communities(mut self, comms: Vec<String>) -> Self {
+        self.communities = comms;
+        self
+    }
+    pub fn with_mpls_label(mut self, label: u32) -> Self {
+        self.mpls_label = Some(label);
+        self
+    }
 }

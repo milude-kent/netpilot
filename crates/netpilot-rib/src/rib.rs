@@ -34,13 +34,27 @@ impl RibCore {
                 prefix,
                 next_hop,
                 preference,
-                source_protocol: _,
+                source_protocol,
                 attributes,
             } => {
                 let key = RouteKey::prefix(prefix);
-                let entry = RouteEntry::new(key, table, "protocol", *preference)
-                    .with_next_hop(crate::route::NextHop::new(next_hop))
-                    .with_metric(attributes.metric.unwrap_or(0));
+                let mut entry = RouteEntry::new(key, table, source_protocol, *preference)
+                    .with_next_hop(crate::route::NextHop::new(next_hop));
+                if let Some(m) = attributes.metric {
+                    entry = entry.with_metric(m);
+                }
+                if let Some(lp) = attributes.local_pref {
+                    entry = entry.with_local_pref(lp);
+                }
+                if let Some(ref path) = attributes.as_path {
+                    entry = entry.with_as_path(path.clone());
+                }
+                if let Some(ref comms) = attributes.communities {
+                    entry = entry.with_communities(comms.clone());
+                }
+                if let Some(label) = attributes.mpls_label {
+                    entry = entry.with_mpls_label(label);
+                }
                 let tbl = self.table(table);
                 tbl.insert(entry);
             }
