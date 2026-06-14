@@ -13,8 +13,8 @@ pub use adjacency::{Adjacency, AdjacencyState};
 pub use config::{CircuitType, IsisConfig, IsisInterfaceConfig, IsisLevel};
 pub use lsp::{LspDatabase, LspEntry};
 pub use packet::{
-    CsnpPacket, IihPacket, IsisHeader, IsisPacket, IsisPacketBody, LspId, LspPacket, PduType,
-    PsnpPacket,
+    CsnpLspEntry, CsnpPacket, IihPacket, IsisHeader, IsisPacket, IsisPacketBody, LspFlags, LspId,
+    LspPacket, P2pIihPacket, PduType, PsnpPacket,
 };
 pub use spf::{SpfNode, SpfResult, SpfRoute, compute_spf};
 pub use timer::IsisTimers;

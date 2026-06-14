@@ -518,6 +518,72 @@ impl IsisActor {
             let _ = transport.send(iface, &pkt).await;
         }
     }
+
+    /// Generate and send CSNP on all interfaces with Up adjacencies.
+    /// The CSNP contains a summary of all LSPs in our LSDB so neighbors
+    /// can detect missing or outdated entries.
+    async fn csnp_tick(&mut self) {
+        if self.transport.is_none() || self.lsp_db.is_empty() {
+            return;
+        }
+
+        // Build CSNP LSP entries from our LSDB
+        let lsp_entries: Vec<crate::packet::CsnpLspEntry> = self
+            .lsp_db
+            .all()
+            .map(|entry| crate::packet::CsnpLspEntry {
+                lsp_id: entry.lsp_id.clone(),
+                sequence_number: entry.sequence_number,
+                remaining_lifetime_secs: entry.remaining_lifetime_secs,
+                checksum: entry.checksum,
+            })
+            .collect();
+
+        // Start and end LSP IDs represent the range covered by this CSNP
+        let start_lsp_id = lsp_entries
+            .first()
+            .map(|e| e.lsp_id.clone())
+            .unwrap_or_else(|| crate::packet::LspId::new("0000.0000.0000", 0, 0));
+        let end_lsp_id = lsp_entries
+            .last()
+            .map(|e| e.lsp_id.clone())
+            .unwrap_or_else(|| crate::packet::LspId::new("ffff.ffff.ffff", 0xFF, 0xFF));
+
+        let csnp = crate::packet::CsnpPacket {
+            pdu_length: 0,
+            source_id: self.config.system_id.clone(),
+            start_lsp_id: Some(start_lsp_id),
+            end_lsp_id: Some(end_lsp_id),
+            lsp_entries,
+            tlvs: vec![],
+        };
+
+        let pkt = IsisPacket {
+            header: crate::packet::IsisHeader {
+                protocol_id: 0x83,
+                header_length: 8,
+                version: 1,
+                system_id_length: 0,
+                pdu_type: PduType::Level2Csnp,
+                version2: 1,
+                reserved: 0,
+                max_area_addresses: 3,
+            },
+            body: IsisPacketBody::Csnp(csnp),
+        };
+
+        if let Some(ref transport) = self.transport {
+            for iface in &self.config.interfaces {
+                let has_up_adj = self
+                    .adjacencies
+                    .values()
+                    .any(|a| a.interface == iface.interface && a.is_up());
+                if has_up_adj {
+                    let _ = transport.send(&iface.interface, &pkt).await;
+                }
+            }
+        }
+    }
 }
 
 #[async_trait]
@@ -644,6 +710,11 @@ impl ProtocolActor for IsisActor {
                 }
                 _ = self.timers.spf_interval.tick() => {
                     self.spf_tick().await;
+                }
+                _ = self.timers.csnp_interval.tick() => {
+                    // DIS routers send CSNPs periodically on broadcast interfaces.
+                    // On P2P, CSNPs are only sent on initial adjacency.
+                    self.csnp_tick().await;
                 }
                 _ = self.timers.purge_interval.tick() => {
                     let purged = self.lsp_db.purge_expired();
