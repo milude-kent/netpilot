@@ -178,6 +178,9 @@ impl IsisActor {
                         expires_at: expires,
                     });
                     self.stats.updates_received += 1;
+
+                    // Flood the LSP to all other adjacencies (except the one it came from)
+                    self.flood_lsp(lsp, iface).await;
                 }
             }
             IsisPacketBody::Csnp(_csnp) => {
@@ -246,6 +249,83 @@ impl IsisActor {
                     },
                 });
                 self.stats.routes_exported += 1;
+            }
+        }
+    }
+
+    /// Flood an LSP to all adjacencies except the receiving interface.
+    async fn flood_lsp(&mut self, lsp: &crate::packet::LspPacket, received_iface: &str) {
+        if self.transport.is_none() {
+            return;
+        }
+
+        let flood_pkt = IsisPacket {
+            header: crate::packet::IsisHeader {
+                protocol_id: 0x83,
+                header_length: 8,
+                version: 1,
+                system_id_length: 0,
+                pdu_type: PduType::Level2Lsp,
+                version2: 1,
+                reserved: 0,
+                max_area_addresses: 3,
+            },
+            body: IsisPacketBody::Lsp(lsp.clone()),
+        };
+
+        if let Some(ref transport) = self.transport {
+            for iface in &self.config.interfaces {
+                // Don't flood back to the interface we received the LSP on
+                if iface.interface == received_iface {
+                    continue;
+                }
+                // Only flood to interfaces that have at least one Up adjacency
+                let has_up_adj = self
+                    .adjacencies
+                    .values()
+                    .any(|a| a.interface == iface.interface && a.is_up());
+                if !has_up_adj {
+                    continue;
+                }
+                if let Err(e) = transport.send(&iface.interface, &flood_pkt).await {
+                    self.emit(ProtocolEvent::Error {
+                        protocol_name: self.name.clone(),
+                        message: format!("LSP flood failed on {}: {}", iface.interface, e),
+                    });
+                }
+            }
+        }
+    }
+
+    /// Send an LSP packet on all interfaces with Up adjacencies.
+    async fn send_lsp_packet(&mut self, lsp: &crate::packet::LspPacket) {
+        if self.transport.is_none() {
+            return;
+        }
+
+        let pkt = IsisPacket {
+            header: crate::packet::IsisHeader {
+                protocol_id: 0x83,
+                header_length: 8,
+                version: 1,
+                system_id_length: 0,
+                pdu_type: PduType::Level2Lsp,
+                version2: 1,
+                reserved: 0,
+                max_area_addresses: 3,
+            },
+            body: IsisPacketBody::Lsp(lsp.clone()),
+        };
+
+        if let Some(ref transport) = self.transport {
+            for iface in &self.config.interfaces {
+                let has_up_adj = self
+                    .adjacencies
+                    .values()
+                    .any(|a| a.interface == iface.interface && a.is_up());
+                if has_up_adj {
+                    let _ = transport.send(&iface.interface, &pkt).await;
+                }
             }
         }
     }
@@ -353,10 +433,25 @@ impl ProtocolActor for IsisActor {
                         &self.config.system_id,
                         &self.adjacencies.values().cloned().collect::<Vec<_>>(),
                     );
-                    self.emit(ProtocolEvent::Error {
-                        protocol_name: self.name.clone(),
-                        message: format!("LSP refresh: {} seq={}", self_lsp.lsp_id.display(), self_lsp.sequence_number),
+                    tracing::info!(
+                        lsp_id = %self_lsp.lsp_id.display(),
+                        seq = self_lsp.sequence_number,
+                        "IS-IS LSP refresh"
+                    );
+                    // Also insert into our own LSDB
+                    let now = time::OffsetDateTime::now_utc();
+                    let expires = now + time::Duration::seconds(self_lsp.remaining_lifetime_secs as i64);
+                    self.lsp_db.insert(crate::lsp::LspEntry {
+                        lsp_id: self_lsp.lsp_id.clone(),
+                        sequence_number: self_lsp.sequence_number,
+                        remaining_lifetime_secs: self_lsp.remaining_lifetime_secs,
+                        checksum: self_lsp.checksum,
+                        tlvs: self_lsp.tlvs.clone(),
+                        received_at: now,
+                        expires_at: expires,
                     });
+                    // Send on all interfaces with Up adjacencies
+                    self.send_lsp_packet(&self_lsp).await;
                 }
                 _ = self.timers.spf_interval.tick() => {
                     self.spf_tick().await;

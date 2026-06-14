@@ -8,6 +8,7 @@ license.workspace = true
 netpilot-protocol = { path = "../netpilot-protocol" }
 netpilot-config = { path = "../netpilot-config" }
 netpilot-kernel = { path = "../netpilot-kernel" }
+tracing.workspace = true
 serde.workspace = true
 async-trait = "0.1"
 socket2 = "0.5"
