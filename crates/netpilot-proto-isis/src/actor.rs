@@ -116,11 +116,17 @@ impl IsisActor {
 
             // On adjacency going Up, trigger LSP generation
             if new_state == crate::adjacency::AdjacencyState::Up {
+                // Send our self-LSP immediately so the neighbor can start
+                // topology convergence
                 let self_lsp = self.lsp_db.generate_self_lsp(
                     &self.config.system_id,
                     &self.adjacencies.values().cloned().collect::<Vec<_>>(),
                 );
                 self.send_lsp_packet(&self_lsp).await;
+
+                // Send CSNP on this interface so the neighbor can
+                // synchronize its LSDB with ours
+                self.send_csnp_on_interface(iface).await;
             }
         }
         self.stats.updates_received += 1;
@@ -582,6 +588,60 @@ impl IsisActor {
                     let _ = transport.send(&iface.interface, &pkt).await;
                 }
             }
+        }
+    }
+
+    /// Send a CSNP on a specific interface (used on initial adjacency Up).
+    async fn send_csnp_on_interface(&mut self, iface: &str) {
+        if self.transport.is_none() || self.lsp_db.is_empty() {
+            return;
+        }
+
+        let lsp_entries: Vec<crate::packet::CsnpLspEntry> = self
+            .lsp_db
+            .all()
+            .map(|entry| crate::packet::CsnpLspEntry {
+                lsp_id: entry.lsp_id.clone(),
+                sequence_number: entry.sequence_number,
+                remaining_lifetime_secs: entry.remaining_lifetime_secs,
+                checksum: entry.checksum,
+            })
+            .collect();
+
+        let start_lsp_id = lsp_entries
+            .first()
+            .map(|e| e.lsp_id.clone())
+            .unwrap_or_else(|| crate::packet::LspId::new("0000.0000.0000", 0, 0));
+        let end_lsp_id = lsp_entries
+            .last()
+            .map(|e| e.lsp_id.clone())
+            .unwrap_or_else(|| crate::packet::LspId::new("ffff.ffff.ffff", 0xFF, 0xFF));
+
+        let csnp = crate::packet::CsnpPacket {
+            pdu_length: 0,
+            source_id: self.config.system_id.clone(),
+            start_lsp_id: Some(start_lsp_id),
+            end_lsp_id: Some(end_lsp_id),
+            lsp_entries,
+            tlvs: vec![],
+        };
+
+        let pkt = IsisPacket {
+            header: crate::packet::IsisHeader {
+                protocol_id: 0x83,
+                header_length: 8,
+                version: 1,
+                system_id_length: 0,
+                pdu_type: PduType::Level2Csnp,
+                version2: 1,
+                reserved: 0,
+                max_area_addresses: 3,
+            },
+            body: IsisPacketBody::Csnp(csnp),
+        };
+
+        if let Some(ref transport) = self.transport {
+            let _ = transport.send(iface, &pkt).await;
         }
     }
 }
