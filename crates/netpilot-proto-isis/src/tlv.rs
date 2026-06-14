@@ -141,17 +141,27 @@ fn parse_single_tlv(type_code: u8, value: &[u8]) -> IsisTlv {
         }
         tlv_types::EXTENDED_IS_REACHABILITY => {
             let mut neighbors = Vec::new();
-            for chunk in value.chunks(11) {
-                if chunk.len() >= 11 {
-                    neighbors.push(ExtendedNeighbor {
-                        system_id: format!(
-                            "{:02x}{:02x}.{:02x}{:02x}.{:02x}{:02x}",
-                            chunk[0], chunk[1], chunk[2], chunk[3], chunk[4], chunk[5]
-                        ),
-                        metric: u32::from_be_bytes([0, chunk[6], chunk[7], chunk[8]]),
-                        pseudonode_id: chunk[10] & 0x3F,
-                    });
-                }
+            let mut off = 0;
+            while off + 11 <= value.len() {
+                let system_id = format!(
+                    "{:02x}{:02x}.{:02x}{:02x}.{:02x}{:02x}",
+                    value[off],
+                    value[off + 1],
+                    value[off + 2],
+                    value[off + 3],
+                    value[off + 4],
+                    value[off + 5]
+                );
+                let pseudonode_id = value[off + 6];
+                let metric =
+                    u32::from_be_bytes([0, value[off + 7], value[off + 8], value[off + 9]]);
+                let sub_tlv_len = value[off + 10] as usize;
+                neighbors.push(ExtendedNeighbor {
+                    system_id,
+                    metric,
+                    pseudonode_id,
+                });
+                off += 11 + sub_tlv_len;
             }
             IsisTlv::ExtendedIsReachability(neighbors)
         }
@@ -168,6 +178,92 @@ fn parse_single_tlv(type_code: u8, value: &[u8]) -> IsisTlv {
                 srgb_start: 16000,
                 srgb_end: 24000,
             }
+        }
+        tlv_types::IP_INTERNAL_REACHABILITY => {
+            let mut entries = Vec::new();
+            let mut off = 0;
+            while off + 8 <= value.len() {
+                let metric_byte = value[off];
+                let metric = (metric_byte & 0x7F) as u32;
+                let up_down = metric_byte & 0x80 != 0;
+                let ip_bytes = &value[off + 4..off + 8];
+                let prefix = format!(
+                    "{}.{}.{}.{}/32",
+                    ip_bytes[0], ip_bytes[1], ip_bytes[2], ip_bytes[3]
+                );
+                entries.push(IpReachEntry {
+                    prefix,
+                    metric,
+                    up_down,
+                    sub_tlv: false,
+                    prefix_len: 32,
+                });
+                off += 8;
+            }
+            IsisTlv::IpInternalReachability(entries)
+        }
+        tlv_types::IP_EXTERNAL_REACHABILITY => {
+            let mut entries = Vec::new();
+            let mut off = 0;
+            while off + 8 <= value.len() {
+                let metric_byte = value[off];
+                let metric = (metric_byte & 0x7F) as u32;
+                let up_down = metric_byte & 0x80 != 0;
+                let ip_bytes = &value[off + 4..off + 8];
+                let prefix = format!(
+                    "{}.{}.{}.{}/32",
+                    ip_bytes[0], ip_bytes[1], ip_bytes[2], ip_bytes[3]
+                );
+                entries.push(IpReachEntry {
+                    prefix,
+                    metric,
+                    up_down,
+                    sub_tlv: false,
+                    prefix_len: 32,
+                });
+                off += 8;
+            }
+            IsisTlv::IpExternalReachability(entries)
+        }
+        tlv_types::PROTOCOLS_SUPPORTED => IsisTlv::ProtocolsSupported(value.to_vec()),
+        tlv_types::IPV6_REACHABILITY => {
+            let mut entries = Vec::new();
+            let mut off = 0;
+            while off < value.len() {
+                if off + 4 > value.len() {
+                    break;
+                }
+                let prefix_len = value[off];
+                let metric =
+                    u32::from_be_bytes([0, value[off + 1], value[off + 2], value[off + 3]]);
+                off += 4;
+                let prefix_byte_len = (prefix_len as usize).div_ceil(8);
+                if off + prefix_byte_len > value.len() {
+                    break;
+                }
+                let mut ip6_bytes = [0u8; 16];
+                ip6_bytes[..prefix_byte_len].copy_from_slice(&value[off..off + prefix_byte_len]);
+                off += prefix_byte_len;
+                let prefix = format!(
+                    "{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}/{}",
+                    u16::from_be_bytes([ip6_bytes[0], ip6_bytes[1]]),
+                    u16::from_be_bytes([ip6_bytes[2], ip6_bytes[3]]),
+                    u16::from_be_bytes([ip6_bytes[4], ip6_bytes[5]]),
+                    u16::from_be_bytes([ip6_bytes[6], ip6_bytes[7]]),
+                    u16::from_be_bytes([ip6_bytes[8], ip6_bytes[9]]),
+                    u16::from_be_bytes([ip6_bytes[10], ip6_bytes[11]]),
+                    u16::from_be_bytes([ip6_bytes[12], ip6_bytes[13]]),
+                    u16::from_be_bytes([ip6_bytes[14], ip6_bytes[15]]),
+                    prefix_len
+                );
+                entries.push(Ipv6ReachEntry {
+                    prefix,
+                    metric,
+                    up_down: false,
+                    prefix_len,
+                });
+            }
+            IsisTlv::Ipv6Reachability(entries)
         }
         _ => IsisTlv::Unknown {
             type_code,
@@ -214,9 +310,10 @@ fn encode_tlv(tlv: &IsisTlv) -> (u8, Vec<u8>) {
                 if let Some(sys_bytes) = hex_decode(&n.system_id) {
                     v.extend_from_slice(&sys_bytes);
                 }
+                v.push(n.pseudonode_id);
                 let metric_bytes = n.metric.to_be_bytes();
                 v.extend_from_slice(&metric_bytes[1..]); // 3 bytes
-                v.push(n.pseudonode_id & 0x3F);
+                v.push(0); // sub-TLV length = 0 (no sub-TLVs stored)
             }
             (tlv_types::EXTENDED_IS_REACHABILITY, v)
         }
@@ -251,6 +348,73 @@ fn encode_tlv(tlv: &IsisTlv) -> (u8, Vec<u8>) {
             }
             v.extend_from_slice(&entry.sid_value.to_be_bytes());
             (tlv_types::ADJACENCY_SID, v)
+        }
+        IsisTlv::IpInternalReachability(entries) => {
+            let mut v = Vec::new();
+            for e in entries {
+                let metric_byte = (e.metric as u8 & 0x7F) | if e.up_down { 0x80 } else { 0 };
+                v.push(metric_byte);
+                v.push(0); // delay metric
+                v.push(0); // expense metric
+                v.push(0); // error metric
+                let octets: Vec<u8> = e
+                    .prefix
+                    .trim_end_matches("/32")
+                    .split('.')
+                    .map(|o| o.parse::<u8>().unwrap_or(0))
+                    .collect();
+                if octets.len() == 4 {
+                    v.extend_from_slice(&octets);
+                } else {
+                    v.extend_from_slice(&[0, 0, 0, 0]);
+                }
+            }
+            (tlv_types::IP_INTERNAL_REACHABILITY, v)
+        }
+        IsisTlv::IpExternalReachability(entries) => {
+            let mut v = Vec::new();
+            for e in entries {
+                let metric_byte = (e.metric as u8 & 0x7F) | if e.up_down { 0x80 } else { 0 };
+                v.push(metric_byte);
+                v.push(0); // delay metric
+                v.push(0); // expense metric
+                v.push(0); // error metric
+                let octets: Vec<u8> = e
+                    .prefix
+                    .trim_end_matches("/32")
+                    .split('.')
+                    .map(|o| o.parse::<u8>().unwrap_or(0))
+                    .collect();
+                if octets.len() == 4 {
+                    v.extend_from_slice(&octets);
+                } else {
+                    v.extend_from_slice(&[0, 0, 0, 0]);
+                }
+            }
+            (tlv_types::IP_EXTERNAL_REACHABILITY, v)
+        }
+        IsisTlv::ProtocolsSupported(nlpids) => (tlv_types::PROTOCOLS_SUPPORTED, nlpids.clone()),
+        IsisTlv::Ipv6Reachability(entries) => {
+            let mut v = Vec::new();
+            for e in entries {
+                v.push(e.prefix_len);
+                let metric_bytes = e.metric.to_be_bytes();
+                v.extend_from_slice(&metric_bytes[1..]); // 3 bytes wide metric
+                let prefix_byte_len = (e.prefix_len as usize).div_ceil(8);
+                let octets: Vec<u8> = e
+                    .prefix
+                    .split('/')
+                    .next()
+                    .unwrap_or("")
+                    .split(':')
+                    .flat_map(|h| {
+                        let val = u16::from_str_radix(h, 16).unwrap_or(0);
+                        val.to_be_bytes().to_vec()
+                    })
+                    .collect();
+                v.extend_from_slice(&octets[..prefix_byte_len.min(octets.len())]);
+            }
+            (tlv_types::IPV6_REACHABILITY, v)
         }
         _ => (0, vec![]),
     }

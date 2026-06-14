@@ -208,15 +208,67 @@ impl IsisPacket {
                 let tlv_bytes = crate::tlv::build_tlvs(&iih.tlvs);
                 buf.extend_from_slice(&tlv_bytes);
             }
-            _ => {
-                // LSP/CSNP/PSNP: append TLVs only (simplified)
-                let tlvs = match &self.body {
-                    IsisPacketBody::Lsp(lsp) => &lsp.tlvs,
-                    IsisPacketBody::Csnp(csnp) => &csnp.tlvs,
-                    IsisPacketBody::Psnp(psnp) => &psnp.tlvs,
-                    _ => unreachable!(),
-                };
-                let tlv_bytes = crate::tlv::build_tlvs(tlvs);
+            IsisPacketBody::Lsp(lsp) => {
+                // LSP fixed header: remaining_lifetime(2) + lsp_id(8) +
+                //   sequence_number(4) + checksum(2) + type_block(1) = 17 bytes
+                buf.extend_from_slice(&lsp.remaining_lifetime_secs.to_be_bytes());
+                buf.extend_from_slice(&lsp_id_to_bytes(&lsp.lsp_id));
+                buf.extend_from_slice(&lsp.sequence_number.to_be_bytes());
+                buf.extend_from_slice(&lsp.checksum.to_be_bytes());
+                let mut type_block: u8 = 0;
+                if lsp.flags.partition_repair {
+                    type_block |= 0x80;
+                }
+                if lsp.flags.attached_l2 {
+                    type_block |= 0x40;
+                }
+                if lsp.flags.attached_l1 {
+                    type_block |= 0x20;
+                }
+                if lsp.flags.overload {
+                    type_block |= 0x04;
+                }
+                buf.push(type_block);
+                // TLV area
+                let tlv_bytes = crate::tlv::build_tlvs(&lsp.tlvs);
+                buf.extend_from_slice(&tlv_bytes);
+            }
+            IsisPacketBody::Csnp(csnp) => {
+                // CSNP fixed header: source_id(6) + start_lsp_id(8) + end_lsp_id(8) = 22 bytes
+                buf.extend_from_slice(&system_id_to_bytes(&csnp.source_id));
+                if let Some(ref start) = csnp.start_lsp_id {
+                    buf.extend_from_slice(&lsp_id_to_bytes(start));
+                } else {
+                    buf.extend_from_slice(&[0u8; 8]);
+                }
+                if let Some(ref end) = csnp.end_lsp_id {
+                    buf.extend_from_slice(&lsp_id_to_bytes(end));
+                } else {
+                    buf.extend_from_slice(&[0u8; 8]);
+                }
+                // LSP entries as TLV type 9
+                if !csnp.lsp_entries.is_empty() {
+                    buf.push(9); // LSP Entries TLV type
+                    let entry_bytes = encode_lsp_entries(&csnp.lsp_entries);
+                    buf.push(entry_bytes.len() as u8);
+                    buf.extend_from_slice(&entry_bytes);
+                }
+                // Additional TLV area
+                let tlv_bytes = crate::tlv::build_tlvs(&csnp.tlvs);
+                buf.extend_from_slice(&tlv_bytes);
+            }
+            IsisPacketBody::Psnp(psnp) => {
+                // PSNP fixed header: source_id(6)
+                buf.extend_from_slice(&system_id_to_bytes(&psnp.source_id));
+                // LSP entries as TLV type 9
+                if !psnp.lsp_entries.is_empty() {
+                    buf.push(9); // LSP Entries TLV type
+                    let entry_bytes = encode_lsp_entries(&psnp.lsp_entries);
+                    buf.push(entry_bytes.len() as u8);
+                    buf.extend_from_slice(&entry_bytes);
+                }
+                // Additional TLV area
+                let tlv_bytes = crate::tlv::build_tlvs(&psnp.tlvs);
                 buf.extend_from_slice(&tlv_bytes);
             }
         }
@@ -245,10 +297,11 @@ impl IsisPacket {
         };
 
         let body_data = &data[8..];
-        let tlvs = crate::tlv::parse_tlvs(body_data);
 
         let body = match pdu_type {
             PduType::Level1LanIih | PduType::Level2LanIih => {
+                // IIH: existing decode preserved as-is
+                let tlvs = crate::tlv::parse_tlvs(body_data);
                 if body_data.len() < 15 {
                     return Err("IIH too short".into());
                 }
@@ -271,15 +324,84 @@ impl IsisPacket {
                     tlvs,
                 })
             }
-            _ => {
-                // Simplified: LSP/CSNP/PSNP just store TLVs
+            PduType::Level1Lsp | PduType::Level2Lsp => {
+                // LSP fixed header after common header: 17 bytes
+                //   remaining_lifetime: u16  (body_data[0..2])
+                //   lsp_id:              8B  (body_data[2..10])
+                //   sequence_number:    u32  (body_data[10..14])
+                //   checksum:           u16  (body_data[14..16])
+                //   type_block (flags):  u8  (body_data[16])
+                // TLVs start at body_data[17..]
+                if body_data.len() < 17 {
+                    return Err("LSP too short for fixed header".into());
+                }
+                let remaining_lifetime_secs = u16::from_be_bytes([body_data[0], body_data[1]]);
+                let lsp_id = bytes_to_lsp_id(&body_data[2..10]);
+                let sequence_number = u32::from_be_bytes([
+                    body_data[10],
+                    body_data[11],
+                    body_data[12],
+                    body_data[13],
+                ]);
+                let checksum = u16::from_be_bytes([body_data[14], body_data[15]]);
+                let type_block = body_data[16];
+                let flags = LspFlags {
+                    partition_repair: (type_block & 0x80) != 0,
+                    attached_l2: (type_block & 0x40) != 0,
+                    attached_l1: (type_block & 0x20) != 0,
+                    overload: (type_block & 0x04) != 0,
+                };
+                let pdu_length = data.len() as u16;
+                let tlvs = crate::tlv::parse_tlvs(&body_data[17..]);
                 IsisPacketBody::Lsp(LspPacket {
-                    pdu_length: 0,
-                    remaining_lifetime_secs: 1200,
-                    lsp_id: LspId::new("0000.0000.0000", 0, 0),
-                    sequence_number: 0,
-                    checksum: 0,
-                    flags: Default::default(),
+                    pdu_length,
+                    remaining_lifetime_secs,
+                    lsp_id,
+                    sequence_number,
+                    checksum,
+                    flags,
+                    tlvs,
+                })
+            }
+            PduType::Level1Csnp | PduType::Level2Csnp => {
+                // CSNP fixed header after common header: 22 bytes
+                //   source_id:     6B  (body_data[0..6])
+                //   start_lsp_id:  8B  (body_data[6..14])
+                //   end_lsp_id:    8B  (body_data[14..22])
+                // TLVs start at body_data[22..]
+                if body_data.len() < 22 {
+                    return Err("CSNP too short for fixed header".into());
+                }
+                let source_id = bytes_to_system_id(&body_data[0..6]);
+                let start_lsp_id = bytes_to_lsp_id(&body_data[6..14]);
+                let end_lsp_id = bytes_to_lsp_id(&body_data[14..22]);
+                let pdu_length = data.len() as u16;
+                let tlvs = crate::tlv::parse_tlvs(&body_data[22..]);
+                let lsp_entries = extract_lsp_entries(&tlvs);
+                IsisPacketBody::Csnp(CsnpPacket {
+                    pdu_length,
+                    source_id,
+                    start_lsp_id: Some(start_lsp_id),
+                    end_lsp_id: Some(end_lsp_id),
+                    lsp_entries,
+                    tlvs,
+                })
+            }
+            PduType::Level1Psnp | PduType::Level2Psnp => {
+                // PSNP fixed header after common header: 6 bytes
+                //   source_id:     6B  (body_data[0..6])
+                // TLVs start at body_data[6..]
+                if body_data.len() < 6 {
+                    return Err("PSNP too short for fixed header".into());
+                }
+                let source_id = bytes_to_system_id(&body_data[0..6]);
+                let pdu_length = data.len() as u16;
+                let tlvs = crate::tlv::parse_tlvs(&body_data[6..]);
+                let lsp_entries = extract_lsp_entries(&tlvs);
+                IsisPacketBody::Psnp(PsnpPacket {
+                    pdu_length,
+                    source_id,
+                    lsp_entries,
                     tlvs,
                 })
             }
@@ -305,4 +427,64 @@ fn bytes_to_system_id(bytes: &[u8]) -> String {
         .enumerate()
         .map(|(i, b)| format!("{}{:02x}", if i % 2 == 0 && i > 0 { "." } else { "" }, b))
         .collect::<String>()
+}
+
+/// Parse 8 bytes into an LspId: system_id[6] + pseudonode_id[1] + fragment[1].
+fn bytes_to_lsp_id(bytes: &[u8]) -> LspId {
+    LspId {
+        system_id: bytes_to_system_id(&bytes[0..6]),
+        pseudonode_id: bytes[6],
+        fragment: bytes[7] as u32,
+    }
+}
+
+/// Encode an LspId into 8 bytes: system_id[6] + pseudonode_id[1] + fragment[1].
+fn lsp_id_to_bytes(lsp_id: &LspId) -> Vec<u8> {
+    let mut buf = system_id_to_bytes(&lsp_id.system_id);
+    buf.push(lsp_id.pseudonode_id);
+    buf.push(lsp_id.fragment as u8);
+    buf
+}
+
+/// IS-IS TLV type 9: LSP Entries.
+const TLV_TYPE_LSP_ENTRIES: u8 = 9;
+
+/// Extract LSP entries from TLV type 9 (LSP Entries TLV).
+/// Each entry is 16 bytes: remaining_lifetime(2) + lsp_id(8) + sequence_number(4) + checksum(2).
+fn extract_lsp_entries(tlvs: &[IsisTlv]) -> Vec<CsnpLspEntry> {
+    let mut entries = Vec::new();
+    for tlv in tlvs {
+        if let IsisTlv::Unknown { type_code, value } = tlv
+            && *type_code == TLV_TYPE_LSP_ENTRIES
+        {
+            // Each LSP entry is 16 bytes
+            for chunk in value.chunks(16) {
+                if chunk.len() < 16 {
+                    break;
+                }
+                entries.push(CsnpLspEntry {
+                    remaining_lifetime_secs: u16::from_be_bytes([chunk[0], chunk[1]]),
+                    lsp_id: bytes_to_lsp_id(&chunk[2..10]),
+                    sequence_number: u32::from_be_bytes([
+                        chunk[10], chunk[11], chunk[12], chunk[13],
+                    ]),
+                    checksum: u16::from_be_bytes([chunk[14], chunk[15]]),
+                });
+            }
+        }
+    }
+    entries
+}
+
+/// Encode LSP entries into raw bytes for TLV type 9.
+/// Each entry: remaining_lifetime(2) + lsp_id(8) + sequence_number(4) + checksum(2) = 16 bytes.
+fn encode_lsp_entries(entries: &[CsnpLspEntry]) -> Vec<u8> {
+    let mut buf = Vec::with_capacity(entries.len() * 16);
+    for entry in entries {
+        buf.extend_from_slice(&entry.remaining_lifetime_secs.to_be_bytes());
+        buf.extend_from_slice(&lsp_id_to_bytes(&entry.lsp_id));
+        buf.extend_from_slice(&entry.sequence_number.to_be_bytes());
+        buf.extend_from_slice(&entry.checksum.to_be_bytes());
+    }
+    buf
 }
