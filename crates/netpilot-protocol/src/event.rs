@@ -15,6 +15,8 @@ pub enum ProtocolEvent {
     RouteWithdraw {
         table: String,
         prefix: String,
+        #[serde(default)]
+        source_protocol: String,
     },
     StateChange {
         protocol_name: String,

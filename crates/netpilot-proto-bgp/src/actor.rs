@@ -267,6 +267,7 @@ impl ProtocolActor for BgpActor {
                                                         let _ = tx.send(ProtocolEvent::RouteWithdraw {
                                                             table: "master".into(),
                                                             prefix: prefix.clone(),
+                                                            source_protocol: "bgp".into(),
                                                         });
                                                     }
                                                 }

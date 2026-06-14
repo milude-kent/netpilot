@@ -58,13 +58,20 @@ impl RibCore {
                 let tbl = self.table(table);
                 tbl.insert(entry);
             }
-            ProtocolEvent::RouteWithdraw { table, prefix } => {
+            ProtocolEvent::RouteWithdraw {
+                table,
+                prefix,
+                source_protocol,
+            } => {
                 let key = RouteKey::prefix(prefix);
                 if let Some(tbl) = self.tables.get_mut(table) {
-                    // Withdraw removes the route regardless of source protocol.
-                    // If multiple protocols contribute the same prefix, all are removed;
-                    // the surviving protocols will re-announce in subsequent cycles.
-                    tbl.remove_all(&key);
+                    if source_protocol.is_empty() {
+                        // No source specified: remove all routes for this prefix
+                        tbl.remove_all(&key);
+                    } else {
+                        // Remove only routes from the specified source protocol
+                        tbl.remove(&key, source_protocol);
+                    }
                 }
             }
             _ => {}

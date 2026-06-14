@@ -222,7 +222,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 }
                             }
                         }
-                        ProtocolEvent::RouteWithdraw { table: _, prefix } => {
+                        ProtocolEvent::RouteWithdraw {
+                            table: _,
+                            prefix,
+                            source_protocol: _,
+                        } => {
                             rib.process_event(&event);
                             if let Some(ref kc) = kernel_client {
                                 let route = netpilot_kernel::KernelRoute::new(prefix);
