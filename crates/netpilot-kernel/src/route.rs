@@ -103,62 +103,54 @@ impl KernelRouteClient {
     pub async fn add(&self, route: &KernelRoute) -> Result<(), KernelError> {
         #[cfg(target_os = "linux")]
         {
-            use netlink_packet_route::AddressFamily;
-            use netlink_packet_route::route::RouteAddress;
+            use rtnetlink::RouteMessageBuilder;
             use std::net::Ipv4Addr;
 
-            let mut msg = rtnetlink::packet::RouteMessage::default();
-            msg.header.table = route.table_id as u8;
-            msg.header.protocol =
-                netlink_packet_route::route::RouteProtocol::from(u8::from(route.protocol.clone()));
-            msg.header.destination_prefix_len = route
-                .prefix
-                .split('/')
-                .nth(1)
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(32);
-            msg.header.address_family = AddressFamily::Inet;
-
-            // Set destination prefix
-            if let Ok(ip) = route
+            let dest_ip = route
                 .prefix
                 .split('/')
                 .next()
                 .unwrap_or("0.0.0.0")
                 .parse::<Ipv4Addr>()
-            {
-                msg.attributes
-                    .push(netlink_packet_route::route::RouteAttribute::Destination(
-                        RouteAddress::Inet(ip),
-                    ));
-            }
+                .map_err(|e| KernelError::Netlink(format!("invalid prefix IP: {e}")))?;
 
-            // Set gateway
+            let prefix_len: u8 = route
+                .prefix
+                .split('/')
+                .nth(1)
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(32);
+
+            let mut builder = RouteMessageBuilder::<Ipv4Addr>::new()
+                .destination_prefix(dest_ip, prefix_len)
+                .table_id(route.table_id);
+
+            // Map our RouteProtocol to rtnetlink's RouteProtocol
+            let nl_proto = rtnetlink::packet_route::route::RouteProtocol::from(u8::from(
+                route.protocol.clone(),
+            ));
+            builder = builder.protocol(nl_proto);
+
+            // Set gateway if specified
             if let Some(ref nh) = route.next_hop {
                 if let Ok(gw) = nh.parse::<Ipv4Addr>() {
-                    msg.attributes
-                        .push(netlink_packet_route::route::RouteAttribute::Gateway(
-                            RouteAddress::Inet(gw),
-                        ));
+                    builder = builder.gateway(gw);
                 }
             }
 
             // Set outgoing interface index if specified
             if let Some(ref _iface) = route.interface {
                 // In production: resolve iface name to index via netlink
-                // For now: use a basic RouteAttribute
-                msg.attributes
-                    .push(netlink_packet_route::route::RouteAttribute::Oif(0));
+                // For now: use index 0 as a placeholder
+                builder = builder.output_interface(0);
             }
 
             // Set metric if specified
             if let Some(metric) = route.metric {
-                msg.attributes
-                    .push(netlink_packet_route::route::RouteAttribute::Priority(
-                        metric,
-                    ));
+                builder = builder.priority(metric);
             }
 
+            let msg = builder.build();
             self.handle
                 .route()
                 .add(msg)
@@ -175,7 +167,7 @@ impl KernelRouteClient {
     pub async fn delete(&self, route: &KernelRoute) -> Result<(), KernelError> {
         #[cfg(target_os = "linux")]
         {
-            let mut msg = rtnetlink::packet::RouteMessage::default();
+            let mut msg = rtnetlink::packet_route::route::RouteMessage::default();
             msg.header.table = route.table_id as u8;
             self.handle
                 .route()
@@ -196,7 +188,7 @@ impl KernelRouteClient {
             use futures::TryStreamExt;
             let mut routes = Vec::new();
             let mut stream = self.handle.route().get(rtnetlink::IpVersion::V4).execute();
-            while let Some(msg) = stream
+            while let Some(_msg) = stream
                 .try_next()
                 .await
                 .map_err(|e| KernelError::Netlink(e.to_string()))?

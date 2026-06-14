@@ -5,10 +5,12 @@ edition.workspace = true
 license.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
-netlink-packet-route = "0.22"
 rtnetlink = "0.15"
 
 [dependencies]
 futures = "0.3"
 thiserror.workspace = true
 tokio.workspace = true
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+nix.workspace = true

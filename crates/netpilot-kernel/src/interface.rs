@@ -57,11 +57,11 @@ pub enum InterfaceEvent {
 
 /// Watches for interface state changes.
 ///
-/// On Linux: streams rtnetlink link/address events.
-/// On macOS: returns an empty stream (stub).
+/// On Linux: uses rtnetlink for actual link/address queries.
+/// On macOS: returns hardcoded stub data.
 pub struct InterfaceWatcher {
     #[cfg(target_os = "linux")]
-    connection: Option<rtnetlink::Connection>,
+    handle: Option<rtnetlink::Handle>,
 }
 
 impl InterfaceWatcher {
@@ -69,40 +69,72 @@ impl InterfaceWatcher {
     pub async fn new() -> Result<Self, KernelError> {
         #[cfg(target_os = "linux")]
         {
-            let (connection, _handle, _) =
+            let (connection, handle, _) =
                 rtnetlink::new_connection().map_err(|e| KernelError::Netlink(e.to_string()))?;
+            // Spawn the netlink connection so it processes messages in the
+            // background. The unsolicited-message receiver is dropped; a
+            // future implementation can use it to stream InterfaceEvents.
+            tokio::spawn(connection);
             return Ok(Self {
-                connection: Some(connection),
+                handle: Some(handle),
             });
         }
         Ok(Self {
             #[cfg(target_os = "linux")]
-            connection: None,
+            handle: None,
         })
     }
 
     /// Stream interface events.
+    ///
+    /// Currently returns an empty stream. A full implementation would
+    /// filter rtnetlink link/address messages and convert them to
+    /// InterfaceEvent variants.
     #[allow(unused_mut)]
     pub async fn watch(
         &mut self,
     ) -> Result<impl futures::Stream<Item = InterfaceEvent>, KernelError> {
-        #[cfg(target_os = "linux")]
-        {
-            use futures::StreamExt;
-            if let Some(conn) = self.connection.take() {
-                let (_conn, _handle, messages) = conn.into_parts();
-                // In a full implementation, we'd filter link/address messages
-                // and convert them to InterfaceEvent variants.
-                // For now, return an empty stream.
-                drop(messages);
-            }
-        }
         Ok(futures::stream::empty())
     }
 
     /// List all interfaces (snapshot).
     #[allow(unused_mut)]
     pub async fn list(&mut self) -> Result<Vec<InterfaceInfo>, KernelError> {
+        #[cfg(target_os = "linux")]
+        {
+            use futures::TryStreamExt;
+            if let Some(ref handle) = self.handle {
+                let mut ifaces = Vec::new();
+                let mut stream = handle.link().get().execute();
+                while let Some(msg) = stream
+                    .try_next()
+                    .await
+                    .map_err(|e| KernelError::Netlink(e.to_string()))?
+                {
+                    ifaces.push(InterfaceInfo {
+                        name: msg
+                            .attributes
+                            .iter()
+                            .find_map(|a| {
+                                if let rtnetlink::packet_route::link::LinkAttribute::IfName(
+                                    ref name,
+                                ) = a
+                                {
+                                    Some(name.clone())
+                                } else {
+                                    None
+                                }
+                            })
+                            .unwrap_or_default(),
+                        index: msg.header.index as u32,
+                        flags: InterfaceFlags::default(),
+                        addresses: Vec::new(),
+                        mtu: None,
+                    });
+                }
+                return Ok(ifaces);
+            }
+        }
         let ifaces = vec![InterfaceInfo {
             name: "lo".into(),
             index: 1,

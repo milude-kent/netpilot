@@ -15,6 +15,7 @@ pub struct RawSocket {
 }
 
 impl RawSocket {
+    #[allow(unreachable_code)]
     pub fn new() -> Result<Self, TransportError> {
         #[cfg(target_os = "linux")]
         {
@@ -39,10 +40,9 @@ impl RawSocket {
         #[cfg(target_os = "linux")]
         {
             if let Some(ref socket) = self.socket {
-                use std::io::Write;
-                let mut stream =
-                    std::net::TcpStream::connect("127.0.0.1:0").unwrap_or_else(|_| unreachable!());
-                // Real implementation uses send_to with destination address
+                // Real implementation would use socket.send_to() with the
+                // destination address. For now, return 0 as a placeholder
+                // (the socket exists but the send logic is not yet wired).
                 return Ok(0);
             }
         }
@@ -53,8 +53,8 @@ impl RawSocket {
     pub async fn recv(&self, _buf: &mut [u8]) -> Result<usize, TransportError> {
         #[cfg(target_os = "linux")]
         {
-            if let Some(ref socket) = self.socket {
-                // Real implementation uses recv_from
+            if let Some(ref _socket) = self.socket {
+                // Real implementation would use socket.recv_from().
                 return Ok(0);
             }
         }

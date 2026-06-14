@@ -20,10 +20,14 @@ db-urls = ["https://github.com/rustsec/advisory-db"]
 # upstream choices (e.g. `paste`, `rustls-pemfile`) that NetPilot can't
 # fix in this repo, and they shouldn't gate the supply-chain job. The
 # `vulnerability` axis (left at the default `deny`) still hard-fails.
+unmaintained = "workspace"
 yanked = "warn"
 ignore = [
-    # Add specific advisories to ignore here with justification, e.g.:
-    # "RUSTSEC-XXXX-YYYY",
+    # rustls-pemfile is no longer maintained (RUSTSEC-2025-0134). It is a
+    # direct dependency of netpilotd via the rustls/tokio-rustls stack. The
+    # crate is a thin wrapper around rustls-pki-types >= 1.9 and is safe to
+    # use; migration to PemObject will happen in a future cleanup round.
+    "RUSTSEC-2025-0134",
 ]
 
 # ────────────────────────────────────────────────────────────────────────
