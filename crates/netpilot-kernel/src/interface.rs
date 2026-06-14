@@ -65,7 +65,7 @@ pub struct InterfaceWatcher {
 }
 
 impl InterfaceWatcher {
-    #[allow(unreachable_code)]
+    #[allow(unreachable_code, clippy::needless_return)]
     pub async fn new() -> Result<Self, KernelError> {
         #[cfg(target_os = "linux")]
         {
@@ -98,7 +98,7 @@ impl InterfaceWatcher {
     }
 
     /// List all interfaces (snapshot).
-    #[allow(unused_mut)]
+    #[allow(unused_mut, clippy::needless_return)]
     pub async fn list(&mut self) -> Result<Vec<InterfaceInfo>, KernelError> {
         #[cfg(target_os = "linux")]
         {

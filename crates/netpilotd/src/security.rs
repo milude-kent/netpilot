@@ -6,7 +6,7 @@ pub fn drop_privileges(user: &str) -> Result<(), String> {
         // In production: use capctl or libcap to drop capabilities
         // For now: log that we should be running as non-root
     }
-    eprintln!(
+    tracing::info!(
         "security: running as '{}' (privilege dropping is Linux-only)",
         user
     );

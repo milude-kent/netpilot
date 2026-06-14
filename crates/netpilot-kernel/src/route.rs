@@ -86,7 +86,7 @@ pub struct KernelRouteClient {
 
 impl KernelRouteClient {
     /// Create a new connection to netlink.
-    #[allow(unreachable_code)]
+    #[allow(unreachable_code, clippy::needless_return)]
     pub async fn new() -> Result<Self, KernelError> {
         #[cfg(target_os = "linux")]
         {
@@ -99,7 +99,7 @@ impl KernelRouteClient {
     }
 
     /// Add a route to the kernel FIB.
-    #[allow(unused_variables, unreachable_code)]
+    #[allow(unused_variables, unreachable_code, clippy::needless_return)]
     pub async fn add(&self, route: &KernelRoute) -> Result<(), KernelError> {
         #[cfg(target_os = "linux")]
         {
@@ -163,7 +163,7 @@ impl KernelRouteClient {
     }
 
     /// Delete a route from the kernel FIB.
-    #[allow(unused_variables, unreachable_code)]
+    #[allow(unused_variables, unreachable_code, clippy::needless_return)]
     pub async fn delete(&self, route: &KernelRoute) -> Result<(), KernelError> {
         #[cfg(target_os = "linux")]
         {
@@ -181,7 +181,7 @@ impl KernelRouteClient {
     }
 
     /// Dump all routes from a kernel table.
-    #[allow(unused_variables, unreachable_code)]
+    #[allow(unused_variables, unreachable_code, clippy::needless_return)]
     pub async fn dump(&self, table_id: u32) -> Result<Vec<KernelRoute>, KernelError> {
         #[cfg(target_os = "linux")]
         {

@@ -15,7 +15,7 @@ pub struct RawSocket {
 }
 
 impl RawSocket {
-    #[allow(unreachable_code)]
+    #[allow(unreachable_code, clippy::needless_return)]
     pub fn new() -> Result<Self, TransportError> {
         #[cfg(target_os = "linux")]
         {
