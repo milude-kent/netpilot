@@ -59,6 +59,39 @@ impl IsisActor {
     /// Process a received IIH (LAN or P2P) and update adjacency state.
     async fn process_iih(&mut self, iih: &crate::packet::IihPacket, iface: &str) {
         let neighbor_id = &iih.source_id;
+
+        // Area validation: for L1 IIHs, area must match (RFC 10589 §8.2.1).
+        // For L2 IIHs, area mismatch is allowed but logged.
+        if iih.circuit_type & 0x01 != 0 {
+            // L1 circuit — check area match
+            let neighbor_areas: Vec<String> = iih
+                .tlvs
+                .iter()
+                .filter_map(|t| match t {
+                    crate::tlv::IsisTlv::AreaAddresses(addrs) => Some(addrs.clone()),
+                    _ => None,
+                })
+                .flatten()
+                .collect();
+
+            let areas_match = neighbor_areas
+                .iter()
+                .any(|a| self.config.area_addresses.contains(a));
+
+            if !areas_match && !neighbor_areas.is_empty() {
+                self.emit(ProtocolEvent::Error {
+                    protocol_name: self.name.clone(),
+                    message: format!(
+                        "IIH from {} on {} area mismatch: neighbor has {:?}, we have {:?}",
+                        neighbor_id, iface, neighbor_areas, self.config.area_addresses
+                    ),
+                });
+                // Per RFC 10589, L1 IIH with mismatched area should not form adjacency
+                // But we still process it (the adjacency FSM will keep it in Init)
+                return;
+            }
+        }
+
         let key = format!("{}/{}", iface, neighbor_id);
         let adj = self.adjacencies.entry(key).or_insert_with(|| {
             Adjacency::new(
@@ -80,6 +113,15 @@ impl IsisActor {
                     iface, neighbor_id, old_state, new_state
                 ),
             });
+
+            // On adjacency going Up, trigger LSP generation
+            if new_state == crate::adjacency::AdjacencyState::Up {
+                let self_lsp = self.lsp_db.generate_self_lsp(
+                    &self.config.system_id,
+                    &self.adjacencies.values().cloned().collect::<Vec<_>>(),
+                );
+                self.send_lsp_packet(&self_lsp).await;
+            }
         }
         self.stats.updates_received += 1;
     }
@@ -138,11 +180,29 @@ impl IsisActor {
                 Ok(())
             }
             ProtocolMsg::Shutdown => {
+                // Graceful shutdown: purge self-LSP with zero remaining lifetime
+                // so neighbors remove us from their LSDBs (RFC 10589 §7.2.10.2)
+                let self_lsp = self.lsp_db.generate_self_lsp(
+                    &self.config.system_id,
+                    &self.adjacencies.values().cloned().collect::<Vec<_>>(),
+                );
+                // Override remaining_lifetime to 0 for purge
+                let purge_lsp = crate::packet::LspPacket {
+                    pdu_length: 0,
+                    lsp_id: self_lsp.lsp_id.clone(),
+                    sequence_number: self_lsp.sequence_number,
+                    remaining_lifetime_secs: 0, // signals purge
+                    checksum: self_lsp.checksum,
+                    flags: self_lsp.flags.clone(),
+                    tlvs: self_lsp.tlvs.clone(),
+                };
+                self.send_lsp_packet(&purge_lsp).await;
+
                 self.state = ProtocolState::Down;
                 self.emit(ProtocolEvent::StateChange {
                     protocol_name: self.name.clone(),
                     new_state: ProtocolState::Down,
-                    message: "protocol shutting down".into(),
+                    message: "protocol shutting down (LSP purged)".into(),
                 });
                 Err(ProtocolError::Stopped(
                     self.name.clone(),
