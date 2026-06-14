@@ -99,7 +99,7 @@ impl KernelRouteClient {
     }
 
     /// Add a route to the kernel FIB.
-    #[allow(unused_variables)]
+    #[allow(unused_variables, unreachable_code)]
     pub async fn add(&self, route: &KernelRoute) -> Result<(), KernelError> {
         #[cfg(target_os = "linux")]
         {
@@ -132,10 +132,10 @@ impl KernelRouteClient {
             builder = builder.protocol(nl_proto);
 
             // Set gateway if specified
-            if let Some(ref nh) = route.next_hop {
-                if let Ok(gw) = nh.parse::<Ipv4Addr>() {
-                    builder = builder.gateway(gw);
-                }
+            if let Some(ref nh) = route.next_hop
+                && let Ok(gw) = nh.parse::<Ipv4Addr>()
+            {
+                builder = builder.gateway(gw);
             }
 
             // Set outgoing interface index if specified
@@ -163,7 +163,7 @@ impl KernelRouteClient {
     }
 
     /// Delete a route from the kernel FIB.
-    #[allow(unused_variables)]
+    #[allow(unused_variables, unreachable_code)]
     pub async fn delete(&self, route: &KernelRoute) -> Result<(), KernelError> {
         #[cfg(target_os = "linux")]
         {
@@ -181,13 +181,18 @@ impl KernelRouteClient {
     }
 
     /// Dump all routes from a kernel table.
-    #[allow(unused_variables)]
+    #[allow(unused_variables, unreachable_code)]
     pub async fn dump(&self, table_id: u32) -> Result<Vec<KernelRoute>, KernelError> {
         #[cfg(target_os = "linux")]
         {
             use futures::TryStreamExt;
+            use rtnetlink::RouteMessageBuilder;
+
             let mut routes = Vec::new();
-            let mut stream = self.handle.route().get(rtnetlink::IpVersion::V4).execute();
+            let msg = RouteMessageBuilder::<std::net::Ipv4Addr>::new()
+                .table_id(table_id)
+                .build();
+            let mut stream = self.handle.route().get(msg).execute();
             while let Some(_msg) = stream
                 .try_next()
                 .await

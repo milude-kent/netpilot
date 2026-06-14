@@ -39,7 +39,7 @@ impl RawSocket {
     pub async fn send(&self, _data: &[u8]) -> Result<usize, TransportError> {
         #[cfg(target_os = "linux")]
         {
-            if let Some(ref socket) = self.socket {
+            if let Some(ref _socket) = self.socket {
                 // Real implementation would use socket.send_to() with the
                 // destination address. For now, return 0 as a placeholder
                 // (the socket exists but the send logic is not yet wired).

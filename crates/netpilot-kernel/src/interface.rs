@@ -116,9 +116,8 @@ impl InterfaceWatcher {
                             .attributes
                             .iter()
                             .find_map(|a| {
-                                if let rtnetlink::packet_route::link::LinkAttribute::IfName(
-                                    ref name,
-                                ) = a
+                                if let rtnetlink::packet_route::link::LinkAttribute::IfName(name) =
+                                    a
                                 {
                                     Some(name.clone())
                                 } else {
@@ -126,7 +125,7 @@ impl InterfaceWatcher {
                                 }
                             })
                             .unwrap_or_default(),
-                        index: msg.header.index as u32,
+                        index: msg.header.index,
                         flags: InterfaceFlags::default(),
                         addresses: Vec::new(),
                         mtu: None,
