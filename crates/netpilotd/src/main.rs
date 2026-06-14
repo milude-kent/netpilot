@@ -275,13 +275,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // gRPC server (tonic)
     let grpc_state = {
-        let mut gs = netpilot_grpc::GrpcAppState::new(app_state.config_store.clone());
-        if let Some(event_tx) = Some(app_state.event_tx.clone()) {
-            gs = netpilot_grpc::GrpcAppState::with_event_tx(
-                app_state.config_store.clone(),
-                event_tx,
-            );
-        }
+        let event_tx = app_state.event_tx.clone();
+        let mut gs =
+            netpilot_grpc::GrpcAppState::with_event_tx(app_state.config_store.clone(), event_tx);
         if let Some(ref a) = auth_snapshot {
             gs = gs.with_auth(a.clone());
         }

@@ -19,7 +19,6 @@
 #[test]
 #[ignore = "requires root and a `nobody` user"]
 fn drop_privs_retains_net_admin_drops_sys_admin() {
-    use std::io::Write as _;
     use std::process::Command;
 
     let exe = std::env::current_exe().expect("current_exe()");

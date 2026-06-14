@@ -40,6 +40,8 @@ futures.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 capctl.workspace = true
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
 nix.workspace = true
 
 [dev-dependencies]
