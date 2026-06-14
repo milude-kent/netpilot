@@ -6,7 +6,7 @@ license.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 rtnetlink = "0.15"
-lru = "0.12"
+lru = "0.16"
 
 [dependencies]
 futures = "0.3"
