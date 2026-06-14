@@ -15,7 +15,11 @@ feature-depth = 1
 [advisories]
 db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
-# Fail on any vulnerability or unmaintained crate; warn on yanked/notices.
+# Fail on actual vulnerabilities (the default). Demote unmaintained +
+# yanked + notices to warnings: those typically reflect transitive
+# upstream choices (e.g. `paste`, `rustls-pemfile`) that NetPilot can't
+# fix in this repo, and they shouldn't gate the supply-chain job. The
+# `vulnerability` axis (left at the default `deny`) still hard-fails.
 yanked = "warn"
 ignore = [
     # Add specific advisories to ignore here with justification, e.g.:
@@ -59,7 +63,13 @@ license-files = [
 # ────────────────────────────────────────────────────────────────────────
 [bans]
 multiple-versions = "warn"
-wildcards = "deny"
+# `wildcards = "deny"` is meant to catch loose semver wildcards in
+# REGISTRY versions (e.g. `serde = "*"`), but cargo-deny also flags
+# every internal `path = "../netpilot-*"` workspace dep as a wildcard
+# because they omit a registry version. That produces 40+ false
+# positives across our 16 internal crates. Set to "allow" — actual
+# registry wildcard bans should go in the `deny = []` list below.
+wildcards = "allow"
 highlight = "all"
 allow = []
 deny = [
