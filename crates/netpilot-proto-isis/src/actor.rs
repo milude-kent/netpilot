@@ -56,6 +56,34 @@ impl IsisActor {
         }
     }
 
+    /// Process a received IIH (LAN or P2P) and update adjacency state.
+    async fn process_iih(&mut self, iih: &crate::packet::IihPacket, iface: &str) {
+        let neighbor_id = &iih.source_id;
+        let key = format!("{}/{}", iface, neighbor_id);
+        let adj = self.adjacencies.entry(key).or_insert_with(|| {
+            Adjacency::new(
+                neighbor_id,
+                iface,
+                IsisLevel::Level2,
+                &self.config.system_id,
+                30,
+            )
+        });
+        let old_state = adj.state.clone();
+        let new_state = adj.process_hello(iih);
+        if new_state != old_state {
+            self.emit(ProtocolEvent::StateChange {
+                protocol_name: self.name.clone(),
+                new_state: self.state.clone(),
+                message: format!(
+                    "adjacency {}/{} {:?} -> {:?}",
+                    iface, neighbor_id, old_state, new_state
+                ),
+            });
+        }
+        self.stats.updates_received += 1;
+    }
+
     async fn handle_msg(&mut self, msg: ProtocolMsg) -> Result<(), ProtocolError> {
         match msg {
             ProtocolMsg::Reload { config, scope } => {
@@ -139,30 +167,23 @@ impl IsisActor {
     async fn handle_packet(&mut self, iface: &str, pkt: &IsisPacket) {
         match &pkt.body {
             IsisPacketBody::Iih(iih) => {
-                let neighbor_id = &iih.source_id;
-                let key = format!("{}/{}", iface, neighbor_id);
-                let adj = self.adjacencies.entry(key).or_insert_with(|| {
-                    Adjacency::new(
-                        neighbor_id,
-                        iface,
-                        IsisLevel::Level2,
-                        &self.config.system_id,
-                        30,
-                    )
-                });
-                let old_state = adj.state.clone();
-                let new_state = adj.process_hello(iih);
-                if new_state != old_state {
-                    self.emit(ProtocolEvent::StateChange {
-                        protocol_name: self.name.clone(),
-                        new_state: self.state.clone(),
-                        message: format!(
-                            "adjacency {}/{} {:?} -> {:?}",
-                            iface, neighbor_id, old_state, new_state
-                        ),
-                    });
-                }
-                self.stats.updates_received += 1;
+                self.process_iih(iih, iface).await;
+            }
+            IsisPacketBody::P2pIih(p2p) => {
+                // Convert P2P IIH to a LAN IIH-like structure for adjacency processing.
+                // P2P IIH has local_circuit_id instead of priority/lan_id, but the
+                // adjacency state machine works the same way.
+                let iih = crate::packet::IihPacket {
+                    circuit_type: p2p.circuit_type,
+                    source_id: p2p.source_id.clone(),
+                    holding_time_secs: p2p.holding_time_secs,
+                    pdu_length: p2p.pdu_length,
+                    priority: 0,       // not used on P2P
+                    lan_id: None,      // not used on P2P
+                    neighbors: vec![], // P2P 3-way uses TLV, not neighbor list
+                    tlvs: p2p.tlvs.clone(),
+                };
+                self.process_iih(&iih, iface).await;
             }
             IsisPacketBody::Lsp(lsp) => {
                 if !self.lsp_db.contains_newer(&lsp.lsp_id, lsp.sequence_number) {

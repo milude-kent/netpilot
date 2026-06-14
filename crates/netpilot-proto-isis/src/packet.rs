@@ -17,6 +17,7 @@ pub struct IsisHeader {
 pub enum PduType {
     Level1LanIih = 15,
     Level2LanIih = 16,
+    P2pIih = 17,
     Level1Lsp = 18,
     Level2Lsp = 20,
     Level1Csnp = 24,
@@ -30,6 +31,7 @@ impl PduType {
         match v {
             15 => Some(Self::Level1LanIih),
             16 => Some(Self::Level2LanIih),
+            17 => Some(Self::P2pIih),
             18 => Some(Self::Level1Lsp),
             20 => Some(Self::Level2Lsp),
             24 => Some(Self::Level1Csnp),
@@ -44,6 +46,7 @@ impl PduType {
         match self {
             Self::Level1LanIih => 15,
             Self::Level2LanIih => 16,
+            Self::P2pIih => 17,
             Self::Level1Lsp => 18,
             Self::Level2Lsp => 20,
             Self::Level1Csnp => 24,
@@ -58,7 +61,7 @@ impl PduType {
     }
 
     pub fn is_hello(&self) -> bool {
-        matches!(self, Self::Level1LanIih | Self::Level2LanIih)
+        matches!(self, Self::Level1LanIih | Self::Level2LanIih | Self::P2pIih)
     }
 }
 
@@ -72,6 +75,7 @@ pub struct IsisPacket {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum IsisPacketBody {
     Iih(IihPacket),
+    P2pIih(P2pIihPacket),
     Lsp(LspPacket),
     Csnp(CsnpPacket),
     Psnp(PsnpPacket),
@@ -87,6 +91,18 @@ pub struct IihPacket {
     pub priority: u8,           // DIS priority (0-127)
     pub lan_id: Option<String>, // DIS system ID + pseudonode
     pub neighbors: Vec<String>, // system IDs of neighbors seen
+    pub tlvs: Vec<IsisTlv>,
+}
+
+/// IS-IS Point-to-Point IIH (PDU type 17).
+/// Different from LAN IIH: no priority/lan-id, has local_circuit_id.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct P2pIihPacket {
+    pub circuit_type: u8,
+    pub source_id: String, // 6-byte system ID
+    pub holding_time_secs: u16,
+    pub pdu_length: u16,
+    pub local_circuit_id: u32, // unique per circuit
     pub tlvs: Vec<IsisTlv>,
 }
 
@@ -208,6 +224,16 @@ impl IsisPacket {
                 let tlv_bytes = crate::tlv::build_tlvs(&iih.tlvs);
                 buf.extend_from_slice(&tlv_bytes);
             }
+            IsisPacketBody::P2pIih(p2p) => {
+                buf.push(p2p.circuit_type);
+                let src_bytes = system_id_to_bytes(&p2p.source_id);
+                buf.extend_from_slice(&src_bytes);
+                buf.extend_from_slice(&p2p.holding_time_secs.to_be_bytes());
+                buf.extend_from_slice(&p2p.pdu_length.to_be_bytes());
+                buf.push(p2p.local_circuit_id as u8);
+                let tlv_bytes = crate::tlv::build_tlvs(&p2p.tlvs);
+                buf.extend_from_slice(&tlv_bytes);
+            }
             IsisPacketBody::Lsp(lsp) => {
                 // LSP fixed header: remaining_lifetime(2) + lsp_id(8) +
                 //   sequence_number(4) + checksum(2) + type_block(1) = 17 bytes
@@ -299,6 +325,22 @@ impl IsisPacket {
         let body_data = &data[8..];
 
         let body = match pdu_type {
+            PduType::P2pIih => {
+                // P2P IIH: circuit_type(1) + source_id(6) + holding_time(2) +
+                //          pdu_length(2) + local_circuit_id(1) + TLVs
+                let tlvs = crate::tlv::parse_tlvs(body_data);
+                if body_data.len() < 12 {
+                    return Err("P2P IIH too short".into());
+                }
+                IsisPacketBody::P2pIih(P2pIihPacket {
+                    circuit_type: body_data[0],
+                    source_id: bytes_to_system_id(&body_data[1..7]),
+                    holding_time_secs: u16::from_be_bytes([body_data[7], body_data[8]]),
+                    pdu_length: u16::from_be_bytes([body_data[9], body_data[10]]),
+                    local_circuit_id: body_data[11] as u32,
+                    tlvs,
+                })
+            }
             PduType::Level1LanIih | PduType::Level2LanIih => {
                 // IIH: existing decode preserved as-is
                 let tlvs = crate::tlv::parse_tlvs(body_data);
