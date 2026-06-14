@@ -57,6 +57,19 @@ impl RouteTable {
         }
     }
 
+    /// Remove all routes for a given key, regardless of source protocol.
+    /// Returns the count of routes removed.
+    pub fn remove_all(&mut self, key: &RouteKey) -> usize {
+        if let Some(entries) = self.routes.remove(key) {
+            let removed = entries.len();
+            self.route_count -= removed;
+            self.selected.remove(key);
+            removed
+        } else {
+            0
+        }
+    }
+
     /// Look up the selected route for a key.
     pub fn lookup(&self, key: &RouteKey) -> Option<&RouteEntry> {
         self.selected.get(key)
