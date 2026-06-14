@@ -239,6 +239,7 @@ impl IsisActor {
                     prefix: route.prefix.clone(),
                     next_hop: route.next_hop.clone(),
                     preference: 115,
+                    source_protocol: "isis".into(),
                     attributes: RouteAttributes {
                         metric: Some(route.metric),
                         ..Default::default()

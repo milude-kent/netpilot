@@ -118,6 +118,7 @@ impl ProtocolActor for OspfActor {
                             prefix: route.prefix.clone(),
                             next_hop: route.next_hop.clone(),
                             preference: 110,
+                            source_protocol: "ospf".into(),
                             attributes: RouteAttributes {
                                 metric: Some(route.cost),
                                 ..Default::default()

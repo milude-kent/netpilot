@@ -55,6 +55,23 @@ fn parse_root() -> RootCommand {
     }
 }
 
+/// Map a source_protocol string from a ProtocolEvent into the
+/// corresponding kernel RouteProtocol.  Unrecognised strings fall
+/// through to RouteProtocol::Other(0) so the route is still installed.
+fn parse_route_protocol(source: &str) -> netpilot_kernel::RouteProtocol {
+    match source.to_lowercase().as_str() {
+        "bgp" => netpilot_kernel::RouteProtocol::Bgp,
+        "ospf" | "ospfv2" | "ospfv3" => netpilot_kernel::RouteProtocol::Ospf,
+        "isis" => netpilot_kernel::RouteProtocol::Isis,
+        "eigrp" => netpilot_kernel::RouteProtocol::Eigrp,
+        "static" => netpilot_kernel::RouteProtocol::Static,
+        "kernel" => netpilot_kernel::RouteProtocol::Kernel,
+        "boot" => netpilot_kernel::RouteProtocol::Boot,
+        "direct" | "connected" => netpilot_kernel::RouteProtocol::Direct,
+        _ => netpilot_kernel::RouteProtocol::Other(0),
+    }
+}
+
 fn print_help() {
     println!("netpilotd — NetPilot control plane daemon");
     println!();
@@ -185,18 +202,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             prefix,
                             next_hop,
                             preference: _,
-                            attributes: _,
+                            source_protocol,
+                            attributes,
                         } => {
                             rib.process_event(&event);
 
                             // Install into kernel FIB if client is available
                             if let Some(ref kc) = kernel_client {
-                                let route = netpilot_kernel::KernelRoute::new(prefix)
+                                let proto = parse_route_protocol(source_protocol);
+                                let mut route = netpilot_kernel::KernelRoute::new(prefix)
                                     .with_next_hop(next_hop)
                                     .with_table(254)
-                                    .with_protocol(netpilot_kernel::RouteProtocol::Bgp);
+                                    .with_protocol(proto);
+                                if let Some(metric) = attributes.metric {
+                                    route = route.with_metric(metric);
+                                }
                                 if let Err(e) = kc.add(&route).await {
-                                    eprintln!("kernel route add failed: {}", e);
+                                    tracing::error!(prefix = %prefix, error = %e, "kernel route add failed");
                                 }
                             }
                         }
@@ -205,7 +227,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             if let Some(ref kc) = kernel_client {
                                 let route = netpilot_kernel::KernelRoute::new(prefix);
                                 if let Err(e) = kc.delete(&route).await {
-                                    eprintln!("kernel route delete failed: {}", e);
+                                    tracing::error!(prefix = %prefix, error = %e, "kernel route delete failed");
                                 }
                             }
                         }

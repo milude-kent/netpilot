@@ -8,6 +8,8 @@ pub enum ProtocolEvent {
         prefix: String,
         next_hop: String,
         preference: u32,
+        #[serde(default)]
+        source_protocol: String,
         attributes: RouteAttributes,
     },
     RouteWithdraw {

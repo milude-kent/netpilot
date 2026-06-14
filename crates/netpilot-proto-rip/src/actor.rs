@@ -56,6 +56,7 @@ impl RipActor {
                     prefix: prefix.clone(),
                     next_hop: self.router_id.clone(),
                     preference: 120,
+                    source_protocol: "rip".into(),
                     attributes: RouteAttributes {
                         metric: Some(new_metric),
                         ..Default::default()

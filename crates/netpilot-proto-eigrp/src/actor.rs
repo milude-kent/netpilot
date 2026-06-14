@@ -209,6 +209,7 @@ impl EigrpActor {
                     prefix: entry.prefix.clone(),
                     next_hop: successor.clone(),
                     preference: 90, // EIGRP internal
+                    source_protocol: "eigrp".into(),
                     attributes: RouteAttributes {
                         metric: Some(entry.metric.composite()),
                         ..Default::default()

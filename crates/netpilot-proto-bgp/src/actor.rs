@@ -130,6 +130,7 @@ impl ProtocolActor for BgpActor {
                                                             prefix: prefix.clone(),
                                                             next_hop: addr.clone(),
                                                             preference: 100,
+                                                            source_protocol: "bgp".into(),
                                                             attributes: Default::default(),
                                                         });
                                                     }

@@ -34,6 +34,7 @@ impl RibCore {
                 prefix,
                 next_hop,
                 preference,
+                source_protocol: _,
                 attributes,
             } => {
                 let key = RouteKey::prefix(prefix);

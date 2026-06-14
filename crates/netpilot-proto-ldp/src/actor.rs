@@ -51,6 +51,7 @@ impl LdpActor {
                 prefix: prefix.to_string(),
                 next_hop: self.lsr_id.clone(),
                 preference: 150,
+                source_protocol: "ldp".into(),
                 attributes: Default::default(),
             });
         }
@@ -131,6 +132,7 @@ impl ProtocolActor for LdpActor {
                             prefix: prefix.to_string(),
                             next_hop: self.lsr_id.clone(),
                             preference: 150,
+                            source_protocol: "ldp".into(),
                             attributes: RouteAttributes { mpls_label: Some(label), ..Default::default() },
                         });
                     }
