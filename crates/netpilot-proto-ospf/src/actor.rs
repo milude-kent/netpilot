@@ -102,6 +102,7 @@ impl OspfActor {
     fn handle_hello(&mut self, hello: &netpilot_io::ospf::HelloPacket, iface: &str) {
         let peer_id_u32 = hello.header.router_id;
         let peer_id = netpilot_io::ospf::format_ospf_id(peer_id_u32);
+        let router_id_u32 = self.router_id_u32;
 
         // Find or create the neighbor entry
         let neighbor = self
@@ -114,7 +115,7 @@ impl OspfActor {
         neighbor.dead_timer_secs = hello.dead_interval_secs;
 
         // Check if our router ID is in the neighbor list → TwoWay
-        let saw_us = hello.neighbors.contains(&self.router_id_u32);
+        let saw_us = hello.neighbors.contains(&router_id_u32);
 
         let new_state = if saw_us {
             OspfNeighborState::TwoWay
@@ -125,23 +126,64 @@ impl OspfActor {
         if neighbor.state != new_state {
             let old = neighbor.state.clone();
             neighbor.state = new_state.clone();
+
+            // Collect events to emit after releasing the mutable borrow
+            let events: Vec<ProtocolEvent> = {
+                let mut ev = vec![ProtocolEvent::StateChange {
+                    protocol_name: self.name.clone(),
+                    new_state: ProtocolState::Up,
+                    message: format!(
+                        "OSPF neighbor {} on {} state {} → {}",
+                        peer_id,
+                        iface,
+                        state_str(&old),
+                        state_str(&new_state)
+                    ),
+                }];
+
+                if new_state == OspfNeighborState::TwoWay {
+                    neighbor.state = OspfNeighborState::ExStart;
+                    ev.push(ProtocolEvent::StateChange {
+                        protocol_name: self.name.clone(),
+                        new_state: ProtocolState::Up,
+                        message: format!("OSPF neighbor {} on {} starting ExStart", peer_id, iface),
+                    });
+                }
+                ev
+            };
+
+            for event in events {
+                self.emit(event);
+            }
+
+            // Generate LSA after releasing neighbor borrow
+            if new_state == OspfNeighborState::TwoWay {
+                self.generate_router_lsa_for_neighbor(peer_id_u32, iface);
+            }
+        }
+    }
+
+    /// Process a received OSPF DB Description packet.
+    #[allow(dead_code)]
+    fn handle_db_desc(&mut self, dd: &netpilot_io::ospf::DbDescPacket) {
+        let peer_id_u32 = dd.header.router_id;
+        let Some(neighbor) = self.neighbors.get_mut(&peer_id_u32) else {
+            return;
+        };
+        let old_state = neighbor.state.clone();
+        let new_state = neighbor.process_db_desc(dd);
+
+        if new_state != old_state {
             self.emit(ProtocolEvent::StateChange {
                 protocol_name: self.name.clone(),
                 new_state: ProtocolState::Up,
                 message: format!(
-                    "OSPF neighbor {} on {} state {} → {}",
-                    peer_id,
-                    iface,
-                    state_str(&old),
+                    "OSPF neighbor {} DD exchange: {} → {}",
+                    netpilot_io::ospf::format_ospf_id(peer_id_u32),
+                    state_str(&old_state),
                     state_str(&new_state)
                 ),
             });
-
-            // On TwoWay, generate a Router LSA for this adjacency if we
-            // have an interface in the same area.
-            if new_state == OspfNeighborState::TwoWay {
-                self.generate_router_lsa_for_neighbor(peer_id_u32, iface);
-            }
         }
     }
 
