@@ -183,12 +183,18 @@ impl IsisActor {
                     self.flood_lsp(lsp, iface).await;
                 }
             }
-            IsisPacketBody::Csnp(_csnp) => {
-                // Full CSNP processing would trigger LSP synchronization
+            IsisPacketBody::Csnp(csnp) => {
+                // Compare CSNP entries against our LSDB to find missing/newer LSPs.
+                // Send PSNP requesting missing ones, and flood any LSPs we have
+                // that are newer than what the CSNP indicates.
+                self.process_csnp(csnp, iface).await;
                 self.stats.updates_received += 1;
             }
-            IsisPacketBody::Psnp(_psnp) => {
-                // PSNP processing would request missing LSPs
+            IsisPacketBody::Psnp(psnp) => {
+                // PSNP can serve as:
+                // 1. Request for missing LSPs (send them)
+                // 2. Acknowledgment on P2P links (mark as received)
+                self.process_psnp(psnp, iface).await;
                 self.stats.updates_received += 1;
             }
         }
@@ -327,6 +333,108 @@ impl IsisActor {
                     let _ = transport.send(&iface.interface, &pkt).await;
                 }
             }
+        }
+    }
+
+    /// Process a received CSNP: compare entries against our LSDB.
+    ///
+    /// For each CSNP entry:
+    /// - If we don't have it or our copy is older → send PSNP to request it
+    /// - If we have a newer copy → flood our LSP to the sender
+    async fn process_csnp(&mut self, csnp: &crate::packet::CsnpPacket, received_iface: &str) {
+        let mut missing_lsp_ids: Vec<crate::packet::LspId> = Vec::new();
+
+        for entry in &csnp.lsp_entries {
+            match self.lsp_db.get(&entry.lsp_id) {
+                None => {
+                    // We don't have this LSP — request it via PSNP
+                    missing_lsp_ids.push(entry.lsp_id.clone());
+                }
+                Some(our_entry) => {
+                    if our_entry.sequence_number < entry.sequence_number {
+                        // Our copy is older — request the newer version
+                        missing_lsp_ids.push(entry.lsp_id.clone());
+                    } else if our_entry.sequence_number > entry.sequence_number {
+                        // Our copy is newer — flood it to the sender
+                        let lsp_pkt = crate::packet::LspPacket {
+                            pdu_length: 0,
+                            lsp_id: our_entry.lsp_id.clone(),
+                            sequence_number: our_entry.sequence_number,
+                            remaining_lifetime_secs: our_entry.remaining_lifetime_secs,
+                            checksum: our_entry.checksum,
+                            flags: crate::packet::LspFlags::default(),
+                            tlvs: our_entry.tlvs.clone(),
+                        };
+                        self.flood_lsp(&lsp_pkt, received_iface).await;
+                    }
+                    // Same sequence number — nothing to do
+                }
+            }
+        }
+
+        // Send PSNP requesting missing LSPs
+        if !missing_lsp_ids.is_empty() {
+            self.send_psnp(&missing_lsp_ids, received_iface).await;
+        }
+    }
+
+    /// Process a received PSNP: send requested LSPs.
+    async fn process_psnp(&mut self, psnp: &crate::packet::PsnpPacket, _received_iface: &str) {
+        for entry in &psnp.lsp_entries {
+            if let Some(our_entry) = self.lsp_db.get(&entry.lsp_id) {
+                let lsp_pkt = crate::packet::LspPacket {
+                    pdu_length: 0,
+                    lsp_id: our_entry.lsp_id.clone(),
+                    sequence_number: our_entry.sequence_number,
+                    remaining_lifetime_secs: our_entry.remaining_lifetime_secs,
+                    checksum: our_entry.checksum,
+                    flags: crate::packet::LspFlags::default(),
+                    tlvs: our_entry.tlvs.clone(),
+                };
+                self.send_lsp_packet(&lsp_pkt).await;
+            }
+        }
+    }
+
+    /// Send a PSNP requesting specific LSPs on a given interface.
+    async fn send_psnp(&mut self, lsp_ids: &[crate::packet::LspId], iface: &str) {
+        if self.transport.is_none() {
+            return;
+        }
+
+        let lsp_entries: Vec<crate::packet::CsnpLspEntry> = lsp_ids
+            .iter()
+            .map(|id| crate::packet::CsnpLspEntry {
+                lsp_id: id.clone(),
+                sequence_number: 0, // we don't know the seq — request any
+                remaining_lifetime_secs: 0,
+                checksum: 0,
+            })
+            .collect();
+
+        let psnp = crate::packet::PsnpPacket {
+            pdu_length: 0,
+            source_id: self.config.system_id.clone(),
+            lsp_entries,
+            tlvs: vec![],
+        };
+
+        let pkt = IsisPacket {
+            header: crate::packet::IsisHeader {
+                protocol_id: 0x83,
+                header_length: 8,
+                version: 1,
+                system_id_length: 0,
+                pdu_type: PduType::Level2Psnp,
+                version2: 1,
+                reserved: 0,
+                max_area_addresses: 3,
+            },
+            body: IsisPacketBody::Psnp(psnp),
+        };
+
+        if let Some(ref transport) = self.transport {
+            let _ = transport.send(iface, &pkt).await;
         }
     }
 }
