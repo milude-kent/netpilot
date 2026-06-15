@@ -370,6 +370,39 @@ pub fn encode_db_desc(pkt: &DbDescPacket) -> Vec<u8> {
     buf
 }
 
+/// Encode an LS Request packet into wire bytes.
+pub fn encode_ls_request(pkt: &LsRequestPacket) -> Result<Vec<u8>, OspfCodecError> {
+    let mut buf = encode_header(&pkt.header);
+    // Each LS Request entry: ls_type(4) + link_state_id(4) + advertising_router(4) = 12 bytes
+    for req in &pkt.requests {
+        buf.extend_from_slice(&(req.ls_type as u32).to_be_bytes());
+        buf.extend_from_slice(&req.link_state_id.to_be_bytes());
+        buf.extend_from_slice(&req.advertising_router.to_be_bytes());
+    }
+    let len = buf.len() as u16;
+    buf[2..4].copy_from_slice(&len.to_be_bytes());
+    Ok(buf)
+}
+
+/// Encode an LS Update packet into wire bytes.
+pub fn encode_ls_update(pkt: &LsUpdatePacket) -> Result<Vec<u8>, OspfCodecError> {
+    let mut buf = encode_header(&pkt.header);
+    buf.extend_from_slice(&(pkt.lsas.len() as u32).to_be_bytes());
+    for lsa in &pkt.lsas {
+        buf.extend_from_slice(&lsa.header.ls_age.to_be_bytes());
+        buf.push(lsa.header.ls_type);
+        buf.extend_from_slice(&lsa.header.link_state_id.to_be_bytes());
+        buf.extend_from_slice(&lsa.header.advertising_router.to_be_bytes());
+        buf.extend_from_slice(&lsa.header.ls_sequence_number.to_be_bytes());
+        buf.extend_from_slice(&lsa.header.ls_checksum.to_be_bytes());
+        buf.extend_from_slice(&lsa.header.length.to_be_bytes());
+        buf.extend_from_slice(&lsa.body);
+    }
+    let len = buf.len() as u16;
+    buf[2..4].copy_from_slice(&len.to_be_bytes());
+    Ok(buf)
+}
+
 /// Compute the OSPF Fletcher checksum over the packet bytes.
 /// The checksum and authentication fields (bytes 12-23) are
 /// treated as zero during computation.

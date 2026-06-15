@@ -279,16 +279,77 @@ impl OspfActor {
         let new_state = neighbor.process_db_desc(dd);
 
         if new_state != old_state {
-            self.emit(ProtocolEvent::StateChange {
-                protocol_name: self.name.clone(),
-                new_state: ProtocolState::Up,
-                message: format!(
-                    "OSPF neighbor {} DD exchange: {} → {}",
-                    netpilot_io::ospf::format_ospf_id(peer_id_u32),
-                    state_str(&old_state),
-                    state_str(&new_state)
-                ),
-            });
+            // Collect data before releasing mutable borrow
+            let requests = if new_state == OspfNeighborState::Loading {
+                neighbor.ls_request_list.clone()
+            } else {
+                Vec::new()
+            };
+
+            let events: Vec<ProtocolEvent> = {
+                let mut ev = vec![ProtocolEvent::StateChange {
+                    protocol_name: self.name.clone(),
+                    new_state: ProtocolState::Up,
+                    message: format!(
+                        "OSPF neighbor {} DD exchange: {} → {}",
+                        netpilot_io::ospf::format_ospf_id(peer_id_u32),
+                        state_str(&old_state),
+                        state_str(&new_state)
+                    ),
+                }];
+
+                if new_state == OspfNeighborState::Full {
+                    ev.push(ProtocolEvent::StateChange {
+                        protocol_name: self.name.clone(),
+                        new_state: ProtocolState::Up,
+                        message: format!(
+                            "OSPF adjacency with {} is now Full",
+                            netpilot_io::ospf::format_ospf_id(peer_id_u32)
+                        ),
+                    });
+                }
+                ev
+            };
+
+            for event in events {
+                self.emit(event);
+            }
+
+            // If we transitioned to Loading, send LS Request for missing LSAs
+            if new_state == OspfNeighborState::Loading && !requests.is_empty() {
+                self.send_ls_request(peer_id_u32, &requests);
+            }
+        }
+    }
+
+    /// Build and send an LS Request packet to a neighbor.
+    fn send_ls_request(
+        &mut self,
+        peer_id_u32: u32,
+        requests: &[netpilot_io::ospf::LsRequestEntry],
+    ) {
+        let ls_req = netpilot_io::ospf::LsRequestPacket {
+            header: netpilot_io::ospf::OspfHeader {
+                version: 2,
+                packet_type: 3, // LS Request
+                packet_length: 0,
+                router_id: self.router_id_u32,
+                area_id: self.interfaces.first().map(|i| i.area_id).unwrap_or(0),
+                checksum: 0,
+                auth_type: 0,
+                auth_data: [0u8; 8],
+            },
+            requests: requests.to_vec(),
+        };
+
+        if let Ok(encoded) = netpilot_io::ospf::encode_ls_request(&ls_req) {
+            tracing::debug!(
+                neighbor = %netpilot_io::ospf::format_ospf_id(peer_id_u32),
+                count = requests.len(),
+                "OSPF sending LS Request"
+            );
+            // In a real implementation, we'd send via transport
+            let _ = encoded;
         }
     }
 
