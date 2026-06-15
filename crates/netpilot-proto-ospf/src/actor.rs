@@ -51,6 +51,78 @@ impl OspfInterface {
             cost: 1,
         }
     }
+
+    /// Run DR/BDR election on this interface per RFC 2328 §9.4.
+    /// Returns true if DR or BDR changed.
+    pub fn elect_dr_bdr(
+        &mut self,
+        local_router_id: u32,
+        local_priority: u8,
+        neighbors: &HashMap<u32, OspfNeighbor>,
+    ) -> bool {
+        // Build eligible router list: routers with priority > 0 that are
+        // in TwoWay or higher state (RFC 2328 §9.4)
+        let mut eligible: Vec<(u8, u32)> = vec![];
+
+        if local_priority > 0 {
+            eligible.push((local_priority, local_router_id));
+        }
+
+        for neighbor in neighbors.values() {
+            if neighbor.interface == self.name
+                && neighbor.priority > 0
+                && neighbor.state != OspfNeighborState::Down
+                && neighbor.state != OspfNeighborState::Init
+            {
+                eligible.push((
+                    neighbor.priority,
+                    neighbor.router_id.parse().unwrap_or(0u32),
+                ));
+            }
+        }
+
+        if eligible.is_empty() {
+            return false;
+        }
+
+        // Sort by priority (desc), then router ID (desc) for tie-breaking
+        eligible.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.cmp(&a.1)));
+
+        // BDR: the router with highest priority that is NOT claiming to be DR
+        // For simplicity, just pick the second-best after DR
+        let old_dr = self.designated_router;
+        let old_bdr = self.backup_designated_router;
+
+        // DR: best eligible router
+        self.designated_router = eligible.first().map(|(_, id)| *id).unwrap_or(0);
+
+        // BDR: second-best eligible router
+        self.backup_designated_router = eligible.get(1).map(|(_, id)| *id).unwrap_or(0);
+
+        // Update interface state based on DR/BDR result
+        if self.designated_router == local_router_id {
+            self.state = OspfInterfaceState::Dr;
+        } else if self.backup_designated_router == local_router_id {
+            self.state = OspfInterfaceState::Backup;
+        } else {
+            self.state = OspfInterfaceState::DrOther;
+        }
+
+        let changed = old_dr != self.designated_router || old_bdr != self.backup_designated_router;
+        if changed {
+            tracing::info!(
+                interface = %self.name,
+                old_dr = %netpilot_io::ospf::format_ospf_id(old_dr),
+                new_dr = %netpilot_io::ospf::format_ospf_id(self.designated_router),
+                old_bdr = %netpilot_io::ospf::format_ospf_id(old_bdr),
+                new_bdr = %netpilot_io::ospf::format_ospf_id(self.backup_designated_router),
+                our_state = ?self.state,
+                "OSPF DR/BDR election result"
+            );
+        }
+
+        changed
+    }
 }
 
 #[allow(dead_code)]
@@ -160,6 +232,39 @@ impl OspfActor {
             if new_state == OspfNeighborState::TwoWay {
                 self.generate_router_lsa_for_neighbor(peer_id_u32, iface);
             }
+        }
+
+        // Run DR/BDR election after processing Hello
+        self.run_dr_bdr_election(iface);
+    }
+
+    /// Run DR/BDR election on all interfaces matching the given name.
+    fn run_dr_bdr_election(&mut self, iface_name: &str) {
+        let local_router_id = self.router_id_u32;
+        let mut events: Vec<ProtocolEvent> = Vec::new();
+
+        for iface in &mut self.interfaces {
+            if iface.name != iface_name {
+                continue;
+            }
+            let local_priority = iface.router_priority;
+            let changed = iface.elect_dr_bdr(local_router_id, local_priority, &self.neighbors);
+            if changed {
+                events.push(ProtocolEvent::StateChange {
+                    protocol_name: self.name.clone(),
+                    new_state: ProtocolState::Up,
+                    message: format!(
+                        "OSPF DR/BDR changed on {}: DR={} BDR={}",
+                        iface.name,
+                        netpilot_io::ospf::format_ospf_id(iface.designated_router),
+                        netpilot_io::ospf::format_ospf_id(iface.backup_designated_router),
+                    ),
+                });
+            }
+        }
+
+        for event in events {
+            self.emit(event);
         }
     }
 
