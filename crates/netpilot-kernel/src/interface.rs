@@ -86,11 +86,10 @@ impl InterfaceWatcher {
     #[allow(unused_mut, clippy::needless_return)]
     pub async fn watch(
         &mut self,
-    ) -> Result<impl futures::Stream<Item = InterfaceEvent>, KernelError> {
+    ) -> Result<Box<dyn futures::Stream<Item = InterfaceEvent> + Unpin + Send>, KernelError> {
         #[cfg(target_os = "linux")]
         {
             if let Some(ref handle) = self.handle {
-                use futures::StreamExt;
                 use rtnetlink::packet_route::link::LinkAttribute;
 
                 // Subscribe to link and address changes
@@ -195,12 +194,13 @@ impl InterfaceWatcher {
                 });
 
                 // Convert mpsc receiver to stream
-                return Ok(futures::stream::unfold(link_rx, |mut rx| async move {
-                    rx.recv().await.map(|event| (event, rx))
-                }));
+                return Ok(Box::new(futures::stream::unfold(
+                    link_rx,
+                    |mut rx| async move { rx.recv().await.map(|event| (event, rx)) },
+                )));
             }
         }
-        Ok(futures::stream::empty())
+        Ok(Box::new(futures::stream::empty()))
     }
 
     /// List all interfaces (snapshot).
