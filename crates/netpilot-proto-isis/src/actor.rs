@@ -84,6 +84,7 @@ pub struct IsisActor {
     config: IsisConfig,
     adjacencies: HashMap<String, Adjacency>,
     lsp_db: LspDatabase,
+    lsp_retrans: crate::lsp::LspRetransmissionList,
     timers: IsisTimers,
     transport: Option<Box<dyn IsisTransport>>,
     event_tx: Option<tokio::sync::broadcast::Sender<ProtocolEvent>>,
@@ -100,6 +101,7 @@ impl IsisActor {
             config,
             adjacencies: HashMap::new(),
             lsp_db: LspDatabase::new(),
+            lsp_retrans: crate::lsp::LspRetransmissionList::new(),
             timers: IsisTimers::default_timers(),
             transport: None,
             event_tx: None,
@@ -485,6 +487,9 @@ impl IsisActor {
                         protocol_name: self.name.clone(),
                         message: format!("LSP flood failed on {}: {}", iface.interface, e),
                     });
+                } else {
+                    // Track for retransmission on P2P links
+                    self.lsp_retrans.add(&iface.interface, &lsp.lsp_id);
                 }
             }
         }
@@ -566,8 +571,12 @@ impl IsisActor {
     }
 
     /// Process a received PSNP: send requested LSPs.
-    async fn process_psnp(&mut self, psnp: &crate::packet::PsnpPacket, _received_iface: &str) {
+    async fn process_psnp(&mut self, psnp: &crate::packet::PsnpPacket, received_iface: &str) {
         for entry in &psnp.lsp_entries {
+            // PSNP serves as acknowledgment on P2P — remove from retrans list
+            self.lsp_retrans.acknowledge(received_iface, &entry.lsp_id);
+
+            // Also send the requested LSP if we have it
             if let Some(our_entry) = self.lsp_db.get(&entry.lsp_id) {
                 let lsp_pkt = crate::packet::LspPacket {
                     pdu_length: 0,
@@ -744,6 +753,58 @@ impl IsisActor {
             let _ = transport.send(iface, &pkt).await;
         }
     }
+
+    /// Retransmit LSPs that have not been acknowledged on P2P interfaces.
+    async fn lsp_retrans_tick(&mut self) {
+        if self.transport.is_none() {
+            return;
+        }
+
+        for iface in &self.config.interfaces {
+            if !self.lsp_retrans.has_pending(&iface.interface) {
+                continue;
+            }
+
+            let pending_ids = self.lsp_retrans.pending_on(&iface.interface);
+            for lsp_key in &pending_ids {
+                // Look up the LSP in our database by display key
+                if let Some(entry) = self.lsp_db.all().find(|e| e.lsp_id.display() == *lsp_key) {
+                    let lsp_pkt = crate::packet::LspPacket {
+                        pdu_length: 0,
+                        lsp_id: entry.lsp_id.clone(),
+                        sequence_number: entry.sequence_number,
+                        remaining_lifetime_secs: entry.remaining_lifetime_secs,
+                        checksum: entry.checksum,
+                        flags: crate::packet::LspFlags::default(),
+                        tlvs: entry.tlvs.clone(),
+                    };
+
+                    let pkt = IsisPacket {
+                        header: crate::packet::IsisHeader {
+                            protocol_id: 0x83,
+                            header_length: 8,
+                            version: 1,
+                            system_id_length: 0,
+                            pdu_type: PduType::Level2Lsp,
+                            version2: 1,
+                            reserved: 0,
+                            max_area_addresses: 3,
+                        },
+                        body: IsisPacketBody::Lsp(lsp_pkt),
+                    };
+
+                    if let Some(ref transport) = self.transport {
+                        tracing::debug!(
+                            interface = %iface.interface,
+                            lsp_id = %lsp_key,
+                            "IS-IS LSP retransmission"
+                        );
+                        let _ = transport.send(&iface.interface, &pkt).await;
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[async_trait]
@@ -891,6 +952,9 @@ impl ProtocolActor for IsisActor {
                             message: format!("purged {} expired LSPs", purged),
                         });
                     }
+                }
+                _ = self.timers.lsp_retrans_interval.tick() => {
+                    self.lsp_retrans_tick().await;
                 }
             }
         }
