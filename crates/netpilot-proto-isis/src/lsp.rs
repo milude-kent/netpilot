@@ -45,7 +45,14 @@ impl LspDatabase {
     }
 
     /// Generate a self-LSP from local adjacency state.
-    pub fn generate_self_lsp(&self, system_id: &str, adjacencies: &[Adjacency]) -> LspPacket {
+    /// `area_addresses` and `ip_prefixes` are injected by the actor from config.
+    pub fn generate_self_lsp(
+        &self,
+        system_id: &str,
+        adjacencies: &[Adjacency],
+        area_addresses: &[String],
+        ip_prefixes: &[String],
+    ) -> LspPacket {
         let up_adjs: Vec<&Adjacency> = adjacencies.iter().filter(|a| a.is_up()).collect();
         let neighbors: Vec<ExtendedNeighbor> = up_adjs
             .iter()
@@ -56,11 +63,27 @@ impl LspDatabase {
             })
             .collect();
 
-        let tlvs = vec![
+        let mut tlvs = vec![
             IsisTlv::Hostname(system_id.to_string()),
-            IsisTlv::AreaAddresses(vec!["49.0001".to_string()]),
+            IsisTlv::AreaAddresses(area_addresses.to_vec()),
             IsisTlv::ExtendedIsReachability(neighbors),
         ];
+
+        // Add IPv4 prefixes (TLV 128) if configured
+        if !ip_prefixes.is_empty() {
+            tlvs.push(IsisTlv::IpInternalReachability(
+                ip_prefixes
+                    .iter()
+                    .map(|p| crate::tlv::IpReachEntry {
+                        prefix: p.clone(),
+                        metric: 10,
+                        up_down: false,
+                        sub_tlv: false,
+                        prefix_len: 0,
+                    })
+                    .collect(),
+            ));
+        }
 
         let existing = self
             .lsps

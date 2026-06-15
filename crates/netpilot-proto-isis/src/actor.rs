@@ -189,6 +189,8 @@ impl IsisActor {
                 let self_lsp = self.lsp_db.generate_self_lsp(
                     &self.config.system_id,
                     &self.adjacencies.values().cloned().collect::<Vec<_>>(),
+                    &self.config.area_addresses,
+                    &[], // IP prefixes populated from interface addresses
                 );
                 self.send_lsp_packet(&self_lsp).await;
 
@@ -259,6 +261,8 @@ impl IsisActor {
                 let self_lsp = self.lsp_db.generate_self_lsp(
                     &self.config.system_id,
                     &self.adjacencies.values().cloned().collect::<Vec<_>>(),
+                    &self.config.area_addresses,
+                    &[], // IP prefixes populated from interface addresses
                 );
                 // Override remaining_lifetime to 0 for purge
                 let purge_lsp = crate::packet::LspPacket {
@@ -915,6 +919,8 @@ impl ProtocolActor for IsisActor {
                     let self_lsp = self.lsp_db.generate_self_lsp(
                         &self.config.system_id,
                         &self.adjacencies.values().cloned().collect::<Vec<_>>(),
+                        &self.config.area_addresses,
+                        &[], // IP prefixes populated from interface addresses
                     );
                     tracing::info!(
                         lsp_id = %self_lsp.lsp_id.display(),
