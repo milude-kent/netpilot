@@ -82,11 +82,124 @@ impl InterfaceWatcher {
         })
     }
 
-    /// Stream interface events.
-    #[allow(unused_mut)]
+    /// Stream interface events using rtnetlink on Linux.
+    #[allow(unused_mut, clippy::needless_return)]
     pub async fn watch(
         &mut self,
     ) -> Result<impl futures::Stream<Item = InterfaceEvent>, KernelError> {
+        #[cfg(target_os = "linux")]
+        {
+            if let Some(ref handle) = self.handle {
+                use futures::StreamExt;
+                use rtnetlink::packet_route::link::LinkAttribute;
+
+                // Subscribe to link and address changes
+                let (link_tx, link_rx) = tokio::sync::mpsc::channel::<InterfaceEvent>(256);
+
+                // Spawn a task that monitors link changes
+                let h = handle.clone();
+                let link_tx_clone = link_tx.clone();
+                tokio::spawn(async move {
+                    let mut link_stream = h.link().get().execute();
+                    // We need a different approach: listen for netlink events
+                    // For now, poll periodically
+                    let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
+                    let mut known: std::collections::HashMap<String, InterfaceInfo> =
+                        std::collections::HashMap::new();
+
+                    loop {
+                        interval.tick().await;
+                        // Poll current interface state
+                        let mut new_stream = h.link().get().execute();
+                        let mut current: std::collections::HashMap<String, InterfaceInfo> =
+                            std::collections::HashMap::new();
+
+                        while let Ok(Some(msg)) = new_stream.try_next().await {
+                            let name = msg
+                                .attributes
+                                .iter()
+                                .find_map(|a| {
+                                    if let LinkAttribute::IfName(n) = a {
+                                        Some(n.clone())
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .unwrap_or_default();
+
+                            let nl_flags = msg.header.flags;
+                            let flags = InterfaceFlags {
+                                up: nl_flags.contains(rtnetlink::packet_route::link::LinkFlags::Up),
+                                running: nl_flags
+                                    .contains(rtnetlink::packet_route::link::LinkFlags::Running),
+                                broadcast: nl_flags
+                                    .contains(rtnetlink::packet_route::link::LinkFlags::Broadcast),
+                                multicast: nl_flags
+                                    .contains(rtnetlink::packet_route::link::LinkFlags::Multicast),
+                                loopback: nl_flags
+                                    .contains(rtnetlink::packet_route::link::LinkFlags::Loopback),
+                            };
+
+                            let info = InterfaceInfo {
+                                name: name.clone(),
+                                index: msg.header.index,
+                                flags: flags.clone(),
+                                addresses: Vec::new(),
+                                mtu: msg.attributes.iter().find_map(|a| {
+                                    if let LinkAttribute::Mtu(mtu) = a {
+                                        Some(*mtu)
+                                    } else {
+                                        None
+                                    }
+                                }),
+                            };
+                            current.insert(name, info);
+                        }
+
+                        // Diff: detect new/up/down interfaces
+                        for (name, info) in &current {
+                            match known.get(name) {
+                                None => {
+                                    // New interface
+                                    if info.is_up() {
+                                        let _ = link_tx_clone
+                                            .send(InterfaceEvent::LinkUp { info: info.clone() })
+                                            .await;
+                                    }
+                                }
+                                Some(old) => {
+                                    if !old.is_up() && info.is_up() {
+                                        let _ = link_tx_clone
+                                            .send(InterfaceEvent::LinkUp { info: info.clone() })
+                                            .await;
+                                    } else if old.is_up() && !info.is_up() {
+                                        let _ = link_tx_clone
+                                            .send(InterfaceEvent::LinkDown { name: name.clone() })
+                                            .await;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Detect removed interfaces
+                        for name in known.keys() {
+                            if !current.contains_key(name) {
+                                let _ = link_tx_clone
+                                    .send(InterfaceEvent::LinkDown { name: name.clone() })
+                                    .await;
+                            }
+                        }
+
+                        known = current;
+                    }
+                });
+
+                // Convert mpsc receiver to stream
+                return Ok(futures::stream::unfold(link_rx, |mut rx| async move {
+                    rx.recv().await.map(|event| (event, rx))
+                }));
+            }
+        }
         Ok(futures::stream::empty())
     }
 
