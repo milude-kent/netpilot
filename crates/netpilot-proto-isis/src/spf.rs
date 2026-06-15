@@ -54,19 +54,28 @@ pub fn compute_spf(lsp_db: &LspDatabase, root: &str) -> SpfResult {
         distance: 0,
     });
 
-    // Collect all edges from the LSP database
+    // Collect all edges from the LSP database.
+    // Per RFC 10589 §7.2.6, routers with the overload bit set should not
+    // be used for transit traffic — their adjacency edges are excluded
+    // from the SPF computation (but their own prefixes remain reachable).
     let mut edges: HashMap<String, Vec<(String, u32)>> = HashMap::new();
     for entry in lsp_db.all() {
         let src = entry.lsp_id.system_id.clone();
+        let is_overloaded = entry.overload;
         for tlv in &entry.tlvs {
             if let IsisTlv::ExtendedIsReachability(neighbors) = tlv {
                 for n in neighbors {
                     let dst = n.system_id.clone();
+                    // Always add forward edges (the overloaded router can still
+                    // reach its neighbors), but skip reverse edges for overloaded
+                    // routers (others shouldn't transit through them).
                     edges
                         .entry(src.clone())
                         .or_default()
                         .push((dst.clone(), n.metric));
-                    edges.entry(dst).or_default().push((src.clone(), n.metric));
+                    if !is_overloaded {
+                        edges.entry(dst).or_default().push((src.clone(), n.metric));
+                    }
                 }
             }
         }
@@ -188,6 +197,7 @@ mod tests {
             sequence_number: 1,
             remaining_lifetime_secs: 1200,
             checksum: 0,
+            overload: false,
             tlvs,
             received_at: now,
             expires_at: now + time::Duration::seconds(1200),

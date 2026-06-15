@@ -10,6 +10,7 @@ pub struct LspEntry {
     pub sequence_number: u32,
     pub remaining_lifetime_secs: u16,
     pub checksum: u16,
+    pub overload: bool,
     pub tlvs: Vec<IsisTlv>,
     pub received_at: OffsetDateTime,
     pub expires_at: OffsetDateTime,
@@ -52,6 +53,7 @@ impl LspDatabase {
         adjacencies: &[Adjacency],
         area_addresses: &[String],
         ip_prefixes: &[String],
+        overload: bool,
     ) -> LspPacket {
         let up_adjs: Vec<&Adjacency> = adjacencies.iter().filter(|a| a.is_up()).collect();
         let neighbors: Vec<ExtendedNeighbor> = up_adjs
@@ -96,7 +98,10 @@ impl LspDatabase {
             lsp_id: LspId::new(system_id, 0, 0),
             sequence_number: existing.map_or(1, |e| e.sequence_number + 1),
             checksum: 0,
-            flags: Default::default(),
+            flags: crate::packet::LspFlags {
+                overload,
+                ..Default::default()
+            },
             tlvs,
         }
     }

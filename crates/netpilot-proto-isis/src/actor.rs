@@ -190,7 +190,8 @@ impl IsisActor {
                     &self.config.system_id,
                     &self.adjacencies.values().cloned().collect::<Vec<_>>(),
                     &self.config.area_addresses,
-                    &[], // IP prefixes populated from interface addresses
+                    &[],   // IP prefixes populated from interface addresses
+                    false, // overload bit
                 );
                 self.send_lsp_packet(&self_lsp).await;
 
@@ -262,7 +263,8 @@ impl IsisActor {
                     &self.config.system_id,
                     &self.adjacencies.values().cloned().collect::<Vec<_>>(),
                     &self.config.area_addresses,
-                    &[], // IP prefixes populated from interface addresses
+                    &[],   // IP prefixes populated from interface addresses
+                    false, // overload bit
                 );
                 // Override remaining_lifetime to 0 for purge
                 let purge_lsp = crate::packet::LspPacket {
@@ -332,6 +334,7 @@ impl IsisActor {
                         sequence_number: lsp.sequence_number,
                         remaining_lifetime_secs: lsp.remaining_lifetime_secs,
                         checksum: lsp.checksum,
+                        overload: lsp.flags.overload,
                         tlvs: lsp.tlvs.clone(),
                         received_at: now,
                         expires_at: expires,
@@ -920,7 +923,8 @@ impl ProtocolActor for IsisActor {
                         &self.config.system_id,
                         &self.adjacencies.values().cloned().collect::<Vec<_>>(),
                         &self.config.area_addresses,
-                        &[], // IP prefixes populated from interface addresses
+                        &[],   // IP prefixes populated from interface addresses
+                        false, // overload bit
                     );
                     tracing::info!(
                         lsp_id = %self_lsp.lsp_id.display(),
@@ -935,6 +939,7 @@ impl ProtocolActor for IsisActor {
                         sequence_number: self_lsp.sequence_number,
                         remaining_lifetime_secs: self_lsp.remaining_lifetime_secs,
                         checksum: self_lsp.checksum,
+                        overload: self_lsp.flags.overload,
                         tlvs: self_lsp.tlvs.clone(),
                         received_at: now,
                         expires_at: expires,
