@@ -300,6 +300,127 @@ impl OspfActor {
         }
     }
 
+    /// Build a DB Description packet for a given neighbor.
+    ///
+    /// In ExStart: I=1, M=1, MS=1 (we claim master), empty LSA headers.
+    /// In Exchange: I=0, M depends on remaining LSAs, MS=1 if master else 0,
+    ///   includes LSA headers from our LSDB.
+    fn build_db_desc(
+        &self,
+        neighbor: &OspfNeighbor,
+        iface: &OspfInterface,
+    ) -> netpilot_io::ospf::DbDescPacket {
+        let header = netpilot_io::ospf::OspfHeader {
+            version: 2,
+            packet_type: 2,   // DB Description
+            packet_length: 0, // filled by encode
+            router_id: self.router_id_u32,
+            area_id: iface.area_id,
+            checksum: 0,
+            auth_type: 0,
+            auth_data: [0u8; 8],
+        };
+
+        let (flags, lsa_headers) = match neighbor.state {
+            OspfNeighborState::ExStart => {
+                // I=1, M=1, MS=1 — initial DD claiming master, no LSA headers
+                let flags = 0x07; // I(0x04) | M(0x02) | MS(0x01)
+                (flags, Vec::new())
+            }
+            OspfNeighborState::Exchange => {
+                // I=0, M=0 (simplified: send all we have in one packet),
+                // MS=1 if we are master else 0
+                let ms_bit: u8 = if neighbor.is_master { 0 } else { 1 };
+                let m_bit: u8 = 0; // simplified: single packet carries all LSAs
+                let flags = m_bit | ms_bit;
+
+                // Collect LSA headers from our LSDB
+                let lsa_headers: Vec<netpilot_io::ospf::LsaHeader> = self
+                    .lsdb
+                    .iter()
+                    .map(|(_, entry)| {
+                        let ls_type = match entry.lsa_type {
+                            LsaType::Router => 1u8,
+                            LsaType::Network => 2u8,
+                            LsaType::Summary => 3u8,
+                            LsaType::AsExternal => 5u8,
+                        };
+                        let link_state_id =
+                            netpilot_io::ospf::parse_ospf_id(&entry.link_state_id).unwrap_or(0);
+                        let advertising_router =
+                            netpilot_io::ospf::parse_ospf_id(&entry.advertising_router)
+                                .unwrap_or(0);
+
+                        netpilot_io::ospf::LsaHeader {
+                            ls_age: entry.age_secs,
+                            ls_type,
+                            link_state_id,
+                            advertising_router,
+                            ls_sequence_number: entry.sequence_number,
+                            ls_checksum: 0, // not computed in this simplified impl
+                            length: 20,     // header-only LSAs for now
+                        }
+                    })
+                    .collect();
+
+                (flags, lsa_headers)
+            }
+            _ => {
+                // Should not be called in other states; return empty DD
+                (0, Vec::new())
+            }
+        };
+
+        netpilot_io::ospf::DbDescPacket {
+            header,
+            interface_mtu: 1500,
+            options: 0x02, // E-bit
+            flags,
+            dd_sequence_number: neighbor.dd_sequence_number,
+            lsa_headers,
+        }
+    }
+
+    /// Send DD packets to all neighbors in ExStart/Exchange state.
+    fn send_dd_packets(&self) {
+        for (&peer_id, neighbor) in &self.neighbors {
+            if !matches!(
+                neighbor.state,
+                OspfNeighborState::ExStart | OspfNeighborState::Exchange
+            ) {
+                continue;
+            }
+
+            // Find the interface for this neighbor
+            let iface = self
+                .interfaces
+                .iter()
+                .find(|i| i.name == neighbor.interface)
+                .unwrap_or_else(|| {
+                    self.interfaces.first().unwrap_or_else(|| {
+                        panic!(
+                            "no interface found for neighbor {} on {}",
+                            neighbor.router_id, neighbor.interface
+                        )
+                    })
+                });
+
+            let dd = self.build_db_desc(neighbor, iface);
+            let _encoded = netpilot_io::ospf::encode_db_desc(&dd);
+
+            tracing::debug!(
+                neighbor = %neighbor.router_id,
+                state = %state_str(&neighbor.state),
+                flags = dd.flags,
+                dd_seq = dd.dd_sequence_number,
+                lsa_count = dd.lsa_headers.len(),
+                "OSPF DB Description built and sent"
+            );
+
+            let _ = peer_id; // suppress unused warning
+        }
+    }
+
     /// Check for expired neighbors (dead timer).
     fn check_dead_timers(&mut self) {
         // In a full implementation, each neighbor has a dead timer
@@ -378,6 +499,9 @@ impl ProtocolActor for OspfActor {
         let mut dead_tick = interval(Duration::from_secs(1));
         dead_tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
+        let mut dd_tick = interval(Duration::from_secs(5));
+        dd_tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
+
         loop {
             select! {
                 msg = rx.recv() => {
@@ -425,6 +549,8 @@ impl ProtocolActor for OspfActor {
                             hello.neighbors.len()
                         );
                     }
+                    // Also send DD packets for neighbors in ExStart/Exchange
+                    self.send_dd_packets();
                 }
                 _ = dead_tick.tick() => {
                     self.check_dead_timers();
@@ -444,6 +570,10 @@ impl ProtocolActor for OspfActor {
                             },
                         });
                     }
+                }
+                _ = dd_tick.tick() => {
+                    // Periodically send DD packets to neighbors in ExStart/Exchange
+                    self.send_dd_packets();
                 }
             }
         }

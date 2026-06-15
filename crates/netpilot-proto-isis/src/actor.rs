@@ -15,6 +15,70 @@ use crate::spf::compute_spf;
 use crate::timer::IsisTimers;
 use crate::transport::IsisTransport;
 
+/// Per-interface IS-IS state (DIS tracking, circuit ID).
+#[derive(Clone, Debug)]
+pub struct IsisInterfaceState {
+    pub name: String,
+    pub circuit_id: u32,
+    pub dis_system_id: Option<String>,
+    pub dis_priority: u8,
+    pub is_dis: bool,
+}
+
+impl IsisInterfaceState {
+    pub fn new(name: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            circuit_id: 0,
+            dis_system_id: None,
+            dis_priority: 0,
+            is_dis: false,
+        }
+    }
+
+    /// Run DIS election on this interface per RFC 10589 §8.4.2.
+    /// Returns true if the DIS changed.
+    pub fn elect_dis(
+        &mut self,
+        local_system_id: &str,
+        local_priority: u8,
+        adjacencies: &[&Adjacency],
+    ) -> bool {
+        // Build candidate list: (priority, system_id) — higher priority wins,
+        // ties broken by higher system ID
+        let mut best_priority = local_priority;
+        let mut best_id = local_system_id.to_string();
+
+        for adj in adjacencies {
+            if adj.is_up()
+                && (adj.neighbor_priority > best_priority
+                    || (adj.neighbor_priority == best_priority && adj.neighbor_system_id > best_id))
+            {
+                best_priority = adj.neighbor_priority;
+                best_id = adj.neighbor_system_id.clone();
+            }
+        }
+
+        let new_is_dis = best_id == local_system_id;
+        let changed = self.is_dis != new_is_dis || self.dis_system_id.as_ref() != Some(&best_id);
+
+        if changed {
+            tracing::info!(
+                interface = %self.name,
+                old_dis = ?self.dis_system_id,
+                new_dis = %best_id,
+                is_dis = new_is_dis,
+                "IS-IS DIS election result"
+            );
+        }
+
+        self.dis_system_id = Some(best_id);
+        self.dis_priority = best_priority;
+        self.is_dis = new_is_dis;
+        changed
+    }
+}
+
 pub struct IsisActor {
     name: String,
     config: IsisConfig,
@@ -26,6 +90,7 @@ pub struct IsisActor {
     sequence_number: u32,
     state: ProtocolState,
     stats: ProtocolStats,
+    interface_states: HashMap<String, IsisInterfaceState>,
 }
 
 impl IsisActor {
@@ -41,6 +106,7 @@ impl IsisActor {
             sequence_number: 1,
             state: ProtocolState::Down,
             stats: ProtocolStats::default(),
+            interface_states: HashMap::new(),
         }
     }
 
@@ -322,6 +388,40 @@ impl IsisActor {
         if let Some(ref transport) = self.transport {
             for iface in &self.config.interfaces {
                 let _ = transport.send(&iface.interface, &pkt).await;
+            }
+        }
+
+        // Run DIS election on each interface after sending Hellos
+        self.run_dis_election();
+    }
+
+    /// Run DIS election on all interfaces.
+    fn run_dis_election(&mut self) {
+        let local_priority = 64u8; // default DIS priority
+        let local_system_id = self.config.system_id.clone();
+
+        for iface in &self.config.interfaces {
+            let iface_name = iface.interface.clone();
+            let iface_adjs: Vec<&Adjacency> = self
+                .adjacencies
+                .values()
+                .filter(|a| a.interface == iface_name)
+                .collect();
+
+            let iface_state = self
+                .interface_states
+                .entry(iface_name.clone())
+                .or_insert_with(|| IsisInterfaceState::new(&iface_name));
+
+            let dis_changed = iface_state.elect_dis(&local_system_id, local_priority, &iface_adjs);
+
+            if dis_changed && iface_state.is_dis {
+                // We became DIS — generate pseudonode LSP and send CSNP
+                self.emit(ProtocolEvent::StateChange {
+                    protocol_name: self.name.clone(),
+                    new_state: ProtocolState::Up,
+                    message: format!("became DIS on {}", iface_name),
+                });
             }
         }
     }
@@ -678,6 +778,13 @@ impl ProtocolActor for IsisActor {
             self.config.levels = levels.clone().into_iter().map(Into::into).collect();
             self.config.interfaces = interfaces.clone().into_iter().map(Into::into).collect();
             self.config.sr_enabled = *sr_enabled;
+
+            // Initialize interface states
+            for iface in &self.config.interfaces {
+                self.interface_states
+                    .entry(iface.interface.clone())
+                    .or_insert_with(|| IsisInterfaceState::new(&iface.interface));
+            }
         }
 
         self.emit(ProtocolEvent::StateChange {

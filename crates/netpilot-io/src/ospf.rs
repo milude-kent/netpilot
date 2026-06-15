@@ -348,6 +348,28 @@ pub fn encode_hello(pkt: &HelloPacket) -> Vec<u8> {
     buf
 }
 
+/// Encode a Database Description packet into wire bytes.
+pub fn encode_db_desc(pkt: &DbDescPacket) -> Vec<u8> {
+    let mut buf = encode_header(&pkt.header);
+    buf.extend_from_slice(&pkt.interface_mtu.to_be_bytes());
+    buf.push(pkt.options);
+    buf.push(pkt.flags);
+    buf.extend_from_slice(&pkt.dd_sequence_number.to_be_bytes());
+    for lsa_hdr in &pkt.lsa_headers {
+        buf.extend_from_slice(&lsa_hdr.ls_age.to_be_bytes());
+        buf.push(lsa_hdr.ls_type);
+        buf.extend_from_slice(&lsa_hdr.link_state_id.to_be_bytes());
+        buf.extend_from_slice(&lsa_hdr.advertising_router.to_be_bytes());
+        buf.extend_from_slice(&lsa_hdr.ls_sequence_number.to_be_bytes());
+        buf.extend_from_slice(&lsa_hdr.ls_checksum.to_be_bytes());
+        buf.extend_from_slice(&lsa_hdr.length.to_be_bytes());
+    }
+    // Update packet_length
+    let len = buf.len() as u16;
+    buf[2..4].copy_from_slice(&len.to_be_bytes());
+    buf
+}
+
 /// Compute the OSPF Fletcher checksum over the packet bytes.
 /// The checksum and authentication fields (bytes 12-23) are
 /// treated as zero during computation.
