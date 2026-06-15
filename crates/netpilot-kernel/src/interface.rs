@@ -90,18 +90,16 @@ impl InterfaceWatcher {
         #[cfg(target_os = "linux")]
         {
             if let Some(ref handle) = self.handle {
+                use futures::TryStreamExt;
                 use rtnetlink::packet_route::link::LinkAttribute;
 
                 // Subscribe to link and address changes
                 let (link_tx, link_rx) = tokio::sync::mpsc::channel::<InterfaceEvent>(256);
 
-                // Spawn a task that monitors link changes
+                // Spawn a task that monitors link changes by polling
                 let h = handle.clone();
                 let link_tx_clone = link_tx.clone();
                 tokio::spawn(async move {
-                    let mut link_stream = h.link().get().execute();
-                    // We need a different approach: listen for netlink events
-                    // For now, poll periodically
                     let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
                     let mut known: std::collections::HashMap<String, InterfaceInfo> =
                         std::collections::HashMap::new();
@@ -109,10 +107,10 @@ impl InterfaceWatcher {
                     loop {
                         interval.tick().await;
                         // Poll current interface state
-                        let mut new_stream = h.link().get().execute();
                         let mut current: std::collections::HashMap<String, InterfaceInfo> =
                             std::collections::HashMap::new();
 
+                        let mut new_stream = h.link().get().execute();
                         while let Ok(Some(msg)) = new_stream.try_next().await {
                             let name = msg
                                 .attributes
@@ -142,7 +140,7 @@ impl InterfaceWatcher {
                             let info = InterfaceInfo {
                                 name: name.clone(),
                                 index: msg.header.index,
-                                flags: flags.clone(),
+                                flags,
                                 addresses: Vec::new(),
                                 mtu: msg.attributes.iter().find_map(|a| {
                                     if let LinkAttribute::Mtu(mtu) = a {
@@ -193,10 +191,10 @@ impl InterfaceWatcher {
                     }
                 });
 
-                // Convert mpsc receiver to stream
-                return Ok(Box::new(futures::stream::unfold(
+                // Convert mpsc receiver to a boxed stream using ReceiverStream
+                // (avoids Unpin issues with futures::stream::unfold + async closures)
+                return Ok(Box::new(tokio_stream::wrappers::ReceiverStream::new(
                     link_rx,
-                    |mut rx| async move { rx.recv().await.map(|event| (event, rx)) },
                 )));
             }
         }

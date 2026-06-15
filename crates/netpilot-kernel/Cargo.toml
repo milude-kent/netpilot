@@ -12,6 +12,7 @@ lru = "0.16"
 futures = "0.3"
 thiserror.workspace = true
 tokio.workspace = true
+tokio-stream = "0.1"
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
 nix.workspace = true
